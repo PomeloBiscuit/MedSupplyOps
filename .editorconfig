@@ -1,0 +1,72 @@
+# EditorConfig — 本專案的格式規則以此檔為準，不依賴任何工具的預設值。
+#
+# 為什麼要有這份檔：`dotnet format --verify-no-changes` 是本專案的第三道關卡（lint）。
+# 沒有 .editorconfig 時，它會退回工具當下的預設值 —— 那個預設值會隨 SDK 版本改變，
+# 於是「同一份程式碼在不同機器上關卡結果不同」。關卡必須是可重現的，才有資格當關卡。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,csproj,props,targets,slnx,md}]
+indent_size = 2
+
+[*.md]
+# Markdown 的行尾兩個空白是換行語法，不能砍。
+trim_trailing_whitespace = false
+
+[*.ps1]
+# Windows PowerShell 5.1 讀沒有 BOM 的 UTF-8 會當成 ANSI（正體中文環境是 Big5），
+# 含中文的腳本會在解析階段就爆掉。詳見踩坑紀錄 L-005。
+charset = utf-8-bom
+
+[*.cs]
+# ── using 指示詞 ──
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:warning
+
+# ── 現代 C# 語法 ──
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:warning
+csharp_style_var_for_built_in_types = false:silent
+csharp_style_var_when_type_is_apparent = true:silent
+
+# ── 命名 ──
+# 規則依「出現順序」比對，第一條命中的生效，所以較窄的規則必須寫在前面。
+#
+# 第一版只寫了「私有欄位一律 _camelCase」，結果 IDE1006 對
+# `private static readonly DateOnly Today` 這種 .NET 慣例上該用 PascalCase 的欄位報錯。
+# 規則寫得比慣例寬，擋掉的就是正確的程式碼。
+
+# (1) private static readonly：視同常數，用 PascalCase。
+dotnet_naming_rule.private_static_readonly_pascal.severity = warning
+dotnet_naming_rule.private_static_readonly_pascal.symbols = private_static_readonly_fields
+dotnet_naming_rule.private_static_readonly_pascal.style = pascal
+
+dotnet_naming_symbols.private_static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_readonly_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_readonly_fields.required_modifiers = static, readonly
+
+dotnet_naming_style.pascal.capitalization = pascal_case
+
+# (2) 其餘私有欄位（實例欄位）：_camelCase。
+dotnet_naming_rule.private_fields_underscore.severity = warning
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+
+# ── 明確度 ──
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
+dotnet_style_readonly_field = true:warning
