@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MedSupplyOps.Domain/MedSupplyOps.Domain.csproj" />
+    <Project Path="src/MedSupplyOps.Infrastructure/MedSupplyOps.Infrastructure.csproj" />
+    <Project Path="src/MedSupplyOps.Web/MedSupplyOps.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MedSupplyOps.Domain.Tests/MedSupplyOps.Domain.Tests.csproj" />
+    <Project Path="tests/MedSupplyOps.Integration.Tests/MedSupplyOps.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

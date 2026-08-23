@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\MedSupplyOps.Domain\MedSupplyOps.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 寫入路徑用 EF Core -->
+    <PackageReference Include="Oracle.EntityFrameworkCore" Version="10.23.26300" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <!-- 讀取/報表路徑用手寫 Oracle SQL（NFR-2） -->
+    <PackageReference Include="Dapper" Version="2.1.79" />
+  </ItemGroup>
+</Project>
