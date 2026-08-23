@@ -1,4 +1,6 @@
-* text=auto eol=lf
+# Windows/.NET 專案：repo 內存 LF，工作目錄依平台（Windows 得到 CRLF）。
+# 與 .editorconfig 的 end_of_line=crlf 一致。
+* text=auto
 *.sln  text eol=crlf
 *.slnx text eol=crlf
 *.cmd  text eol=crlf

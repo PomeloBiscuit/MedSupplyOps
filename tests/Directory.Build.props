@@ -1,0 +1,12 @@
+<Project>
+  <!-- 先繼承根目錄的設定（含 TreatWarningsAsErrors），再針對測試專案調整。
+       MSBuild 預設只找「最近的一份」Directory.Build.props，不 Import 就會整份取代掉根設定。 -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- CA1707：識別項不應包含底線。
+         測試方法刻意使用 Given_When_Then 命名，因為測試報告是給人讀的，
+         底線分段比 PascalCase 好認。僅在測試專案關閉。 -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+</Project>
