@@ -33,3 +33,6 @@ wallet/
 Thumbs.db
 .idea/
 *.swp
+
+# Docker 環境變數（含密碼）
+.env

@@ -1,0 +1,58 @@
+# MedSupplyOps 的開發資料庫：Oracle Database Free（官方映像）。
+#
+# 為什麼用容器而不是本機安裝：
+#   1. 面試官可以在自己的機器上一行指令跑起來，不必安裝 Oracle。可重現性本身就是交付物的一部分。
+#   2. `docker compose down -v` 就完全清除，不動到本機的登錄檔、服務與 PATH。
+#   3. 本機安裝在這台機器上連續失敗兩次，依專案的停損規則必須換做法。
+#
+# 用法：
+#   1. cp .env.example .env  然後填入密碼（.env 不會進 repo）
+#   2. docker compose up -d
+#   3. docker compose logs -f oracle    # 首次建庫約 3-10 分鐘，等到 "DATABASE IS READY TO USE!"
+#
+# 連線資訊（建好之後）：
+#   主機 localhost   埠 1521   服務名 FREEPDB1
+#   應用帳號 MEDSUPPLY（由 db/init 建立，權限最小化，不是 SYSTEM）
+
+services:
+  oracle:
+    image: container-registry.oracle.com/database/free:latest
+    container_name: medsupplyops-oracle
+    environment:
+      # SYS / SYSTEM / PDBADMIN 的密碼。只在容器內使用，應用程式不會拿它連線。
+      ORACLE_PWD: ${ORACLE_SYS_PASSWORD}
+      # 應用帳號的密碼，由 db/init/01_create_app_user.sh 使用。
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      ORACLE_CHARACTERSET: AL32UTF8
+    ports:
+      # ★ 綁定 127.0.0.1 而不是預設的 0.0.0.0。
+      #   Docker 的 "1521:1521" 寫法會綁到所有介面，等於把這台資料庫開放給整個區域網路
+      #   ——而且 Docker 會直接改寫 iptables/WinNAT，Windows 防火牆的規則擋不住它。
+      #   開發用資料庫沒有任何理由對外可見。
+      - "127.0.0.1:1521:1521"   # listener
+      - "127.0.0.1:5500:5500"   # EM Express（https://localhost:5500/em）
+    volumes:
+      # 資料落在具名 volume，容器重建不會掉資料；docker compose down -v 才會清掉。
+      - oracle-data:/opt/oracle/oradata
+      # ★ 掛 startup 不是 setup。
+      #   setup 只有在「Oracle 實際建立新資料庫」時才會被執行，
+      #   而 Oracle Free 官方映像內含預建資料庫，走的是「掛載既有資料庫」路徑 ——
+      #   掛在 setup 的腳本永遠不會被觸發（實測過）。
+      #   startup 每次啟動都跑，所以腳本本身做成冪等的。
+      - ./db/init:/opt/oracle/scripts/startup:ro
+      # DDL 由 db/init/02_apply_schema.sh 以 MEDSUPPLY 身分執行（不是 SYSDBA，
+      # 否則物件會落在 SYS schema 下而應用帳號存取不到）。
+      - ./db/schema:/opt/oracle/scripts/schema:ro
+    healthcheck:
+      # 用映像內建的檢查腳本，而不是「port 通了就算好」——
+      # 1521 在資料庫還沒建完時就已經在聽了，用 port 判斷會過早回報就緒。
+      test: ["CMD", "/opt/oracle/checkDBStatus.sh"]
+      interval: 20s
+      timeout: 10s
+      retries: 60
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  oracle-data:
+    name: medsupplyops-oracle-data
