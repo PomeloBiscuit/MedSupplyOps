@@ -1,0 +1,35 @@
+# ── 本機參考資料，不是交付物 ─────────────────────────────
+
+# ── .NET ────────────────────────────────────────────────
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+TestResults/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
+*.received.*
+
+# ── 機敏設定：連線字串一律走 User Secrets / 環境變數 ──────────
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.env
+
+# ── Oracle wallet / 憑證 ────────────────────────────────
+wallet/
+*.pfx
+*.p12
+
+# ── OS / Editor ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
