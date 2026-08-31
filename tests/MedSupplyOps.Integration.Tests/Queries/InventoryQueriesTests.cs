@@ -56,9 +56,18 @@ public sealed class InventoryQueriesTests
 
         var result = await queries.GetExpiringLotsAsync(45, Today);
 
+        // ★ 斷言只針對種子資料（品號 MD-*），不對「整個資料庫的內容」下斷言。
+        //   這支查詢的語意本來就是「回傳所有 N 天內到期的批次」，
+        //   所以其他測試或使用者新增的資料出現在結果裡是**正確行為**，不是缺陷。
+        //   原本寫成整組相等，等於假設資料庫永遠只有種子資料 ——
+        //   任何人加一筆近效期的批次都會讓它變紅，而紅的原因跟這支查詢無關。
+        var seeded = result.Where(lot => lot.ItemCode.StartsWith("MD-", StringComparison.Ordinal)).ToList();
         Assert.Equal(
             ["GAUZE-01", "GLO-FEFO-A", "GLO-FEFO-B"],
-            result.Select(lot => lot.LotNumber));
+            seeded.Select(lot => lot.LotNumber));
+
+        // 這兩條仍然對「所有回傳結果」斷言 —— 它們檢查的是查詢自己的篩選條件，
+        // 不論資料庫裡有什麼，回傳的每一筆都必須符合。
         Assert.All(result, lot => Assert.True(lot.Quantity > 0));
         Assert.All(result, lot => Assert.InRange(lot.ExpiryDate, Today, Today.AddDays(45)));
     }
@@ -71,9 +80,12 @@ public sealed class InventoryQueriesTests
 
         var result = await queries.GetItemsBelowSafetyStockAsync(Today);
 
-        Assert.Equal(["MD-0002", "MD-0003"], result.Select(item => item.ItemCode));
-        Assert.Equal((100, 0), (result[0].SafetyStockQuantity, result[0].AvailableQuantity));
-        Assert.Equal((60, 20), (result[1].SafetyStockQuantity, result[1].AvailableQuantity));
+        // 同上：只對種子資料斷言。這支查詢回傳的是全庫低於安全存量的品項，
+        // 其他測試造的品項出現在裡面並不是缺陷。
+        var seeded = result.Where(item => item.ItemCode.StartsWith("MD-", StringComparison.Ordinal)).ToList();
+        Assert.Equal(["MD-0002", "MD-0003"], seeded.Select(item => item.ItemCode));
+        Assert.Equal((100, 0), (seeded[0].SafetyStockQuantity, seeded[0].AvailableQuantity));
+        Assert.Equal((60, 20), (seeded[1].SafetyStockQuantity, seeded[1].AvailableQuantity));
     }
 
     [Fact]

@@ -85,10 +85,21 @@ $probes = @(
         From   = 'if (string.IsNullOrWhiteSpace(reason))'
         To     = 'if (reason is null && false)'
         Verify = 'if (reason is null && false)'
+    },
+    @{
+        Name        = 'P7  拿掉發料的 SELECT ... FOR UPDATE（並發不再序列化）'
+        Rule        = 'FR-402 並發不得超發'
+        File        = 'src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs'
+        From        = '        FOR UPDATE WAIT'
+        To          = '        -- FOR UPDATE WAIT'
+        Verify      = '-- FOR UPDATE WAIT'
+        TestProject = 'tests/MedSupplyOps.Integration.Tests'
     }
 )
 
 function Invoke-TestRun {
+    param([string]$Project = $TestProject)
+
     # 不要對原生執行檔用 2>&1：Windows PowerShell 5.1 會把 stderr 的每一行包成 ErrorRecord，
     # 在 $ErrorActionPreference='Stop' 之下變成終止錯誤 —— 而測試變紅正是探針要的結果，
     # 不是腳本該中斷的理由。
@@ -102,7 +113,7 @@ function Invoke-TestRun {
     $previousLang = $env:DOTNET_CLI_UI_LANGUAGE
     $env:DOTNET_CLI_UI_LANGUAGE = 'en'
     try {
-        $output = (& dotnet test $TestProject --nologo) | Out-String
+        $output = (& dotnet test $Project --nologo) | Out-String
     }
     finally {
         $env:DOTNET_CLI_UI_LANGUAGE = $previousLang
@@ -124,24 +135,34 @@ function Invoke-TestRun {
     return [pscustomobject]@{ Failed = -1; Passed = -1; Parsed = $false; Raw = $output }
 }
 
+# 每支探針可指定自己的測試專案（並發探針要跑整合測試）。
+# 基線必須針對「該探針實際會跑的那個專案」計算，否則會拿 A 專案的基線去判 B 專案的結果。
+$projects = @($TestProject) + ($probes | ForEach-Object { $_.TestProject }) | Where-Object { $_ } | Select-Object -Unique
+$baselines = @{}
+
 Write-Host '=== 基線（未改壞）===' -ForegroundColor Cyan
-$baseline = Invoke-TestRun
-if (-not $baseline.Parsed) {
-    Write-Host '無法從 dotnet test 的輸出解析出通過／失敗數 —— 這不是測試紅了，是解析壞了。' -ForegroundColor Red
-    Write-Host '以下是實際收到的輸出尾段，請據此修正 Invoke-TestRun 的比對規則：' -ForegroundColor Yellow
-    ($baseline.Raw -split "`n" | Select-Object -Last 8) | ForEach-Object { Write-Host "  $_" }
-    exit 1
+foreach ($proj in $projects) {
+    $b = Invoke-TestRun -Project $proj
+    if (-not $b.Parsed) {
+        Write-Host "無法從 dotnet test 的輸出解析出通過／失敗數（$proj）—— 這不是測試紅了，是解析壞了。" -ForegroundColor Red
+        ($b.Raw -split "`n" | Select-Object -Last 8) | ForEach-Object { Write-Host "  $_" }
+        exit 1
+    }
+    if ($b.Failed -ne 0) {
+        Write-Host "基線就不是全綠（$proj 失敗 $($b.Failed)），先修好再跑探針。" -ForegroundColor Red
+        exit 1
+    }
+    $baselines[$proj] = $b
+    Write-Host ("  {0}: 通過 {1}，失敗 0" -f $proj, $b.Passed) -ForegroundColor Green
 }
-if ($baseline.Failed -ne 0) {
-    Write-Host "基線就不是全綠（失敗 $($baseline.Failed)），先修好再跑探針。" -ForegroundColor Red
-    exit 1
-}
-Write-Host "  通過 $($baseline.Passed)，失敗 0" -ForegroundColor Green
 Write-Host ''
 
 $results = @()
 
 foreach ($probe in $probes) {
+    # 沒指定就用預設專案。指定錯的話，會拿 A 專案的基線去判 B 專案的結果 ——
+    # 那種比較永遠得不到「有鑑別力」，而原因完全看不出來。
+    $probeProject = if ($probe.TestProject) { $probe.TestProject } else { $TestProject }
     $path = Join-Path $repoRoot $probe.File
     $originalBytes = [System.IO.File]::ReadAllBytes($path)
     $text = [System.IO.File]::ReadAllText($path)
@@ -169,7 +190,7 @@ foreach ($probe in $probes) {
                 $verdict = '改壞未生效，本次結果不採信'
             }
             else {
-                $run = Invoke-TestRun
+                $run = Invoke-TestRun -Project $probeProject
                 if ($run.Failed -gt 0) {
                     $verdict = "有鑑別力：$($run.Failed) 條變紅"
                 }
@@ -193,14 +214,18 @@ foreach ($probe in $probes) {
 
 Write-Host ''
 Write-Host '=== 還原後複驗（必須回到基線）===' -ForegroundColor Cyan
-$final = Invoke-TestRun
-if ($final.Failed -eq 0 -and $final.Passed -eq $baseline.Passed) {
-    Write-Host "  通過 $($final.Passed)，失敗 0 — 與基線一致，還原乾淨。" -ForegroundColor Green
+$allRestored = $true
+foreach ($proj in $projects) {
+    $final = Invoke-TestRun -Project $proj
+    if ($final.Failed -eq 0 -and $final.Passed -eq $baselines[$proj].Passed) {
+        Write-Host ("  {0}: 通過 {1}，失敗 0 — 與基線一致，還原乾淨。" -f $proj, $final.Passed) -ForegroundColor Green
+    }
+    else {
+        Write-Host ("  {0}: 與基線不符（通過 {1}，失敗 {2}；基線 {3}）—— 還原有問題。" -f $proj, $final.Passed, $final.Failed, $baselines[$proj].Passed) -ForegroundColor Red
+        $allRestored = $false
+    }
 }
-else {
-    Write-Host "  與基線不符（通過 $($final.Passed)，失敗 $($final.Failed)）—— 還原有問題，請檢查。" -ForegroundColor Red
-    exit 1
-}
+if (-not $allRestored) { exit 1 }
 
 Write-Host ''
 $results | Format-Table -AutoSize

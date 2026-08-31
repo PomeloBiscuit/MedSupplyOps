@@ -45,6 +45,19 @@ csharp_style_var_when_type_is_apparent = true:silent
 # `private static readonly DateOnly Today` 這種 .NET 慣例上該用 PascalCase 的欄位報錯。
 # 規則寫得比慣例寬，擋掉的就是正確的程式碼。
 
+# (0) const：一律 PascalCase。
+#     必須寫在最前面，而且必須用 required_modifiers = const ——
+#     Roslyn 不會把 const 欄位視為符合 `static, readonly`，
+#     所以少了這條，private const 會掉到最後那條 _camelCase 規則而被 IDE1006 擋下。
+#     這是第二次犯同一個錯：規則寫得比 .NET 慣例寬，擋掉的就是正確的程式碼。
+dotnet_naming_rule.const_fields_pascal.severity = warning
+dotnet_naming_rule.const_fields_pascal.symbols = const_fields
+dotnet_naming_rule.const_fields_pascal.style = pascal
+
+dotnet_naming_symbols.const_fields.applicable_kinds = field
+dotnet_naming_symbols.const_fields.applicable_accessibilities = *
+dotnet_naming_symbols.const_fields.required_modifiers = const
+
 # (1) private static readonly：視同常數，用 PascalCase。
 dotnet_naming_rule.private_static_readonly_pascal.severity = warning
 dotnet_naming_rule.private_static_readonly_pascal.symbols = private_static_readonly_fields
