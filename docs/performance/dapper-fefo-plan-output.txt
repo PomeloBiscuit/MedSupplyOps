@@ -1,0 +1,98 @@
+PERF_ROWS_AFTER_SEED
+
+STOCK_LOTS_COUNT
+----------------
+	  100011
+
+
+Index altered.
+
+
+PL/SQL procedure successfully completed.
+
+
+PL/SQL procedure successfully completed.
+
+
+PL/SQL procedure successfully completed.
+
+BEFORE_INDEX_INVISIBLE_AND_FULL_HINT
+
+Index altered.
+
+AFTER_INDEX_VISIBLE
+
+Session altered.
+
+
+
+
+
+BEFORE_INDEX_INVISIBLE_AND_FULL_HINT_PLAN
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&beforeSqlId', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('8zt6xu2m4t71g', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	8zt6xu2m4t71g, child number 0
+-------------------------------------
+SELECT /*+ FULL(l) GATHER_PLAN_STATISTICS */ /* WO_D_FEFO_BEFORE */
+   l.stock_lot_id,	  l.lot_number,        l.expiry_date,
+l.quantity,	   l.storage_location FROM stock_lots l WHERE l.item_id
+= :itemId   AND l.quantity > 0	 AND l.expiry_date >= TO_DATE(:asOf,
+'YYYY-MM-DD') ORDER BY l.expiry_date, l.lot_number, l.stock_lot_id
+
+Plan hash value: 105805309
+
+----------------------------------------------------------------------------------------------------------------------
+| Id  | Operation	   | Name	| Starts | E-Rows | A-Rows |   A-Time	| Buffers |  OMem |  1Mem | Used-Mem |
+----------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT   |		|      1 |	  |    101 |00:00:00.01 |    1004 |	  |	  |	     |
+|   1 |  SORT ORDER BY	   |		|      1 |    102 |    101 |00:00:00.01 |    1004 | 15360 | 15360 |14336  (0)|
+|*  2 |   TABLE ACCESS FULL| STOCK_LOTS |      1 |    102 |    101 |00:00:00.01 |    1004 |	  |	  |	     |
+----------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(("L"."EXPIRY_DATE">=TO_DATE(:ASOF,'YYYY-MM-DD') AND "L"."ITEM_ID"=:ITEMID AND "L"."QUANTITY">0))
+
+
+23 rows selected.
+
+
+
+
+
+AFTER_INDEX_VISIBLE_PLAN
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&afterSqlId', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('6pcszrrn8xypk', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	6pcszrrn8xypk, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_D_FEFO_AFTER */
+l.stock_lot_id,        l.lot_number,	    l.expiry_date,
+l.quantity,	   l.storage_location FROM stock_lots l WHERE l.item_id
+= :itemId   AND l.quantity > 0	 AND l.expiry_date >= TO_DATE(:asOf,
+'YYYY-MM-DD') ORDER BY l.expiry_date, l.lot_number, l.stock_lot_id
+
+Plan hash value: 2273857294
+
+------------------------------------------------------------------------------------------------------------
+| Id  | Operation		    | Name		 | Starts | E-Rows | A-Rows |	A-Time	 | Buffers |
+------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	    |			 |	1 |	   |	101 |00:00:00.01 |     111 |
+|*  1 |  TABLE ACCESS BY INDEX ROWID| STOCK_LOTS	 |	1 |    102 |	101 |00:00:00.01 |     111 |
+|*  2 |   INDEX RANGE SCAN	    | IX_STOCK_LOTS_FEFO |	1 |    102 |	101 |00:00:00.01 |	10 |
+------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter("L"."QUANTITY">0)
+   2 - access("L"."ITEM_ID"=:ITEMID AND "L"."EXPIRY_DATE">=TO_DATE(:ASOF,'YYYY-MM-DD'))
+
+
+24 rows selected.
