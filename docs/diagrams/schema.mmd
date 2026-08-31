@@ -1,0 +1,95 @@
+<!-- 本檔由 scripts/generate-er-diagram.ps1 產生，請勿手動編輯。產生指令：powershell -ExecutionPolicy Bypass -File scripts/generate-er-diagram.ps1 -->
+```mermaid
+erDiagram
+    AUDIT_LOGS {
+        number AUDIT_LOG_ID PK
+        varchar ENTITY_TYPE
+        varchar ENTITY_ID
+        varchar ACTION
+        varchar ACTOR
+        timestamp OCCURRED_AT
+        clob OLD_VALUE
+        clob NEW_VALUE
+    }
+    DEPARTMENTS {
+        number DEPARTMENT_ID PK
+        varchar DEPARTMENT_CODE
+        varchar DEPARTMENT_NAME
+        number IS_ACTIVE
+        number IS_DELETED
+        timestamp DELETED_AT
+        varchar DELETED_BY
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    ISSUE_ALLOCATIONS {
+        number ISSUE_ALLOCATION_ID PK
+        number REQUISITION_LINE_ID FK
+        number STOCK_LOT_ID FK
+        number QUANTITY
+        date EXPIRY_DATE_AT_ISSUE
+        timestamp ISSUED_AT
+        varchar ISSUED_BY
+    }
+    ITEMS {
+        number ITEM_ID PK
+        varchar ITEM_CODE
+        varchar ITEM_NAME
+        varchar SPECIFICATION
+        varchar UNIT_OF_MEASURE
+        number TRACKS_LOT
+        number TRACKS_EXPIRY
+        number SAFETY_STOCK_QTY
+        number IS_DELETED
+        timestamp DELETED_AT
+        varchar DELETED_BY
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    REQUISITIONS {
+        number REQUISITION_ID PK
+        varchar REQUISITION_NO
+        number DEPARTMENT_ID FK
+        varchar STATUS
+        varchar REJECTION_REASON
+        timestamp SUBMITTED_AT
+        timestamp APPROVED_AT
+        timestamp ISSUED_AT
+        timestamp CLOSED_AT
+        number ROW_VERSION
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    REQUISITION_LINES {
+        number REQUISITION_LINE_ID PK
+        number REQUISITION_ID FK
+        number LINE_NO
+        number ITEM_ID FK
+        number QUANTITY
+    }
+    STOCK_LOTS {
+        number STOCK_LOT_ID PK
+        number ITEM_ID FK
+        varchar LOT_NUMBER
+        date EXPIRY_DATE
+        number QUANTITY
+        varchar STORAGE_LOCATION
+        number ROW_VERSION
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    REQUISITION_LINES ||--o{ ISSUE_ALLOCATIONS : "FK_ISSUE_ALLOC_LINE"
+    STOCK_LOTS ||--o{ ISSUE_ALLOCATIONS : "FK_ISSUE_ALLOC_LOT"
+    DEPARTMENTS ||--o{ REQUISITIONS : "FK_REQUISITIONS_DEPT"
+    ITEMS ||--o{ REQUISITION_LINES : "FK_REQ_LINES_ITEM"
+    REQUISITIONS ||--o{ REQUISITION_LINES : "FK_REQ_LINES_REQUISITION"
+    ITEMS ||--o{ STOCK_LOTS : "FK_STOCK_LOTS_ITEM"
+```
