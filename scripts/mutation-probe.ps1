@@ -94,20 +94,44 @@ function Invoke-TestRun {
     # 不是腳本該中斷的理由。
     $previous = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    $output = (& dotnet test $TestProject --nologo) | Out-String
-    $ErrorActionPreference = $previous
-    $m = [regex]::Match($output, '失敗:\s*(\d+).*?通過:\s*(\d+)')
+
+    # ★ 強制 dotnet CLI 用英文輸出，讓解析與呼叫端的語系／主控台編碼無關。
+    #   原本用中文的「失敗:／通過:」比對，從 Git Bash 呼叫時 dotnet 的中文輸出
+    #   會以不同編碼回來，兩個 pattern 都比不到 —— 於是這道關卡在 PowerShell 裡是綠的、
+    #   在 Git Bash 裡是紅的，同一份程式碼兩種結果。關卡必須與呼叫方式無關才有資格當關卡。
+    $previousLang = $env:DOTNET_CLI_UI_LANGUAGE
+    $env:DOTNET_CLI_UI_LANGUAGE = 'en'
+    try {
+        $output = (& dotnet test $TestProject --nologo) | Out-String
+    }
+    finally {
+        $env:DOTNET_CLI_UI_LANGUAGE = $previousLang
+        $ErrorActionPreference = $previous
+    }
+
+    $m = [regex]::Match($output, 'Failed:\s*(\d+).*?Passed:\s*(\d+)')
     if (-not $m.Success) {
-        $m = [regex]::Match($output, 'Failed:\s*(\d+).*?Passed:\s*(\d+)')
+        # 保留中文 fallback，萬一環境變數在某個 SDK 版本失效。
+        $m = [regex]::Match($output, '失敗:\s*(\d+).*?通過:\s*(\d+)')
     }
     if ($m.Success) {
-        return [pscustomobject]@{ Failed = [int]$m.Groups[1].Value; Passed = [int]$m.Groups[2].Value; Raw = $output }
+        return [pscustomobject]@{ Failed = [int]$m.Groups[1].Value; Passed = [int]$m.Groups[2].Value; Parsed = $true; Raw = $output }
     }
-    return [pscustomobject]@{ Failed = -1; Passed = -1; Raw = $output }
+
+    # ★ 解析失敗與「測試真的紅了」是兩件事，必須分開回報。
+    #   原本兩者都走「Failed = -1」再被基線檢查抓成「基線就不是全綠」——
+    #   那個訊息會讓人去查測試，但真正的問題在輸出解析。
+    return [pscustomobject]@{ Failed = -1; Passed = -1; Parsed = $false; Raw = $output }
 }
 
 Write-Host '=== 基線（未改壞）===' -ForegroundColor Cyan
 $baseline = Invoke-TestRun
+if (-not $baseline.Parsed) {
+    Write-Host '無法從 dotnet test 的輸出解析出通過／失敗數 —— 這不是測試紅了，是解析壞了。' -ForegroundColor Red
+    Write-Host '以下是實際收到的輸出尾段，請據此修正 Invoke-TestRun 的比對規則：' -ForegroundColor Yellow
+    ($baseline.Raw -split "`n" | Select-Object -Last 8) | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
 if ($baseline.Failed -ne 0) {
     Write-Host "基線就不是全綠（失敗 $($baseline.Failed)），先修好再跑探針。" -ForegroundColor Red
     exit 1
