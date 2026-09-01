@@ -1,10 +1,14 @@
+using System.Text.Json;
 using MedSupplyOps.Infrastructure.Persistence;
+using MedSupplyOps.Infrastructure.Queries;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services
+    .AddControllersWithViews()
+    .AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
 
 // 資料庫連線字串一律來自組態，不寫進 appsettings.json（需求 SEC-5 / 設計裁定 D4）：
 //   開發：User Secrets（dotnet user-secrets set "ConnectionStrings:MedSupplyOps" "...")
@@ -15,6 +19,8 @@ if (!string.IsNullOrWhiteSpace(medSupplyConnection))
 {
     builder.Services.AddDbContext<MedSupplyOpsDbContext>(options =>
         options.UseOracle(medSupplyConnection));
+    builder.Services.AddScoped<InventoryQueries>(serviceProvider =>
+        new InventoryQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 }
 
 var app = builder.Build();
@@ -34,6 +40,8 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 
+app.MapControllers();
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
@@ -41,3 +49,5 @@ app.MapControllerRoute(
 
 
 app.Run();
+
+public partial class Program;
