@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Infrastructure.Services;
 using MedSupplyOps.Web;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,6 +61,8 @@ builder.Services.AddDbContext<MedSupplyOpsDbContext>(options =>
     options.UseOracle(medSupplyConnection));
 builder.Services.AddScoped<InventoryQueries>(serviceProvider =>
     new InventoryQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
+builder.Services.AddScoped<StockIssueService>(serviceProvider =>
+    new StockIssueService(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 
 var app = builder.Build();
 

@@ -1,5 +1,7 @@
 using MedSupplyOps.Domain.Requisitions;
 using MedSupplyOps.Infrastructure.Persistence;
+using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Infrastructure.Services;
 using MedSupplyOps.Web.Models.Requisitions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,11 +11,19 @@ namespace MedSupplyOps.Web.Controllers;
 public sealed class RequisitionsController : Controller
 {
     private const string ConcurrentReviewMessage = "此單已被他人處理，請重新整理後再試。";
+    private const string IssuedBy = "web";
     private readonly MedSupplyOpsDbContext _dbContext;
+    private readonly InventoryQueries _inventoryQueries;
+    private readonly StockIssueService _stockIssueService;
 
-    public RequisitionsController(MedSupplyOpsDbContext dbContext)
+    public RequisitionsController(
+        MedSupplyOpsDbContext dbContext,
+        InventoryQueries inventoryQueries,
+        StockIssueService stockIssueService)
     {
         _dbContext = dbContext;
+        _inventoryQueries = inventoryQueries;
+        _stockIssueService = stockIssueService;
     }
 
     [HttpGet]
@@ -208,6 +218,9 @@ public sealed class RequisitionsController : Controller
                 line.Quantity))
             .ToListAsync(cancellationToken);
 
+        var issueAllocations = await _inventoryQueries
+            .GetRequisitionIssueAllocationsAsync(id, cancellationToken);
+
         return View(new RequisitionDetailsViewModel
         {
             Id = header.Id,
@@ -220,7 +233,66 @@ public sealed class RequisitionsController : Controller
             SubmittedAt = header.SubmittedAt,
             ApprovedAt = header.ApprovedAt,
             Lines = lines,
+            IssueAllocations = issueAllocations
+                .Select(allocation => new RequisitionIssueAllocationViewModel(
+                    allocation.LineNo,
+                    allocation.ItemCode,
+                    allocation.ItemName,
+                    allocation.UnitOfMeasure,
+                    allocation.LotNumber,
+                    allocation.ExpiryDate,
+                    allocation.Quantity))
+                .ToList(),
+            CanRetryIssue = TempData["IssueRetryAvailable"] is true,
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Issue(long id, CancellationToken cancellationToken)
+    {
+        var asOf = DateOnly.FromDateTime(DateTime.Today);
+        var result = await _stockIssueService.IssueRequisitionAsync(id, asOf, IssuedBy, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            TempData["SuccessMessage"] = "請領單已發料，請核對下列配批明細。";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        switch (result.FailureReason)
+        {
+            case RequisitionIssueFailureReason.NotFound:
+                return NotFound();
+            case RequisitionIssueFailureReason.InsufficientStock:
+                var item = await _dbContext.Items.AsNoTracking()
+                    .Where(candidate => candidate.Id == result.FailedItemId)
+                    .Select(candidate => new { candidate.Code, candidate.Name })
+                    .SingleOrDefaultAsync(cancellationToken);
+                var itemText = item is null
+                    ? $"品項 ID {result.FailedItemId}"
+                    : $"品項 {item.Code}（{item.Name}）";
+                TempData["ErrorMessage"] =
+                    $"{itemText} 庫存不足：需要 {result.RequestedQuantity}、目前可用 {result.AvailableQuantity}。";
+                break;
+            case RequisitionIssueFailureReason.IllegalStatusTransition:
+                TempData["ErrorMessage"] = result.StatusAtFailure.HasValue
+                    ? $"此單目前為「{RequisitionStatusText.Get(result.StatusAtFailure.Value)}」，無法發料。"
+                    : "此單目前狀態不允許發料。";
+                break;
+            case RequisitionIssueFailureReason.LockTimeout:
+                TempData["ErrorMessage"] = "系統忙碌中，請稍後再試。";
+                TempData["IssueRetryAvailable"] = true;
+                break;
+            case RequisitionIssueFailureReason.NoLines:
+                TempData["ErrorMessage"] = "此單沒有明細，無法發料。";
+                break;
+            default:
+                TempData["ErrorMessage"] = "發料未完成，請重新整理後再試。";
+                break;
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpPost]
