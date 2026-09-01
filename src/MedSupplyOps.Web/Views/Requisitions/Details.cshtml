@@ -1,0 +1,87 @@
+@using MedSupplyOps.Web.Models.Requisitions
+@model RequisitionDetailsViewModel
+@{
+    ViewData["Title"] = $"請領單 {Model.RequisitionNo}";
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h2 mb-1">@Model.RequisitionNo</h1>
+        <p class="text-muted mb-0">目前狀態：<strong>@RequisitionStatusText.Get(Model.Status)</strong></p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index">返回列表</a>
+</div>
+
+<dl class="row card card-body mx-0 mb-4">
+    <dt class="col-sm-3">科室</dt>
+    <dd class="col-sm-9">@Model.DepartmentName</dd>
+    <dt class="col-sm-3">建立時間（UTC）</dt>
+    <dd class="col-sm-9">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+    <dt class="col-sm-3">送審時間（UTC）</dt>
+    <dd class="col-sm-9">@(Model.SubmittedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</dd>
+    <dt class="col-sm-3">核准時間（UTC）</dt>
+    <dd class="col-sm-9">@(Model.ApprovedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</dd>
+    @if (!string.IsNullOrWhiteSpace(Model.RejectionReason))
+    {
+        <dt class="col-sm-3">駁回原因</dt>
+        <dd class="col-sm-9">@Model.RejectionReason</dd>
+    }
+</dl>
+
+<div class="table-responsive mb-4">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">行號</th>
+                <th scope="col">品項代碼</th>
+                <th scope="col">品項</th>
+                <th scope="col" class="text-end">請領數量</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in Model.Lines)
+            {
+                <tr>
+                    <td>@line.LineNo</td>
+                    <td>@line.ItemCode</td>
+                    <td>@line.ItemName</td>
+                    <td class="text-end">@line.Quantity @line.UnitOfMeasure</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (Model.CanReview)
+{
+    <section class="card card-body" aria-labelledby="review-heading">
+        <h2 class="h5" id="review-heading">審核動作</h2>
+        <div class="d-flex flex-column gap-3">
+            <form asp-action="Approve" asp-route-id="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+                <button class="btn btn-success" type="submit">核准</button>
+            </form>
+            <form asp-action="Reject" asp-route-id="@Model.Id" method="post" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+                <div class="col-md-8">
+                    <label class="form-label" for="rejectionReason">駁回原因</label>
+                    <textarea class="form-control" id="rejectionReason" name="rejectionReason" maxlength="500" required></textarea>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-danger" type="submit">駁回</button>
+                </div>
+            </form>
+        </div>
+    </section>
+}

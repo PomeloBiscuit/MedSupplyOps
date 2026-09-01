@@ -46,7 +46,10 @@ internal sealed class RequisitionConfiguration : IEntityTypeConfiguration<Requis
         builder.Property<DateTime?>("IssuedAt").HasColumnName("ISSUED_AT").HasColumnType("TIMESTAMP(6)");
         builder.Property<DateTime?>("ClosedAt").HasColumnName("CLOSED_AT").HasColumnType("TIMESTAMP(6)");
 
-        builder.Property<long>("RowVersion").HasColumnName("ROW_VERSION").IsRequired();
+        builder.Property<long>("RowVersion")
+            .HasColumnName("ROW_VERSION")
+            .IsConcurrencyToken()
+            .IsRequired();
 
         builder.Property<DateTime>("CreatedAt").HasColumnName("CREATED_AT").HasColumnType("TIMESTAMP(6)").IsRequired();
         builder.Property<string>("CreatedBy").HasColumnName("CREATED_BY").HasMaxLength(100).IsRequired();
