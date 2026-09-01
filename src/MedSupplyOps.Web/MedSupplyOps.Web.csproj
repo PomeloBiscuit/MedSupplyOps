@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- 沒有這一行，README 教的 `dotnet user-secrets set` 會直接失敗：
+         "Could not find the global property 'UserSecretsId'"。
+         而失敗的症狀不是「設定不生效」，是「指令根本跑不起來」。 -->
+    <UserSecretsId>medsupplyops-web-dev</UserSecretsId>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
