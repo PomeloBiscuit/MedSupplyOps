@@ -36,3 +36,6 @@ Thumbs.db
 
 # Docker 環境變數（含密碼）
 .env
+
+# 本機工作筆記：不是交付物的一部分。
+_private/
