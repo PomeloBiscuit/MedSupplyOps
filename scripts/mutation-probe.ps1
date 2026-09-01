@@ -94,6 +94,17 @@ $probes = @(
         To          = '        -- FOR UPDATE WAIT'
         Verify      = '-- FOR UPDATE WAIT'
         TestProject = 'tests/MedSupplyOps.Integration.Tests'
+    },
+    @{
+        # 這支探針釘住的不是某條業務規則，而是「App 照使用者的方式啟動時真的能用」。
+        # 它存在的理由（踩坑紀錄 L-014）：曾經五道關卡全綠而網站每頁 500。
+        Name        = 'P8  拿掉 InventoryQueries 的 DI 註冊（正式組裝出現破洞）'
+        Rule        = '啟動煙霧測試：正式 DI 圖必須完整'
+        File        = 'src/MedSupplyOps.Web/Program.cs'
+        From        = "builder.Services.AddScoped<InventoryQueries>(serviceProvider =>`r`n    new InventoryQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));"
+        To          = '// 探針移除：AddScoped<InventoryQueries>'
+        Verify      = '// 探針移除：AddScoped<InventoryQueries>'
+        TestProject = 'tests/MedSupplyOps.Integration.Tests'
     }
 )
 
