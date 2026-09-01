@@ -1,0 +1,59 @@
+@using System.Globalization
+@model MedSupplyOps.Web.Models.Inventory.ExpiringLotsViewModel
+@{
+    ViewData["Title"] = "效期預警";
+    var dateFormat = CultureInfo.GetCultureInfo("zh-TW");
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h2 mb-1">效期預警</h1>
+        <p class="text-muted mb-0">基準日：@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
+    </div>
+    <form method="get" class="d-flex align-items-end gap-2">
+        <div>
+            <label class="form-label mb-1" for="withinDays">N 天內到期</label>
+            <input class="form-control" id="withinDays" name="withinDays" type="number" min="0" value="@Model.WithinDays" />
+            <span class="text-danger" asp-validation-for="WithinDays"></span>
+        </div>
+        <div>
+            <label class="form-label mb-1" for="asOf">查詢基準日</label>
+            <input class="form-control" id="asOf" name="asOf" type="date" value="@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
+        </div>
+        <button class="btn btn-outline-primary" type="submit">查詢</button>
+    </form>
+</div>
+
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th scope="col">料號</th>
+                <th scope="col">品名</th>
+                <th scope="col">批號</th>
+                <th scope="col">效期</th>
+                <th scope="col" class="text-end">數量</th>
+                <th scope="col">儲位</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Lots.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted">此條件下沒有仍有數量的近效期批次。</td>
+                </tr>
+            }
+            @foreach (var lot in Model.Lots)
+            {
+                <tr>
+                    <td>@lot.ItemCode</td>
+                    <td class="text-break">@lot.ItemName</td>
+                    <td>@lot.LotNumber</td>
+                    <td>@lot.ExpiryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</td>
+                    <td class="text-end">@lot.Quantity.ToString("N0", dateFormat)</td>
+                    <td>@lot.StorageLocation</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

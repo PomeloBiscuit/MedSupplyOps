@@ -8,6 +8,9 @@ namespace MedSupplyOps.Infrastructure.Queries;
 /// </summary>
 public sealed class InventoryQueries
 {
+    // 可用量、效期預警與品項清單必須用同一個定義；{0} 是 SQL 批次表別名。
+    private const string UsableLotPredicate = "{0}.expiry_date >= :asOf AND {0}.quantity > 0";
+
     private readonly DbConnection _connection;
 
     /// <summary>
@@ -29,24 +32,27 @@ public sealed class InventoryQueries
         DbTransaction? transaction = null,
         CancellationToken cancellationToken = default)
     {
-        const string sql = """
-            SELECT stock_lot_id AS StockLotId,
-                   lot_number AS LotNumber,
-                   expiry_date AS ExpiryDate,
-                   quantity AS Quantity,
-                   storage_location AS StorageLocation,
+        var usableLotPredicate = UsableLotPredicate.Replace("{0}", "l", StringComparison.Ordinal);
+        const string sqlTemplate = """
+            SELECT l.stock_lot_id AS StockLotId,
+                   l.lot_number AS LotNumber,
+                   l.expiry_date AS ExpiryDate,
+                   l.quantity AS Quantity,
+                   l.storage_location AS StorageLocation,
                    CASE
-                       WHEN expiry_date >= :asOf AND quantity > 0 THEN 1
+                       WHEN {usableLotPredicate} THEN 1
                        ELSE 0
                    END AS IsAvailable,
                    NVL(SUM(CASE
-                WHEN expiry_date >= :asOf AND quantity > 0 THEN quantity
+                WHEN {usableLotPredicate} THEN l.quantity
                 ELSE 0
             END) OVER (), 0) AS AvailableQuantity
-            FROM stock_lots
-            WHERE item_id = :itemId
-            ORDER BY expiry_date, lot_number, stock_lot_id
+            FROM stock_lots l
+            WHERE l.item_id = :itemId
+            ORDER BY l.expiry_date, l.lot_number, l.stock_lot_id
             """;
+
+        var sql = sqlTemplate.Replace("{usableLotPredicate}", usableLotPredicate, StringComparison.Ordinal);
 
         await EnsureOpenAsync(cancellationToken);
         var asOfDate = asOf.ToDateTime(TimeOnly.MinValue);
@@ -81,7 +87,8 @@ public sealed class InventoryQueries
             throw new ArgumentOutOfRangeException(nameof(withinDays), withinDays, "天數不得為負數。");
         }
 
-        const string sql = """
+        var usableLotPredicate = UsableLotPredicate.Replace("{0}", "l", StringComparison.Ordinal);
+        const string sqlTemplate = """
             SELECT l.stock_lot_id AS StockLotId,
                    l.item_id AS ItemId,
                    i.item_code AS ItemCode,
@@ -93,11 +100,12 @@ public sealed class InventoryQueries
             FROM stock_lots l
             INNER JOIN items i ON i.item_id = l.item_id
             WHERE i.is_deleted = 0
-              AND l.quantity > 0
-              AND l.expiry_date >= :asOf
+              AND {usableLotPredicate}
               AND l.expiry_date <= :expiresBy
             ORDER BY l.expiry_date, l.lot_number, l.stock_lot_id
             """;
+
+        var sql = sqlTemplate.Replace("{usableLotPredicate}", usableLotPredicate, StringComparison.Ordinal);
 
         var asOfDate = asOf.ToDateTime(TimeOnly.MinValue);
         var expiresBy = asOf.AddDays(withinDays).ToDateTime(TimeOnly.MinValue);
@@ -126,13 +134,14 @@ public sealed class InventoryQueries
         DbTransaction? transaction = null,
         CancellationToken cancellationToken = default)
     {
-        const string sql = """
+        var usableLotPredicate = UsableLotPredicate.Replace("{0}", "l", StringComparison.Ordinal);
+        const string sqlTemplate = """
             SELECT i.item_id AS ItemId,
                    i.item_code AS ItemCode,
                    i.item_name AS ItemName,
                    i.safety_stock_qty AS SafetyStockQuantity,
                    NVL(SUM(CASE
-                       WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN l.quantity
+                       WHEN {usableLotPredicate} THEN l.quantity
                        ELSE 0
                    END), 0) AS AvailableQuantity
             FROM items i
@@ -140,11 +149,13 @@ public sealed class InventoryQueries
             WHERE i.is_deleted = 0
             GROUP BY i.item_id, i.item_code, i.item_name, i.safety_stock_qty
             HAVING NVL(SUM(CASE
-                WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN l.quantity
+                WHEN {usableLotPredicate} THEN l.quantity
                 ELSE 0
             END), 0) < i.safety_stock_qty
             ORDER BY i.item_code, i.item_id
             """;
+
+        var sql = sqlTemplate.Replace("{usableLotPredicate}", usableLotPredicate, StringComparison.Ordinal);
 
         await EnsureOpenAsync(cancellationToken);
         var asOfDate = asOf.ToDateTime(TimeOnly.MinValue);
@@ -156,6 +167,64 @@ public sealed class InventoryQueries
                 row.ItemName,
                 decimal.ToInt32(row.SafetyStockQuantity),
                 decimal.ToInt32(row.AvailableQuantity)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// 列舉未軟刪除品項及其依 <paramref name="asOf"/> 計算的可用庫存摘要。
+    /// 無批次的品項仍會回傳，讓畫面能顯示可用量為零。
+    /// </summary>
+    public async Task<IReadOnlyList<InventoryItem>> GetInventoryItemsAsync(
+        DateOnly asOf,
+        DbTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
+    {
+        var usableLotPredicate = UsableLotPredicate.Replace("{0}", "l", StringComparison.Ordinal);
+        const string sqlTemplate = """
+            SELECT i.item_id AS ItemId,
+                   i.item_code AS ItemCode,
+                   i.item_name AS ItemName,
+                   i.specification AS Specification,
+                   i.unit_of_measure AS UnitOfMeasure,
+                   i.safety_stock_qty AS SafetyStockQuantity,
+                   NVL(SUM(CASE
+                       WHEN {usableLotPredicate} THEN l.quantity
+                       ELSE 0
+                   END), 0) AS AvailableQuantity,
+                   NVL(SUM(CASE
+                       WHEN {usableLotPredicate} THEN 1
+                       ELSE 0
+                   END), 0) AS UsableLotCount,
+                   MIN(CASE
+                       WHEN {usableLotPredicate} THEN l.expiry_date
+                   END) AS EarliestUsableExpiry
+            FROM items i
+            LEFT JOIN stock_lots l ON l.item_id = i.item_id
+            WHERE i.is_deleted = 0
+            GROUP BY i.item_id,
+                     i.item_code,
+                     i.item_name,
+                     i.specification,
+                     i.unit_of_measure,
+                     i.safety_stock_qty
+            ORDER BY i.item_code, i.item_id
+            """;
+        var sql = sqlTemplate.Replace("{usableLotPredicate}", usableLotPredicate, StringComparison.Ordinal);
+
+        await EnsureOpenAsync(cancellationToken);
+        var asOfDate = asOf.ToDateTime(TimeOnly.MinValue);
+        var command = new CommandDefinition(sql, new { asOf = asOfDate }, transaction, cancellationToken: cancellationToken);
+        return (await _connection.QueryAsync<InventoryItemRow>(command))
+            .Select(row => new InventoryItem(
+                decimal.ToInt64(row.ItemId),
+                row.ItemCode,
+                row.ItemName,
+                row.Specification,
+                row.UnitOfMeasure,
+                decimal.ToInt32(row.SafetyStockQuantity),
+                decimal.ToInt32(row.AvailableQuantity),
+                decimal.ToInt32(row.UsableLotCount),
+                row.EarliestUsableExpiry is null ? null : DateOnly.FromDateTime(row.EarliestUsableExpiry.Value)))
             .ToList();
     }
 
@@ -202,6 +271,19 @@ internal sealed class ItemBelowSafetyStockRow
     public decimal AvailableQuantity { get; set; }
 }
 
+internal sealed class InventoryItemRow
+{
+    public decimal ItemId { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
+    public string ItemName { get; set; } = string.Empty;
+    public string? Specification { get; set; }
+    public string UnitOfMeasure { get; set; } = string.Empty;
+    public decimal SafetyStockQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
+    public decimal UsableLotCount { get; set; }
+    public DateTime? EarliestUsableExpiry { get; set; }
+}
+
 /// <summary>品項庫存總覽。</summary>
 public sealed record ItemAvailability(long ItemId, int AvailableQuantity, IReadOnlyList<ItemAvailabilityLot> Lots);
 
@@ -232,3 +314,15 @@ public sealed record ItemBelowSafetyStock(
     string ItemName,
     int SafetyStockQuantity,
     int AvailableQuantity);
+
+/// <summary>庫存查詢頁使用的品項摘要。</summary>
+public sealed record InventoryItem(
+    long ItemId,
+    string ItemCode,
+    string ItemName,
+    string? Specification,
+    string UnitOfMeasure,
+    int SafetyStockQuantity,
+    int AvailableQuantity,
+    int UsableLotCount,
+    DateOnly? EarliestUsableExpiry);
