@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Globalization;
 using Dapper;
 using MedSupplyOps.Domain.Inventory;
+using MedSupplyOps.Domain.Requisitions;
 using Oracle.ManagedDataAccess.Client;
 
 namespace MedSupplyOps.Infrastructure.Services;
@@ -37,10 +38,11 @@ namespace MedSupplyOps.Infrastructure.Services;
 /// 應用層負責「給出正確且友善的結果」，資料庫層負責「保證資料永遠不會錯」。
 /// 兩者不是重複，是不同層次的責任。
 ///
-/// 【呼叫端的義務：多品項時必須以一致的順序處理】
-/// 本服務一次只處理一個品項。一張請領單有多個品項時，呼叫端必須
-/// 依 item_id 遞增的順序逐一發料。若兩張單以相反順序取鎖，就會死結。
-/// 這個約束沒辦法在這裡強制，所以寫在這裡並在測試中釘住。
+/// 【兩個入口的差別】
+///   <see cref="IssueAsync"/>            — 單一品項，自己開一個交易。
+///   <see cref="IssueRequisitionAsync"/> — 整張請領單，所有明細在**同一個交易**內，
+///                                          任一筆失敗就整張回滾。
+/// 兩者共用 <see cref="AllocateAndDeductAsync"/>，讓「扣庫存這件事」只有一份實作。
 /// ─────────────────────────────────────────────────────────────────────────
 /// </summary>
 public sealed class StockIssueService
@@ -83,12 +85,15 @@ public sealed class StockIssueService
     }
 
     /// <summary>
-    /// 對單一品項執行 FEFO 發料，並在同一個交易內扣減批次與寫入配批紀錄。
+    /// 對**單一品項**執行 FEFO 發料，並在同一個交易內扣減批次與寫入配批紀錄。
     ///
-    /// 本方法**自行開啟並結束交易**。理由：列鎖必須從 SELECT ... FOR UPDATE 一路持有到
+    /// 本方法自行開啟並結束交易。理由：列鎖必須從 SELECT ... FOR UPDATE 一路持有到
     /// COMMIT，中間交給呼叫端就等於把並發保證交出去了。
     /// 副作用是整合測試不能靠「包在交易裡再 rollback」來清資料 —— 但那本來就不可行：
     /// **並發行為的本質就是「跨 commit 之後會發生什麼」，在單一個 rollback 交易裡測不到。**
+    ///
+    /// ⚠ 一張單有多個品項時**不要**呼叫這個方法 N 次 —— 那會是 N 個獨立交易，
+    ///   第 3 個失敗時前 2 個已經 commit。請用 <see cref="IssueRequisitionAsync"/>。
     /// </summary>
     public async Task<IssueResult> IssueAsync(
         long requisitionLineId,
@@ -114,6 +119,166 @@ public sealed class StockIssueService
             .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
 
+        var outcome = await AllocateAndDeductAsync(
+            transaction, requisitionLineId, itemId, requestedQuantity, asOf, issuedBy, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!outcome.IsSuccess)
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return outcome;
+        }
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return outcome;
+    }
+
+    /// <summary>
+    /// **整張請領單**的原子發料（FR-303 / FR-402）。
+    ///
+    /// ★ 為什麼需要這個方法，而不是對每一筆明細各呼叫一次 <see cref="IssueAsync"/>：
+    /// <see cref="IssueAsync"/> 自己管交易，呼叫 N 次就是 N 個獨立交易。
+    /// 一張單有 3 個品項而第 3 個庫存不足時，前 2 個已經扣掉並 COMMIT ——
+    /// 產生一張「一半發了一半沒發」的單。而狀態機裡**沒有對應的狀態**
+    /// （Issued 表示已發料），倉管員拿到這種單無法作業，稽核軌跡也對不起來。
+    ///
+    /// 所以本方法的裁定是：**全部品項成功，或整張單都不發。**
+    ///
+    /// ★ 跨品項的死結防護：明細一律**依 item_id 遞增順序**處理。
+    /// 兩張單同時發料、且都含品項 A 與 B 時，若一張先鎖 A、一張先鎖 B，兩邊會互等到逾時。
+    /// 固定順序讓後到的那張一定卡在第一個共同品項上，退化成單純排隊。
+    /// 這個順序**不是效能考量，是正確性考量**，不可以為了「照使用者輸入的順序發」而改掉。
+    ///
+    /// ★ 狀態轉換仍然由 <see cref="RequisitionStateMachine"/> 判定，
+    /// 但寫入與扣庫存在同一個交易裡 —— 否則會出現「庫存扣了但狀態沒變」，
+    /// 或反過來「狀態變成已發料但庫存沒動」。兩者都不會報錯，都要對帳才會發現。
+    /// </summary>
+    public async Task<RequisitionIssueResult> IssueRequisitionAsync(
+        long requisitionId,
+        DateOnly asOf,
+        string issuedBy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(issuedBy);
+
+        if (_connection.State != ConnectionState.Open)
+        {
+            await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var transaction = await _connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+
+        try
+        {
+            // 先鎖單頭。這同時擋掉「兩個人同時對同一張單按發料」——
+            // 後到的那個會等，等到之後重讀到的狀態已經是 Issued，於是被狀態機擋下。
+            var header = await _connection.QuerySingleOrDefaultAsync<RequisitionHeaderRow>(
+                new CommandDefinition(
+                    LockRequisitionSqlHead + " " + _lockWaitSeconds.ToString(CultureInfo.InvariantCulture),
+                    new { requisitionId },
+                    transaction,
+                    cancellationToken: cancellationToken)).ConfigureAwait(false);
+
+            if (header is null)
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return RequisitionIssueResult.NotFound();
+            }
+
+            if (!Enum.TryParse<RequisitionStatus>(header.Status, ignoreCase: false, out var currentStatus))
+            {
+                // 資料庫的 CK_REQUISITIONS_STATUS 應該擋住這件事。走到這裡代表約束被繞過了 ——
+                // 不要猜一個狀態繼續做，明確失敗。
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return RequisitionIssueResult.NotFound();
+            }
+
+            // 狀態機的規則只有一份實作，這裡是「使用」它而不是「複製」它。
+            if (!RequisitionStateMachine.TryTransition(currentStatus, RequisitionAction.Issue, out var nextStatus))
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return RequisitionIssueResult.IllegalStatus(currentStatus);
+            }
+
+            var lines = (await _connection.QueryAsync<RequisitionLineRow>(
+                new CommandDefinition(
+                    SelectLinesSql,
+                    new { requisitionId },
+                    transaction,
+                    cancellationToken: cancellationToken)).ConfigureAwait(false)).AsList();
+
+            if (lines.Count == 0)
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return RequisitionIssueResult.NoLines();
+            }
+
+            var issued = new List<IssuedRequisitionLine>(lines.Count);
+
+            foreach (var line in lines)
+            {
+                var lineId = decimal.ToInt64(line.RequisitionLineId);
+                var itemId = decimal.ToInt64(line.ItemId);
+                var quantity = decimal.ToInt32(line.Quantity);
+
+                var outcome = await AllocateAndDeductAsync(
+                    transaction, lineId, itemId, quantity, asOf, issuedBy, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!outcome.IsSuccess)
+                {
+                    // ★ 任一筆失敗 → 整張回滾，前面已經扣掉的全部退回。
+                    //   這個 return 就是「原子性」的全部實作 —— 把它改成 continue，
+                    //   系統會變成「部分發料」，而且畫面完全正常、不會報任何錯。
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    return outcome.FailureReason == IssueFailureReason.LockTimeout
+                        ? RequisitionIssueResult.LockTimeout()
+                        : RequisitionIssueResult.InsufficientStock(itemId, quantity, outcome.AvailableQuantity);
+                }
+
+                issued.Add(new IssuedRequisitionLine(lineId, itemId, quantity, outcome.Allocations));
+            }
+
+            await _connection.ExecuteAsync(new CommandDefinition(
+                UpdateRequisitionStatusSql,
+                new { status = nextStatus.ToString(), actor = issuedBy, requisitionId },
+                transaction,
+                cancellationToken: cancellationToken)).ConfigureAwait(false);
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return RequisitionIssueResult.Success(issued);
+        }
+        catch (OracleException ex) when (ex.Number is OraLockWaitTimeout or OraResourceBusy)
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return RequisitionIssueResult.LockTimeout();
+        }
+    }
+
+    /// <summary>
+    /// 在**呼叫端提供的交易**內：鎖定該品項的批次、以 FEFO 配批、扣減、寫入配批紀錄。
+    /// **不 commit 也不 rollback** —— 交易邊界由呼叫端決定，
+    /// 因為「一筆明細」與「整張單」需要的邊界不同。
+    ///
+    /// 抽出來共用是為了讓「扣庫存這件事」只有一份實作。
+    /// 兩份實作漂移的症狀是「單筆發料與整單發料配到不同批次」，而兩邊的畫面都正常。
+    /// </summary>
+    private async Task<IssueResult> AllocateAndDeductAsync(
+        DbTransaction transaction,
+        long requisitionLineId,
+        long itemId,
+        int requestedQuantity,
+        DateOnly asOf,
+        string issuedBy,
+        CancellationToken cancellationToken)
+    {
+        if (requestedQuantity <= 0)
+        {
+            return IssueResult.InvalidQuantity(requestedQuantity);
+        }
+
         List<LockedLotRow> lockedRows;
         try
         {
@@ -129,7 +294,6 @@ public sealed class StockIssueService
         {
             // 等不到鎖。這不是「庫存不足」—— 庫存可能綽綽有餘，只是現在被別人鎖著。
             // 回一個可重試的明確結果，不要讓使用者看到假的缺貨訊息。
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             return IssueResult.LockTimeout(requestedQuantity);
         }
 
@@ -156,7 +320,6 @@ public sealed class StockIssueService
 
         if (!allocation.IsSuccess)
         {
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             return allocation.FailureReason == AllocationFailureReason.InvalidQuantity
                 ? IssueResult.InvalidQuantity(requestedQuantity)
                 : IssueResult.InsufficientStock(requestedQuantity, allocation.AvailableQuantity);
@@ -184,20 +347,15 @@ public sealed class StockIssueService
                 cancellationToken: cancellationToken)).ConfigureAwait(false);
         }
 
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return IssueResult.Success(allocation.Allocations, requestedQuantity, allocation.AvailableQuantity);
     }
 
     /// <summary>
     /// 取得並鎖定某品項所有「還有數量」的批次。
     ///
-    /// 為什麼只鎖 quantity > 0：數量為 0 的批次我們永遠不會扣，鎖它只會增加無謂的競爭。
+    /// 為什麼只鎖 quantity &gt; 0：數量為 0 的批次我們永遠不會扣，鎖它只會增加無謂的競爭。
     /// 為什麼不在這裡濾掉過期批次：過期與否由 Domain 的 FefoAllocator 依 asOf 判定，
     /// 判斷規則只能有一份。這裡多鎖幾列的成本，遠低於「同一條規則寫在兩個地方」的風險。
-    ///
-    /// ORDER BY stock_lot_id 是為了讓所有交易以相同順序碰同一批列，降低死結機率。
-    /// （Oracle 的 FOR UPDATE 實際上依存取路徑上鎖，ORDER BY 不保證上鎖順序，
-    ///   但同樣的述詞與計畫會走同樣的路徑；真正的跨品項順序約束在呼叫端，見類別註解。）
     /// </summary>
     private static string BuildLockSql(int waitSeconds)
     {
@@ -223,6 +381,38 @@ public sealed class StockIssueService
         FOR UPDATE WAIT
         """;
 
+    private const string LockRequisitionSqlHead = """
+        SELECT requisition_id AS RequisitionId,
+               status         AS Status,
+               row_version    AS RowVersion
+        FROM requisitions
+        WHERE requisition_id = :requisitionId
+        FOR UPDATE WAIT
+        """;
+
+    /// <summary>
+    /// ★ ORDER BY item_id 是死結防護，不是排版偏好。
+    /// 兩張單同時發料且都含品項 A 與 B 時，若取鎖順序不一致就會互等到逾時。
+    /// </summary>
+    private const string SelectLinesSql = """
+        SELECT requisition_line_id AS RequisitionLineId,
+               item_id             AS ItemId,
+               quantity            AS Quantity
+        FROM requisition_lines
+        WHERE requisition_id = :requisitionId
+        ORDER BY item_id
+        """;
+
+    private const string UpdateRequisitionStatusSql = """
+        UPDATE requisitions
+        SET status      = :status,
+            issued_at   = SYS_EXTRACT_UTC(SYSTIMESTAMP),
+            row_version = row_version + 1,
+            updated_at  = SYS_EXTRACT_UTC(SYSTIMESTAMP),
+            updated_by  = :actor
+        WHERE requisition_id = :requisitionId
+        """;
+
     private const string DeductSql = """
         UPDATE stock_lots
         SET quantity   = quantity - :qty,
@@ -246,5 +436,19 @@ public sealed class StockIssueService
         public DateTime ExpiryDate { get; init; }
         public decimal Quantity { get; init; }
         public string StorageLocation { get; init; } = string.Empty;
+    }
+
+    private sealed class RequisitionHeaderRow
+    {
+        public decimal RequisitionId { get; init; }
+        public string Status { get; init; } = string.Empty;
+        public decimal RowVersion { get; init; }
+    }
+
+    private sealed class RequisitionLineRow
+    {
+        public decimal RequisitionLineId { get; init; }
+        public decimal ItemId { get; init; }
+        public decimal Quantity { get; init; }
     }
 }

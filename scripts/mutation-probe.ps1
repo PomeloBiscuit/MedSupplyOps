@@ -105,6 +105,18 @@ $probes = @(
         To          = '// 探針移除：AddScoped<InventoryQueries>'
         Verify      = '// 探針移除：AddScoped<InventoryQueries>'
         TestProject = 'tests/MedSupplyOps.Integration.Tests'
+    },
+    @{
+        # 把「任一筆明細失敗就整張回滾」改成「跳過繼續」，系統會變成部分發料。
+        # 症狀：畫面顯示「發料失敗，庫存不足」（訊息完全正確），
+        # 但前面幾個品項的庫存已經真的被扣走了，要對帳才會發現。
+        Name        = 'P9  整張單發料改成「跳過失敗的明細繼續」（部分發料）'
+        Rule        = 'FR-303 整張單原子發料'
+        File        = 'src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs'
+        From        = "                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);`r`n                    return outcome.FailureReason == IssueFailureReason.LockTimeout`r`n                        ? RequisitionIssueResult.LockTimeout()`r`n                        : RequisitionIssueResult.InsufficientStock(itemId, quantity, outcome.AvailableQuantity);"
+        To          = '                    continue; // 探針：改成部分發料'
+        Verify      = 'continue; // 探針：改成部分發料'
+        TestProject = 'tests/MedSupplyOps.Integration.Tests'
     }
 )
 
