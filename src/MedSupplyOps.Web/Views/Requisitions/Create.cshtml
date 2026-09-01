@@ -1,0 +1,98 @@
+@using MedSupplyOps.Web.Models.Requisitions
+@model CreateRequisitionViewModel
+@{
+    ViewData["Title"] = "建立請領單";
+}
+
+<div class="mb-3">
+    <h1 class="h2 mb-1">建立請領單</h1>
+    <p class="text-muted mb-0">選擇科室並加入請領品項；送出後會直接進入待審核。</p>
+</div>
+
+<form asp-action="Create" method="post" id="requisition-create-form" data-api-template="@Url.Content("~/api/items/{itemId}/availability")">
+    @Html.AntiForgeryToken()
+    <input asp-for="AsOf" type="hidden" />
+    <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+    <div class="alert alert-danger d-none" id="client-validation-message" role="alert" aria-live="assertive"></div>
+
+    <div class="card card-body mb-4">
+        <label asp-for="DepartmentId" class="form-label"></label>
+        <select asp-for="DepartmentId" class="form-select">
+            <option value="0">請選擇科室</option>
+            @foreach (var department in Model.Departments)
+            {
+                <option value="@department.Id">@department.Name</option>
+            }
+        </select>
+        <span asp-validation-for="DepartmentId" class="text-danger"></span>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>請領明細</span>
+            <button class="btn btn-sm btn-outline-primary" type="button" id="add-requisition-line">新增明細</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">品項</th>
+                        <th scope="col" style="width: 10rem;">數量</th>
+                        <th scope="col">即時可用量／最早效期（基準日 @Model.AsOf.ToString("yyyy-MM-dd")）</th>
+                        <th scope="col" style="width: 6rem;"><span class="visually-hidden">操作</span></th>
+                    </tr>
+                </thead>
+                <tbody id="requisition-lines">
+                    @for (var i = 0; i < Model.Lines.Count; i++)
+                    {
+                        <tr class="requisition-line">
+                            <td>
+                                <select asp-for="Lines[i].ItemId" class="form-select item-select" required>
+                                    <option value="0">請選擇品項</option>
+                                    @foreach (var item in Model.Items)
+                                    {
+                                        <option value="@item.Id">@item.Code — @item.Name（@item.UnitOfMeasure）</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="Lines[i].ItemId" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Lines[i].Quantity" class="form-control quantity-input" type="number" min="1" step="1" required />
+                                <span asp-validation-for="Lines[i].Quantity" class="text-danger"></span>
+                            </td>
+                            <td><output class="availability-output text-muted" aria-live="polite">尚未選擇品項。</output></td>
+                            <td><button class="btn btn-sm btn-outline-danger remove-requisition-line" type="button">刪除</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit">送出請領單</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">取消</a>
+    </div>
+</form>
+
+<template id="requisition-line-template">
+    <tr class="requisition-line">
+        <td>
+            <select name="Lines[__index__].ItemId" id="Lines___index____ItemId" class="form-select item-select" required>
+                <option value="0">請選擇品項</option>
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Id">@item.Code — @item.Name（@item.UnitOfMeasure）</option>
+                }
+            </select>
+        </td>
+        <td><input name="Lines[__index__].Quantity" id="Lines___index____Quantity" class="form-control quantity-input" type="number" min="1" step="1" value="1" required /></td>
+        <td><output class="availability-output text-muted" aria-live="polite">尚未選擇品項。</output></td>
+        <td><button class="btn btn-sm btn-outline-danger remove-requisition-line" type="button">刪除</button></td>
+    </tr>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/requisition-create.js" asp-append-version="true"></script>
+}

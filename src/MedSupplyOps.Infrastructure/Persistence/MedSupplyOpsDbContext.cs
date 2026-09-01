@@ -64,7 +64,8 @@ public sealed class MedSupplyOpsDbContext : DbContext
     /// 填三種「不屬於 Domain、但資料庫要求」的欄位：
     ///   1. 稽核欄位 CREATED_AT / CREATED_BY / UPDATED_AT / UPDATED_BY（NOT NULL，無預設）。
     ///   2. 請領明細的 LINE_NO —— 依聚合內 <c>_lines</c> 的順序給 1..n。
-    ///      這是序號簿記，不是併發控制（FR-402 不在這裡處理）。
+    ///      這是序號簿記，不是併發控制。
+    ///   3. 請領單每次更新時遞增 ROW_VERSION，與 EF concurrency token 的舊值條件共同防止覆寫。
     /// 全部走 shadow / 純量屬性，Domain 型別不因 ORM 放寬封裝（設計裁定 D5）。
     /// </summary>
     private void StampBookkeepingColumns()
@@ -76,6 +77,12 @@ public sealed class MedSupplyOpsDbContext : DbContext
             if (entry.Entity is Requisition requisition)
             {
                 AssignLineNumbers(requisition);
+
+                if (entry.State == EntityState.Modified)
+                {
+                    var rowVersion = entry.Property("RowVersion");
+                    rowVersion.CurrentValue = (long)rowVersion.OriginalValue! + 1;
+                }
             }
 
             if (entry.State == EntityState.Added)

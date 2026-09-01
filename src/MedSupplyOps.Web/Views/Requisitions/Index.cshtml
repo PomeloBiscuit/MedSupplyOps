@@ -1,0 +1,101 @@
+@using MedSupplyOps.Domain.Requisitions
+@using MedSupplyOps.Web.Models.Requisitions
+@model RequisitionIndexViewModel
+@{
+    ViewData["Title"] = "請領單";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h2 mb-1">請領單</h1>
+        <p class="text-muted mb-0">依狀態、科室與建立日期查詢請領單。</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">建立請領單</a>
+</div>
+
+<form method="get" class="card card-body mb-4">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label" for="status">狀態</label>
+            <select class="form-select" id="status" name="status">
+                <option value="">全部</option>
+                @foreach (var value in Enum.GetValues<RequisitionStatus>())
+                {
+                    if (Model.Status == value)
+                    {
+                        <option value="@value" selected>@RequisitionStatusText.Get(value)</option>
+                    }
+                    else
+                    {
+                        <option value="@value">@RequisitionStatusText.Get(value)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label" for="departmentId">科室</label>
+            <select class="form-select" id="departmentId" name="departmentId">
+                <option value="">全部</option>
+                @foreach (var department in Model.Departments)
+                {
+                    if (Model.DepartmentId == department.Id)
+                    {
+                        <option value="@department.Id" selected>@department.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@department.Id">@department.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" for="createdFrom">建立日起</label>
+            <input class="form-control" id="createdFrom" name="createdFrom" type="date" value="@Model.CreatedFrom?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" for="createdTo">建立日迄</label>
+            <input class="form-control" id="createdTo" name="createdTo" type="date" value="@Model.CreatedTo?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button class="btn btn-outline-primary" type="submit">篩選</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">清除</a>
+        </div>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">單號</th>
+                <th scope="col">科室</th>
+                <th scope="col">狀態</th>
+                <th scope="col">建立時間（UTC）</th>
+                <th scope="col" class="text-end">明細筆數</th>
+                <th scope="col"><span class="visually-hidden">操作</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Requisitions.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-muted py-4">沒有符合條件的請領單。</td></tr>
+            }
+            else
+            {
+                @foreach (var requisition in Model.Requisitions)
+                {
+                    <tr>
+                        <td><a asp-action="Details" asp-route-id="@requisition.Id">@requisition.RequisitionNo</a></td>
+                        <td>@requisition.DepartmentName</td>
+                        <td>@RequisitionStatusText.Get(requisition.Status)</td>
+                        <td>@requisition.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td class="text-end">@requisition.LineCount</td>
+                        <td><a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@requisition.Id">詳情</a></td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
