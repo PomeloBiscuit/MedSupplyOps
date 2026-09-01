@@ -61,6 +61,60 @@
     </table>
 </div>
 
+@if (Model.IssueAllocations.Count > 0)
+{
+    <section class="mb-4" aria-labelledby="issue-allocation-heading">
+        <h2 class="h4" id="issue-allocation-heading">發料配批明細</h2>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">明細行</th>
+                        <th scope="col">品項</th>
+                        <th scope="col">批號</th>
+                        <th scope="col">效期</th>
+                        <th scope="col" class="text-end">發料數量</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var allocation in Model.IssueAllocations)
+                    {
+                        <tr>
+                            <td>@allocation.LineNo</td>
+                            <td>@allocation.ItemCode（@allocation.ItemName）</td>
+                            <td>@allocation.LotNumber</td>
+                            <td>@allocation.ExpiryDate.ToString("yyyy-MM-dd")</td>
+                            <td class="text-end">@allocation.Quantity @allocation.UnitOfMeasure</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@if (Model.CanIssue)
+{
+    <section class="card card-body mb-4" aria-labelledby="issue-heading">
+        <h2 class="h5" id="issue-heading">發料動作</h2>
+        <form asp-action="Issue" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button class="btn btn-primary" type="submit">發料</button>
+        </form>
+    </section>
+}
+
+@if (Model.CanRetryIssue)
+{
+    <section class="card card-body mb-4" aria-labelledby="retry-issue-heading">
+        <h2 class="h5" id="retry-issue-heading">重新嘗試發料</h2>
+        <form asp-action="Issue" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button class="btn btn-outline-primary" type="submit">重試發料</button>
+        </form>
+    </section>
+}
+
 @if (Model.CanReview)
 {
     <section class="card card-body" aria-labelledby="review-heading">

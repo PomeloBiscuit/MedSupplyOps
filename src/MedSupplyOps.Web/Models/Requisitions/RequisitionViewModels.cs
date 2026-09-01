@@ -79,7 +79,13 @@ public sealed class RequisitionDetailsViewModel
 
     public IReadOnlyList<RequisitionDetailsLineViewModel> Lines { get; init; } = [];
 
+    public IReadOnlyList<RequisitionIssueAllocationViewModel> IssueAllocations { get; init; } = [];
+
+    public bool CanRetryIssue { get; init; }
+
     public bool CanReview => Status == RequisitionStatus.PendingApproval;
+
+    public bool CanIssue => Status == RequisitionStatus.Approved;
 }
 
 public sealed record RequisitionDetailsLineViewModel(
@@ -87,6 +93,15 @@ public sealed record RequisitionDetailsLineViewModel(
     string ItemCode,
     string ItemName,
     string UnitOfMeasure,
+    int Quantity);
+
+public sealed record RequisitionIssueAllocationViewModel(
+    int LineNo,
+    string ItemCode,
+    string ItemName,
+    string UnitOfMeasure,
+    string LotNumber,
+    DateOnly ExpiryDate,
     int Quantity);
 
 public static class RequisitionStatusText

@@ -228,6 +228,41 @@ public sealed class InventoryQueries
             .ToList();
     }
 
+    /// <summary>取得請領單已發料明細的配批紀錄，供畫面追溯實際批號與發料當下效期。</summary>
+    public async Task<IReadOnlyList<RequisitionIssueAllocation>> GetRequisitionIssueAllocationsAsync(
+        long requisitionId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT rl.line_no AS LineNo,
+                   i.item_code AS ItemCode,
+                   i.item_name AS ItemName,
+                   i.unit_of_measure AS UnitOfMeasure,
+                   l.lot_number AS LotNumber,
+                   a.expiry_date_at_issue AS ExpiryDate,
+                   a.quantity AS Quantity
+            FROM issue_allocations a
+            INNER JOIN requisition_lines rl ON rl.requisition_line_id = a.requisition_line_id
+            INNER JOIN items i ON i.item_id = rl.item_id
+            INNER JOIN stock_lots l ON l.stock_lot_id = a.stock_lot_id
+            WHERE rl.requisition_id = :requisitionId
+            ORDER BY rl.line_no, a.expiry_date_at_issue, l.lot_number, l.stock_lot_id
+            """;
+
+        await EnsureOpenAsync(cancellationToken);
+        var command = new CommandDefinition(sql, new { requisitionId }, cancellationToken: cancellationToken);
+        return (await _connection.QueryAsync<RequisitionIssueAllocationRow>(command))
+            .Select(row => new RequisitionIssueAllocation(
+                decimal.ToInt32(row.LineNo),
+                row.ItemCode,
+                row.ItemName,
+                row.UnitOfMeasure,
+                row.LotNumber,
+                DateOnly.FromDateTime(row.ExpiryDate),
+                row.Quantity))
+            .ToList();
+    }
+
     private async Task EnsureOpenAsync(CancellationToken cancellationToken)
     {
         if (_connection.State == System.Data.ConnectionState.Open)
@@ -284,6 +319,17 @@ internal sealed class InventoryItemRow
     public DateTime? EarliestUsableExpiry { get; set; }
 }
 
+internal sealed class RequisitionIssueAllocationRow
+{
+    public decimal LineNo { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
+    public string ItemName { get; set; } = string.Empty;
+    public string UnitOfMeasure { get; set; } = string.Empty;
+    public string LotNumber { get; set; } = string.Empty;
+    public DateTime ExpiryDate { get; set; }
+    public int Quantity { get; set; }
+}
+
 /// <summary>品項庫存總覽。</summary>
 public sealed record ItemAvailability(long ItemId, int AvailableQuantity, IReadOnlyList<ItemAvailabilityLot> Lots);
 
@@ -326,3 +372,13 @@ public sealed record InventoryItem(
     int AvailableQuantity,
     int UsableLotCount,
     DateOnly? EarliestUsableExpiry);
+
+/// <summary>請領單畫面用的已發料配批紀錄。</summary>
+public sealed record RequisitionIssueAllocation(
+    int LineNo,
+    string ItemCode,
+    string ItemName,
+    string UnitOfMeasure,
+    string LotNumber,
+    DateOnly ExpiryDate,
+    int Quantity);
