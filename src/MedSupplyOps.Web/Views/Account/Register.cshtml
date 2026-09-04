@@ -1,0 +1,63 @@
+@using MedSupplyOps.Web.Models.Account
+@model RegisterViewModel
+@{
+    ViewData["Title"] = "註冊";
+}
+
+<div class="mb-3">
+    <h1 class="h2 mb-1">註冊</h1>
+    <p class="text-muted mb-0">
+        ⚠ 目前刻意尚未套用授權：註冊後的帳號可以自行選角色，且立即能存取所有頁面
+        （見 README 的說明）。
+    </p>
+</div>
+
+<form asp-action="Register" method="post" class="col-md-6">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+
+    <div class="mb-3">
+        <label asp-for="DisplayName" class="form-label"></label>
+        <input asp-for="DisplayName" class="form-control" />
+        <span asp-validation-for="DisplayName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" autocomplete="username" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Role" class="form-label"></label>
+        <select asp-for="Role" class="form-select">
+            <option value="">請選擇角色</option>
+            @foreach (var role in Model.AvailableRoles)
+            {
+                <option value="@role">@role</option>
+            }
+        </select>
+        <span asp-validation-for="Role" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ConfirmPassword" class="form-label"></label>
+        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit">註冊</button>
+        <a class="btn btn-outline-secondary" asp-action="Login">已經有帳號？登入</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

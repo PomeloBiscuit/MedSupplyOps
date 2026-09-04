@@ -1,4 +1,5 @@
 using MedSupplyOps.Domain.Requisitions;
+using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Services;
@@ -11,19 +12,21 @@ namespace MedSupplyOps.Web.Controllers;
 public sealed class RequisitionsController : Controller
 {
     private const string ConcurrentReviewMessage = "此單已被他人處理，請重新整理後再試。";
-    private const string IssuedBy = "web";
     private readonly MedSupplyOpsDbContext _dbContext;
     private readonly InventoryQueries _inventoryQueries;
     private readonly StockIssueService _stockIssueService;
+    private readonly ICurrentUser _currentUser;
 
     public RequisitionsController(
         MedSupplyOpsDbContext dbContext,
         InventoryQueries inventoryQueries,
-        StockIssueService stockIssueService)
+        StockIssueService stockIssueService,
+        ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _inventoryQueries = inventoryQueries;
         _stockIssueService = stockIssueService;
+        _currentUser = currentUser;
     }
 
     [HttpGet]
@@ -252,7 +255,7 @@ public sealed class RequisitionsController : Controller
     public async Task<IActionResult> Issue(long id, CancellationToken cancellationToken)
     {
         var asOf = DateOnly.FromDateTime(DateTime.Today);
-        var result = await _stockIssueService.IssueRequisitionAsync(id, asOf, IssuedBy, cancellationToken);
+        var result = await _stockIssueService.IssueRequisitionAsync(id, asOf, _currentUser.Actor, cancellationToken);
 
         if (result.IsSuccess)
         {

@@ -11,7 +11,8 @@ using Xunit.Abstractions;
 namespace MedSupplyOps.Integration.Tests.Web;
 
 /// <summary>發料按鈕的整合測試：從 HTTP 表單一路驗證到真實 Oracle 配批資料。</summary>
-public sealed partial class RequisitionIssueWebTests : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>
+public sealed partial class RequisitionIssueWebTests
+    : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>, IAsyncLifetime
 {
     private readonly HttpClient _client;
     private readonly ITestOutputHelper _output;
@@ -26,6 +27,11 @@ public sealed partial class RequisitionIssueWebTests : IClassFixture<Requisition
         });
         _output = output;
     }
+
+    /// <summary>設計裁定 D4：發料／核准都要有登入者才寫得進 CREATED_BY／UPDATED_BY，見 RequisitionFlowTests。</summary>
+    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, "keeper@example.local");
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Create_submit_approve_issue_shows_allocations_and_rejects_a_duplicate_post()

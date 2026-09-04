@@ -193,6 +193,20 @@ dotnet test MedSupplyOps.slnx
 Docker 會直接改寫 iptables/WinNAT，Windows 防火牆規則擋不住它，
 用預設寫法等於把開發資料庫開放給整個區域網路。
 
+### 示範帳號
+
+`dotnet run` 啟動時會自動建立三個角色與各一個示範帳號（冪等，重複啟動不會重複建立）。
+密碼相同是刻意的：這是示範帳號，用同一組好記的密碼換取「clone 下來就能登入看畫面」，
+不是正式帳號的密碼政策。
+
+| 角色 | 帳號 | 密碼 |
+|---|---|---|
+| Requester（申請人） | `requester@example.local` | `Demo#2026pass` |
+| Storekeeper（庫管員） | `keeper@example.local` | `Demo#2026pass` |
+| Administrator（管理員） | `admin@example.local` | `Demo#2026pass` |
+
+⚠ **目前所有頁面都不需要登入就能開**——角色欄位已經存在，但還沒有任何頁面依角色限制存取。
+
 ---
 
 ## 架構

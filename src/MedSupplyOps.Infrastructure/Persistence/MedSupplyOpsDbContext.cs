@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MedSupplyOps.Domain.Inventory;
 using MedSupplyOps.Domain.Requisitions;
+using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,16 +18,17 @@ namespace MedSupplyOps.Infrastructure.Persistence;
 /// </summary>
 public sealed class MedSupplyOpsDbContext : DbContext
 {
-    /// <summary>
-    /// 尚無登入使用者的概念（目前尚不含 Controller / 認證）。
-    /// 稽核欄位（CREATED_BY 等）是 NOT NULL，總得有值才寫得進去，
-    /// 先以此常數佔位；真正的操作者之後經由注入的抽象取代。
-    /// </summary>
-    private static readonly string SystemActor = "system";
+    private readonly ICurrentUser _currentUser;
 
-    public MedSupplyOpsDbContext(DbContextOptions<MedSupplyOpsDbContext> options)
+    /// <summary>
+    /// ★ 設計裁定 D4：<paramref name="currentUser"/> 不可以是「取不到就補預設值」的實作。
+    /// 取不到登入使用者時，<see cref="ICurrentUser.Actor"/> 必須丟例外——
+    /// 這裡的建構子只負責接住那個抽象，不負責幫它兜一個安全的答案。
+    /// </summary>
+    public MedSupplyOpsDbContext(DbContextOptions<MedSupplyOpsDbContext> options, ICurrentUser currentUser)
         : base(options)
     {
+        _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
     }
 
     public DbSet<Item> Items => Set<Item>();
@@ -57,7 +59,15 @@ public sealed class MedSupplyOpsDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(MedSupplyOpsDbContext).Assembly);
+        // ★ 不能用不篩選命名空間的 ApplyConfigurationsFromAssembly(assembly) ——
+        //   那會連同 Identity.Configurations 底下的 Identity 表對映一起套用到「這個」模型。
+        //   ApplyConfiguration<TEntity>() 只要被呼叫就會把 TEntity 加進目前的模型，
+        //   而 Identity 實體（例如 IdentityUserLogin<string>）的複合鍵是在
+        //   MedSupplyOpsIdentityDbContext（繼承 IdentityDbContext）的 OnModelCreating 基底
+        //   邏輯裡設定的，這裡走不到那段基底邏輯，於是 EF 會抱怨那些實體沒有主鍵。
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(MedSupplyOpsDbContext).Assembly,
+            type => type.Namespace == typeof(Configurations.ItemConfiguration).Namespace);
     }
 
     /// <summary>
@@ -88,12 +98,21 @@ public sealed class MedSupplyOpsDbContext : DbContext
             if (entry.State == EntityState.Added)
             {
                 SetIfPresent(entry, "CreatedAt", now);
-                SetIfPresent(entry, "CreatedBy", SystemActor);
+                if (entry.Metadata.FindProperty("CreatedBy") is not null)
+                {
+                    // ★ D4：_currentUser.Actor 取不到值時會丟例外——刻意讓它在這裡（寫入之前）
+                    //   往外傳，而不是接住它、換成某個預設字串。整個 SaveChanges 因此失敗，
+                    //   不會有任何一列寫進資料庫。見 ICurrentUser 的類別註解與 T3。
+                    SetIfPresent(entry, "CreatedBy", _currentUser.Actor);
+                }
             }
             else if (entry.State == EntityState.Modified)
             {
                 SetIfPresent(entry, "UpdatedAt", now);
-                SetIfPresent(entry, "UpdatedBy", SystemActor);
+                if (entry.Metadata.FindProperty("UpdatedBy") is not null)
+                {
+                    SetIfPresent(entry, "UpdatedBy", _currentUser.Actor);
+                }
             }
         }
     }

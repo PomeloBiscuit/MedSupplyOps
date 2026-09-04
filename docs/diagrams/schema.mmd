@@ -24,6 +24,58 @@ erDiagram
         timestamp UPDATED_AT
         varchar UPDATED_BY
     }
+    IDENTITY_ROLES {
+        varchar ID PK
+        varchar NAME
+        varchar NORMALIZED_NAME
+        varchar CONCURRENCY_STAMP
+    }
+    IDENTITY_ROLE_CLAIMS {
+        number ID PK
+        varchar ROLE_ID FK
+        varchar CLAIM_TYPE
+        varchar CLAIM_VALUE
+    }
+    IDENTITY_USERS {
+        varchar ID PK
+        varchar USER_NAME
+        varchar NORMALIZED_USER_NAME
+        varchar EMAIL
+        varchar NORMALIZED_EMAIL
+        number EMAIL_CONFIRMED
+        varchar PASSWORD_HASH
+        varchar SECURITY_STAMP
+        varchar CONCURRENCY_STAMP
+        varchar PHONE_NUMBER
+        number PHONE_NUMBER_CONFIRMED
+        number TWO_FACTOR_ENABLED
+        timestamp LOCKOUT_END
+        number LOCKOUT_ENABLED
+        number ACCESS_FAILED_COUNT
+        varchar DISPLAY_NAME
+    }
+    IDENTITY_USER_CLAIMS {
+        number ID PK
+        varchar USER_ID FK
+        varchar CLAIM_TYPE
+        varchar CLAIM_VALUE
+    }
+    IDENTITY_USER_LOGINS {
+        varchar LOGIN_PROVIDER PK
+        varchar PROVIDER_KEY PK
+        varchar PROVIDER_DISPLAY_NAME
+        varchar USER_ID FK
+    }
+    IDENTITY_USER_ROLES {
+        varchar USER_ID PK, FK
+        varchar ROLE_ID PK, FK
+    }
+    IDENTITY_USER_TOKENS {
+        varchar USER_ID PK, FK
+        varchar LOGIN_PROVIDER PK
+        varchar NAME PK
+        varchar VALUE
+    }
     ISSUE_ALLOCATIONS {
         number ISSUE_ALLOCATION_ID PK
         number REQUISITION_LINE_ID FK
@@ -86,6 +138,12 @@ erDiagram
         timestamp UPDATED_AT
         varchar UPDATED_BY
     }
+    IDENTITY_ROLES ||--o{ IDENTITY_ROLE_CLAIMS : "FK_IDENTITY_ROLE_CLAIMS_ROLE"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_CLAIMS : "FK_IDENTITY_USER_CLAIMS_USER"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_LOGINS : "FK_IDENTITY_USER_LOGINS_USER"
+    IDENTITY_ROLES ||--o{ IDENTITY_USER_ROLES : "FK_IDENTITY_USER_ROLES_ROLE"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_ROLES : "FK_IDENTITY_USER_ROLES_USER"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_TOKENS : "FK_IDENTITY_USER_TOKENS_USER"
     REQUISITION_LINES ||--o{ ISSUE_ALLOCATIONS : "FK_ISSUE_ALLOC_LINE"
     STOCK_LOTS ||--o{ ISSUE_ALLOCATIONS : "FK_ISSUE_ALLOC_LOT"
     DEPARTMENTS ||--o{ REQUISITIONS : "FK_REQUISITIONS_DEPT"

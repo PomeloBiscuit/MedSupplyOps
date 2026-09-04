@@ -15,7 +15,8 @@ using Xunit.Abstractions;
 
 namespace MedSupplyOps.Integration.Tests.Web;
 
-public sealed partial class RequisitionFlowTests : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>
+public sealed partial class RequisitionFlowTests
+    : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>, IAsyncLifetime
 {
     private readonly HttpClient _client;
     private readonly ITestOutputHelper _output;
@@ -28,6 +29,15 @@ public sealed partial class RequisitionFlowTests : IClassFixture<RequisitionFlow
             AllowAutoRedirect = false,
         });
     }
+
+    /// <summary>
+    /// ★ 設計裁定 D4：CreatedBy／UpdatedBy 不可以有靜默預設值，所以會寫資料的 action
+    /// 一定要有登入者才能成功。這裡改用真正的 /Account/Login 端點登入示範帳號 keeper@example.local，
+    /// 而不是繞過驗證塞 Cookie——理由與改動範圍見當時的 commit 訊息。
+    /// </summary>
+    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, "keeper@example.local");
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Create_submit_approve_completes_full_flow()
