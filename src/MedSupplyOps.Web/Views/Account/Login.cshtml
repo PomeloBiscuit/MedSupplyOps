@@ -1,0 +1,45 @@
+@using MedSupplyOps.Web.Models.Account
+@model LoginViewModel
+@{
+    ViewData["Title"] = "登入";
+}
+
+<div class="mb-3">
+    <h1 class="h2 mb-1">登入</h1>
+    <p class="text-muted mb-0">
+        示範帳號：requester@example.local／keeper@example.local／admin@example.local，密碼皆為
+        <code>Demo#2026pass</code>（見 README）。
+    </p>
+</div>
+
+<form asp-action="Login" method="post" class="col-md-6">
+    @Html.AntiForgeryToken()
+    <input asp-for="ReturnUrl" type="hidden" />
+    <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" autocomplete="username" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3 form-check">
+        <input asp-for="RememberMe" class="form-check-input" />
+        <label asp-for="RememberMe" class="form-check-label"></label>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit">登入</button>
+        <a class="btn btn-outline-secondary" asp-action="Register">還沒有帳號？註冊</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

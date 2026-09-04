@@ -67,7 +67,8 @@ public sealed class MedSupplyOpsDbContextTests
         Assert.Equal(7, read.SafetyStockQty);
         Assert.False(read.IsDeleted);
         Assert.Null(read.DeletedAt);
-        Assert.Equal("system", read.CreatedBy); // DbContext.SaveChanges 的稽核簿記
+        // D4：CreatedBy 來自 OracleTestDatabase.CreateContext 明確指定的 actor（不是 DbContext 的預設值）。
+        Assert.Equal("integration-test", read.CreatedBy);
         Assert.True(read.CreatedAt > DateTime.UtcNow.AddMinutes(-5));
 
         await tx.RollbackAsync();

@@ -1,8 +1,11 @@
 using System.Text.Json;
+using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Services;
 using MedSupplyOps.Web;
+using MedSupplyOps.Web.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +60,9 @@ if (string.IsNullOrWhiteSpace(medSupplyConnection))
         """);
 }
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+
 builder.Services.AddDbContext<MedSupplyOpsDbContext>(options =>
     options.UseOracle(medSupplyConnection));
 builder.Services.AddScoped<InventoryQueries>(serviceProvider =>
@@ -64,7 +70,44 @@ builder.Services.AddScoped<InventoryQueries>(serviceProvider =>
 builder.Services.AddScoped<StockIssueService>(serviceProvider =>
     new StockIssueService(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity：認證，不含授權（D6）。
+//
+// 用同一條連線字串、另一個 DbContext（設計裁定 D1）：Identity 的表與 Domain 的表
+// 是兩個不同的物件圖，硬塞進同一個 DbContext 會讓 MedSupplyOpsDbContext 的稽核簿記
+// 邏輯（StampBookkeepingColumns）誤判 Identity 實體也有 CREATED_BY 之類的欄位。
+// ─────────────────────────────────────────────────────────────────────────────
+builder.Services.AddDbContext<MedSupplyOpsIdentityDbContext>(options =>
+    options.UseOracle(medSupplyConnection));
+
+builder.Services
+    .AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        // 登入失敗鎖定（SEC-8）：連續 5 次失敗鎖定 15 分鐘。
+        // 數字沒有標準答案，這裡選 5/15 分鐘是「常見到記得住、又不會讓忘記密碼的人等太久」。
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.AllowedForNewUsers = true;
+
+        options.User.RequireUniqueEmail = true;
+    })
+    .AddEntityFrameworkStores<MedSupplyOpsIdentityDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+});
+
 var app = builder.Build();
+
+// 建立三個角色與各一個示範帳號（設計裁定 D5）。冪等，每次啟動都跑。
+using (var scope = app.Services.CreateScope())
+{
+    await DemoAccountSeeder.SeedAsync(scope.ServiceProvider);
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -77,6 +120,11 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+// ★ 只做驗證（誰登入了），不做授權（他能不能做這件事）——見 D6。
+//   UseAuthorization 這裡仍然存在，是因為 ASP.NET Core 的中介軟體管線需要它才能
+//   讓 [Authorize] 生效；目前沒有替任何 Controller / Action 標 [Authorize] 或 Policy，
+//   所以它目前不會擋下任何人。授權會在下一步接上。
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -25,7 +26,15 @@ internal static class OracleTestDatabase
 
     public static string ConnectionString { get; } = ResolveConnectionString();
 
-    public static MedSupplyOpsDbContext CreateContext(Action<string>? sqlSink = null)
+    /// <summary>
+    /// 建立測試用的 <see cref="MedSupplyOpsDbContext"/>。
+    ///
+    /// ★ 設計裁定 D4：這裡不在 HTTP 請求內，所以由呼叫端（也就是這個方法）明確指定一個
+    /// 固定的 actor 值，而不是讓 <see cref="MedSupplyOpsDbContext"/> 自己補一個預設值。
+    /// 預設 "integration-test" 只存在於這個測試專用的工廠方法裡，不是 DbContext 的行為——
+    /// 需要不同 actor 的測試可以自行傳入。
+    /// </summary>
+    public static MedSupplyOpsDbContext CreateContext(Action<string>? sqlSink = null, string actor = "integration-test")
     {
         var options = new DbContextOptionsBuilder<MedSupplyOpsDbContext>()
             .UseOracle(ConnectionString)
@@ -39,7 +48,7 @@ internal static class OracleTestDatabase
                 LogLevel.Information);
         }
 
-        return new MedSupplyOpsDbContext(options.Options);
+        return new MedSupplyOpsDbContext(options.Options, new FixedCurrentUser(actor));
     }
 
     private static string ResolveConnectionString()
