@@ -60,4 +60,17 @@ services:
 
 volumes:
   oracle-data:
+    # ★ 明確命名，讓資料不隨 compose 專案名或資料夾名改變而換位置。
+    #
+    # ⚠ `up` 時可能出現這個警告，**它是預期的、可以忽略**：
+    #     volume "medsupplyops-oracle-data" already exists but was created for
+    #     project "<舊專案名>" (expected "medsupplyops")
+    #   原因：volume 身上的 compose 專案標籤是建立當下寫死的，之後改不了。
+    #   compose 仍會正確重用這個 volume（資料完好）。
+    #
+    #   **不要**為了消掉這行警告而去刪 volume 或加 external: true ——
+    #   前者會刪光資料庫，後者會讓「clone 下來一行指令跑起來」不再成立。
+    #   要徹底消除的話，做一次 `docker compose down -v` 再 `up -d` 重建即可
+    #   （schema 與種子資料都在 db/schema 下，會自動重新套用）——
+    #   那同時也就是 NFR-4 的備份還原演練。
     name: medsupplyops-oracle-data
