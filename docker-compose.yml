@@ -14,6 +14,11 @@
 #   主機 localhost   埠 1521   服務名 FREEPDB1
 #   應用帳號 MEDSUPPLY（由 db/init 建立，權限最小化，不是 SYSTEM）
 
+# ★ 明確指定 compose 專案名稱，不要讓它從資料夾名推導。
+#   預設行為是「專案名 = 所在資料夾名」，所以資料夾一改名，compose 就認為這是一個
+#   全新的專案：既有容器變成孤兒、`up -d` 會因為容器名稱衝突而失敗。
+#   釘死之後，這個 repo 放在哪個路徑、資料夾叫什麼名字，都不再影響容器與資料。
+name: medsupplyops
 services:
   oracle:
     image: container-registry.oracle.com/database/free:latest
