@@ -1,7 +1,11 @@
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Persistence;
+using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Account;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MedSupplyOps.Web.Controllers;
 
@@ -9,28 +13,30 @@ namespace MedSupplyOps.Web.Controllers;
 /// 登入／註冊／登出。刻意手寫三個頁面，不用 Identity 的 scaffold UI 套件
 /// （<c>Microsoft.AspNetCore.Identity.UI</c>）——設計裁定 D7：scaffold 會塞進
 /// 2FA、外部登入、個人資料下載等一整組用不到、也沒被測試或授權保護的端點。
-///
-/// ★ 目前刻意不做授權（見 README 的說明 D6）：這個 Controller 沒有任何
-/// [Authorize]，所有 action 目前都能匿名呼叫。
 /// </summary>
 public sealed class AccountController : Controller
 {
-    private static readonly string[] AvailableRoles = ["Requester", "Storekeeper", "Administrator"];
-
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly MedSupplyOpsDbContext _dbContext;
 
-    public AccountController(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager)
+    public AccountController(
+        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager,
+        MedSupplyOpsDbContext dbContext)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _dbContext = dbContext;
     }
 
-    [HttpGet]
+    [AcceptVerbs("GET", "HEAD")]
+    [AllowAnonymous]
     public IActionResult Login(string? returnUrl = null)
         => View(new LoginViewModel { ReturnUrl = returnUrl });
 
     [HttpPost]
+    [AllowAnonymous]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)
     {
@@ -65,21 +71,31 @@ public sealed class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Register()
-        => View(new RegisterViewModel { AvailableRoles = AvailableRoles });
+    [AllowAnonymous]
+    public async Task<IActionResult> Register(CancellationToken cancellationToken)
+    {
+        var model = new RegisterViewModel();
+        await PopulateDepartmentsAsync(model, cancellationToken);
+        return View(model);
+    }
 
     [HttpPost]
+    [AllowAnonymous]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterViewModel model, CancellationToken cancellationToken)
     {
-        if (!AvailableRoles.Contains(model.Role, StringComparer.Ordinal))
+        var departmentExists = await _dbContext.Departments.AsNoTracking()
+            .AnyAsync(
+                department => department.Id == model.DepartmentId && department.IsActive && !department.IsDeleted,
+                cancellationToken);
+        if (!departmentExists)
         {
-            ModelState.AddModelError(nameof(model.Role), "請選擇有效的角色。");
+            ModelState.AddModelError(nameof(model.DepartmentId), "選擇的科室不存在或已停用。");
         }
 
         if (!ModelState.IsValid)
         {
-            model.AvailableRoles = AvailableRoles;
+            await PopulateDepartmentsAsync(model, cancellationToken);
             return View(model);
         }
 
@@ -88,6 +104,7 @@ public sealed class AccountController : Controller
             UserName = model.Email,
             Email = model.Email,
             DisplayName = model.DisplayName,
+            DepartmentId = model.DepartmentId,
         };
 
         var createResult = await _userManager.CreateAsync(user, model.Password);
@@ -98,17 +115,28 @@ public sealed class AccountController : Controller
                 ModelState.AddModelError(string.Empty, error.Description);
             }
 
-            model.AvailableRoles = AvailableRoles;
+            await PopulateDepartmentsAsync(model, cancellationToken);
             return View(model);
         }
 
-        await _userManager.AddToRoleAsync(user, model.Role);
+        var roleResult = await _userManager.AddToRoleAsync(user, ApplicationRoles.Requester);
+        if (!roleResult.Succeeded)
+        {
+            foreach (var error in roleResult.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+
+            await PopulateDepartmentsAsync(model, cancellationToken);
+            return View(model);
+        }
         await _signInManager.SignInAsync(user, isPersistent: false);
 
         return RedirectToAction("Index", "Home");
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.Authenticated)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
@@ -117,5 +145,15 @@ public sealed class AccountController : Controller
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult AccessDenied() => View();
+
+    private async Task PopulateDepartmentsAsync(RegisterViewModel model, CancellationToken cancellationToken)
+    {
+        model.Departments = await _dbContext.Departments.AsNoTracking()
+            .Where(department => department.IsActive && !department.IsDeleted)
+            .OrderBy(department => department.Code)
+            .Select(department => new RegisterDepartmentOption(department.Id, department.Name))
+            .ToListAsync(cancellationToken);
+    }
 }

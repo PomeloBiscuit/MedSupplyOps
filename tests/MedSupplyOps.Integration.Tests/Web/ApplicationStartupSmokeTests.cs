@@ -30,7 +30,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 /// 所以這個類別的鐵則是：**不覆寫任何服務**。
 /// 它唯一的職責是回答一個問題 ——「照使用者的方式啟動，網站真的能用嗎？」
 /// </summary>
-public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStartupSmokeTests.ProductionLikeFactory>
+public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStartupSmokeTests.ProductionLikeFactory>, IAsyncLifetime
 {
     private readonly HttpClient _client;
 
@@ -41,6 +41,10 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
             AllowAutoRedirect = false,
         });
     }
+
+    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, TestIdentitySeeder.AdministratorEmail);
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     public static TheoryData<string> Pages =>
     [
@@ -117,7 +121,9 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
             // Development 讓 Program.cs 走 .env 的連線字串路徑 ——
             // 那正是文件教使用者的做法，所以也正是應該被測試的那條路。
             builder.UseEnvironment("Development");
-            return base.CreateHost(builder);
+            var host = base.CreateHost(builder);
+            TestIdentitySeeder.SeedAsync(host.Services).GetAwaiter().GetResult();
+            return host;
         }
     }
 }

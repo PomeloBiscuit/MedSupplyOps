@@ -4,6 +4,7 @@ using System.Globalization;
 using Dapper;
 using MedSupplyOps.Domain.Inventory;
 using MedSupplyOps.Domain.Requisitions;
+using MedSupplyOps.Infrastructure.Auditing;
 using Oracle.ManagedDataAccess.Client;
 
 namespace MedSupplyOps.Infrastructure.Services;
@@ -247,6 +248,37 @@ public sealed class StockIssueService
                 transaction,
                 cancellationToken: cancellationToken)).ConfigureAwait(false);
 
+            var auditValue = AuditValues.ToJson(new
+            {
+                status = nextStatus.ToString(),
+                allocations = issued.Select(line => new
+                {
+                    line.RequisitionLineId,
+                    line.ItemId,
+                    line.RequestedQuantity,
+                    lots = line.Allocations.Select(allocation => new
+                    {
+                        allocation.StockLotId,
+                        allocation.LotNumber,
+                        allocation.ExpiryDate,
+                        allocation.Quantity,
+                    }),
+                }),
+            });
+            await _connection.ExecuteAsync(new CommandDefinition(
+                InsertAuditLogSql,
+                new
+                {
+                    entityType = AuditValues.RequisitionEntity,
+                    entityId = requisitionId.ToString(CultureInfo.InvariantCulture),
+                    action = AuditValues.IssueAction,
+                    actor = issuedBy,
+                    oldValue = AuditValues.ToJson(new { status = currentStatus.ToString() }),
+                    newValue = auditValue,
+                },
+                transaction,
+                cancellationToken: cancellationToken)).ConfigureAwait(false);
+
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return RequisitionIssueResult.Success(issued);
         }
@@ -427,6 +459,13 @@ public sealed class StockIssueService
             (requisition_line_id, stock_lot_id, quantity, expiry_date_at_issue, issued_by)
         VALUES
             (:lineId, :lotId, :qty, :expiry, :actor)
+        """;
+
+    private const string InsertAuditLogSql = """
+        INSERT INTO audit_logs
+            (entity_type, entity_id, action, actor, old_value, new_value)
+        VALUES
+            (:entityType, :entityId, :action, :actor, :oldValue, :newValue)
         """;
 
     private sealed class LockedLotRow

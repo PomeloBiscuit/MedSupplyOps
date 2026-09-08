@@ -1,5 +1,8 @@
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Persistence;
+using MedSupplyOps.Web.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MedSupplyOps.Web.Identity;
@@ -20,15 +23,21 @@ internal static class DemoAccountSeeder
 
     private static readonly (string Role, string Email, string DisplayName)[] Accounts =
     [
-        ("Requester", "requester@example.local", "王小明"),
-        ("Storekeeper", "keeper@example.local", "陳庫管"),
-        ("Administrator", "admin@example.local", "林大同"),
+        (ApplicationRoles.Requester, "requester@example.local", "王小明"),
+        (ApplicationRoles.Storekeeper, "keeper@example.local", "陳庫管"),
+        (ApplicationRoles.Administrator, "admin@example.local", "林大同"),
     ];
 
     public static async Task SeedAsync(IServiceProvider services)
     {
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+        var dbContext = services.GetRequiredService<MedSupplyOpsDbContext>();
+        var requesterDepartmentId = await dbContext.Departments.AsNoTracking()
+            .Where(department => department.IsActive && !department.IsDeleted)
+            .OrderBy(department => department.Code)
+            .Select(department => department.Id)
+            .FirstAsync();
 
         foreach (var (role, _, _) in Accounts)
         {
@@ -44,6 +53,12 @@ internal static class DemoAccountSeeder
             var existing = await userManager.FindByEmailAsync(email);
             if (existing is not null)
             {
+                if (role == ApplicationRoles.Requester && existing.DepartmentId != requesterDepartmentId)
+                {
+                    existing.DepartmentId = requesterDepartmentId;
+                    ThrowIfFailed(await userManager.UpdateAsync(existing), $"更新示範帳號 {email} 的科室");
+                }
+
                 continue;
             }
 
@@ -53,6 +68,7 @@ internal static class DemoAccountSeeder
                 Email = email,
                 EmailConfirmed = true,
                 DisplayName = displayName,
+                DepartmentId = role == ApplicationRoles.Requester ? requesterDepartmentId : null,
             };
 
             var createResult = await userManager.CreateAsync(user, DemoPassword);

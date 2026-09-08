@@ -9,12 +9,13 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Oracle.ManagedDataAccess.Client;
 
 namespace MedSupplyOps.Integration.Tests.Web;
 
 /// <summary>以實際 MVC host 驗證 API 路由、JSON 欄位名稱與數值。</summary>
-public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.InventoryWebApplicationFactory>
+public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.InventoryWebApplicationFactory>, IAsyncLifetime
 {
     private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
     private readonly HttpClient _client;
@@ -26,6 +27,10 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
             AllowAutoRedirect = false,
         });
     }
+
+    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, TestIdentitySeeder.RequesterEmail);
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task GetAvailability_returns_camel_case_fields_and_MD_0001_values()
@@ -134,6 +139,13 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
 
     public sealed class InventoryWebApplicationFactory : WebApplicationFactory<Program>
     {
+        protected override IHost CreateHost(IHostBuilder builder)
+        {
+            var host = base.CreateHost(builder);
+            TestIdentitySeeder.SeedAsync(host.Services).GetAwaiter().GetResult();
+            return host;
+        }
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.ConfigureServices(services =>

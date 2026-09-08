@@ -4,14 +4,12 @@ using System.Text.RegularExpressions;
 namespace MedSupplyOps.Integration.Tests.Web;
 
 /// <summary>
-/// 讓整合測試用真正的 <c>/Account/Login</c> 端點登入示範帳號，而不是繞過驗證直接塞 Cookie ——
+/// 讓整合測試用真正的 <c>/Account/Login</c> 端點登入專用測試帳號，而不是繞過驗證直接塞 Cookie ——
 /// 走真實的登入路徑，才能同時驗證 D4（有登入者才寫得進 created_by）與 Identity 本身接得起來。
 /// </summary>
 internal static partial class WebAuthTestHelpers
 {
-    public const string DemoPassword = "Demo#2026pass";
-
-    public static async Task LoginAsync(HttpClient client, string email, string password = DemoPassword)
+    public static async Task LoginAsync(HttpClient client, string email)
     {
         var loginPage = await client.GetAsync("/Account/Login");
         var html = await loginPage.Content.ReadAsStringAsync();
@@ -22,7 +20,7 @@ internal static partial class WebAuthTestHelpers
             {
                 ["__RequestVerificationToken"] = token,
                 ["Email"] = email,
-                ["Password"] = password,
+                ["Password"] = TestIdentitySeeder.Password,
             }));
 
         if (response.StatusCode != HttpStatusCode.Redirect)

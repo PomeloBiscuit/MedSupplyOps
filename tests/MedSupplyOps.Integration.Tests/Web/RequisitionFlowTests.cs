@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Oracle.ManagedDataAccess.Client;
 using Xunit.Abstractions;
 
@@ -31,11 +32,9 @@ public sealed partial class RequisitionFlowTests
     }
 
     /// <summary>
-    /// ★ 設計裁定 D4：CreatedBy／UpdatedBy 不可以有靜默預設值，所以會寫資料的 action
-    /// 一定要有登入者才能成功。這裡改用真正的 /Account/Login 端點登入示範帳號 keeper@example.local，
-    /// 而不是繞過驗證塞 Cookie——理由與改動範圍見當時的 commit 訊息。
+    /// 既有流程同時涵蓋建立與審核，因此使用具完整權限的專用測試管理員。
     /// </summary>
-    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, "keeper@example.local");
+    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, TestIdentitySeeder.AdministratorEmail);
 
     public Task DisposeAsync() => Task.CompletedTask;
 
@@ -372,6 +371,9 @@ public sealed partial class RequisitionFlowTests
     private static async Task DeleteRequisitionsAsync(IReadOnlyCollection<long> ids)
     {
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.ExecuteAsync(
+            "DELETE FROM audit_logs WHERE entity_type = 'Requisition' AND entity_id IN :entityIds",
+            new { entityIds = ids.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToList() });
         await connection.ExecuteAsync("DELETE FROM requisition_lines WHERE requisition_id IN :ids", new { ids });
         await connection.ExecuteAsync("DELETE FROM requisitions WHERE requisition_id IN :ids", new { ids });
     }
@@ -399,6 +401,13 @@ public sealed partial class RequisitionFlowTests
 
     public sealed class RequisitionWebApplicationFactory : WebApplicationFactory<Program>
     {
+        protected override IHost CreateHost(IHostBuilder builder)
+        {
+            var host = base.CreateHost(builder);
+            TestIdentitySeeder.SeedAsync(host.Services).GetAwaiter().GetResult();
+            return host;
+        }
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.ConfigureServices(services =>

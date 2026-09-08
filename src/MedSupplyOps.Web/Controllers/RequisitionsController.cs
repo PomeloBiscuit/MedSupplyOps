@@ -1,9 +1,14 @@
 using MedSupplyOps.Domain.Requisitions;
+using MedSupplyOps.Infrastructure.Auditing;
 using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence;
+using MedSupplyOps.Infrastructure.Persistence.Models;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Services;
+using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Requisitions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,20 +21,24 @@ public sealed class RequisitionsController : Controller
     private readonly InventoryQueries _inventoryQueries;
     private readonly StockIssueService _stockIssueService;
     private readonly ICurrentUser _currentUser;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public RequisitionsController(
         MedSupplyOpsDbContext dbContext,
         InventoryQueries inventoryQueries,
         StockIssueService stockIssueService,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        UserManager<ApplicationUser> userManager)
     {
         _dbContext = dbContext;
         _inventoryQueries = inventoryQueries;
         _stockIssueService = stockIssueService;
         _currentUser = currentUser;
+        _userManager = userManager;
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionRead)]
     public async Task<IActionResult> Index(
         RequisitionStatus? status,
         long? departmentId,
@@ -42,7 +51,18 @@ public sealed class RequisitionsController : Controller
             ModelState.AddModelError(nameof(createdTo), "建立日期的結束日不得早於開始日。");
         }
 
+        var departmentScope = await GetDepartmentScopeAsync();
+        if (departmentScope.IsRestricted && departmentScope.DepartmentId is null)
+        {
+            return Forbid();
+        }
+
         var query = _dbContext.Requisitions.AsNoTracking();
+        if (departmentScope.IsRestricted)
+        {
+            departmentId = departmentScope.DepartmentId;
+            query = query.Where(requisition => requisition.DepartmentId == departmentScope.DepartmentId);
+        }
         if (status.HasValue)
         {
             query = query.Where(requisition => requisition.Status == status.Value);
@@ -79,7 +99,7 @@ public sealed class RequisitionsController : Controller
                 requisition.Lines.Count))
             .ToListAsync(cancellationToken);
 
-        var departments = await GetDepartmentOptionsAsync(cancellationToken);
+        var departments = await GetDepartmentOptionsAsync(departmentScope, cancellationToken);
         return View(new RequisitionIndexViewModel
         {
             Status = status,
@@ -92,22 +112,38 @@ public sealed class RequisitionsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionCreate)]
     public async Task<IActionResult> Create(DateOnly? asOf, CancellationToken cancellationToken)
     {
+        var departmentScope = await GetDepartmentScopeAsync();
+        if (departmentScope.IsRestricted && departmentScope.DepartmentId is null)
+        {
+            return Forbid();
+        }
+
         var effectiveAsOf = asOf ?? DateOnly.FromDateTime(DateTime.Today);
         var model = new CreateRequisitionViewModel
         {
             AsOf = effectiveAsOf,
+            DepartmentId = departmentScope.DepartmentId ?? 0,
             Lines = [new CreateRequisitionLineViewModel { Quantity = 1 }],
         };
-        await PopulateCreateOptionsAsync(model, cancellationToken);
+        await PopulateCreateOptionsAsync(model, departmentScope, cancellationToken);
         return View(model);
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionCreate)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateRequisitionViewModel model, CancellationToken cancellationToken)
     {
+        var departmentScope = await GetDepartmentScopeAsync();
+        if (departmentScope.IsRestricted &&
+            (departmentScope.DepartmentId is null || model.DepartmentId != departmentScope.DepartmentId.Value))
+        {
+            return Forbid();
+        }
+
         if (model.AsOf == default)
         {
             ModelState.AddModelError(nameof(model.AsOf), "查詢基準日不正確，請重新載入頁面。");
@@ -115,7 +151,7 @@ public sealed class RequisitionsController : Controller
 
         if (!ModelState.IsValid)
         {
-            await PopulateCreateOptionsAsync(model, cancellationToken);
+            await PopulateCreateOptionsAsync(model, departmentScope, cancellationToken);
             return View(model);
         }
 
@@ -136,7 +172,7 @@ public sealed class RequisitionsController : Controller
             ModelState.AddModelError(nameof(model.Lines), "明細包含不存在或已停用的品項。");
         }
 
-        await PopulateCreateOptionsAsync(model, cancellationToken);
+        await PopulateCreateOptionsAsync(model, departmentScope, cancellationToken);
         if (!ModelState.IsValid)
         {
             return View(model);
@@ -163,9 +199,27 @@ public sealed class RequisitionsController : Controller
         _dbContext.Entry(requisition).Property("RequisitionNo").CurrentValue = GenerateRequisitionNo();
         _dbContext.Entry(requisition).Property("SubmittedAt").CurrentValue = DateTime.UtcNow;
 
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
+            _dbContext.AuditLogs.Add(new AuditLog
+            {
+                EntityType = AuditValues.RequisitionEntity,
+                EntityId = requisition.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Action = AuditValues.CreateAction,
+                Actor = _currentUser.Actor,
+                OccurredAt = DateTime.UtcNow,
+                NewValue = AuditValues.ToJson(new
+                {
+                    requisitionNo = GetShadowValue<string>(requisition, "RequisitionNo"),
+                    departmentId = requisition.DepartmentId,
+                    status = requisition.Status.ToString(),
+                    lines = requisition.Lines.Select(line => new { line.ItemId, line.Quantity }),
+                }),
+            });
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (ContainsConstraint(exception, "UQ_REQ_LINES_ITEM"))
         {
@@ -183,13 +237,21 @@ public sealed class RequisitionsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionRead)]
     public async Task<IActionResult> Details(long id, CancellationToken cancellationToken)
     {
+        var departmentScope = await GetDepartmentScopeAsync();
+        if (departmentScope.IsRestricted && departmentScope.DepartmentId is null)
+        {
+            return Forbid();
+        }
+
         var header = await (
             from requisition in _dbContext.Requisitions.AsNoTracking()
             join department in _dbContext.Departments.AsNoTracking()
                 on requisition.DepartmentId equals department.Id
-            where requisition.Id == id
+            where requisition.Id == id &&
+                  (!departmentScope.IsRestricted || requisition.DepartmentId == departmentScope.DepartmentId)
             select new
             {
                 requisition.Id,
@@ -205,6 +267,12 @@ public sealed class RequisitionsController : Controller
 
         if (header is null)
         {
+            if (departmentScope.IsRestricted &&
+                await _dbContext.Requisitions.AsNoTracking().AnyAsync(requisition => requisition.Id == id, cancellationToken))
+            {
+                return Forbid();
+            }
+
             return NotFound();
         }
 
@@ -251,6 +319,7 @@ public sealed class RequisitionsController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionIssue)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Issue(long id, CancellationToken cancellationToken)
     {
@@ -299,6 +368,7 @@ public sealed class RequisitionsController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionReview)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Approve(long id, long rowVersion, CancellationToken cancellationToken)
     {
@@ -316,8 +386,19 @@ public sealed class RequisitionsController : Controller
 
         try
         {
+            var oldStatus = requisition.Status.ToString();
             requisition.Approve();
             _dbContext.Entry(requisition).Property("ApprovedAt").CurrentValue = DateTime.UtcNow;
+            _dbContext.AuditLogs.Add(new AuditLog
+            {
+                EntityType = AuditValues.RequisitionEntity,
+                EntityId = id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Action = AuditValues.ApproveAction,
+                Actor = _currentUser.Actor,
+                OccurredAt = DateTime.UtcNow,
+                OldValue = AuditValues.ToJson(new { status = oldStatus }),
+                NewValue = AuditValues.ToJson(new { status = requisition.Status.ToString() }),
+            });
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (InvalidOperationException)
@@ -336,6 +417,7 @@ public sealed class RequisitionsController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionReview)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reject(
         long id,
@@ -369,7 +451,22 @@ public sealed class RequisitionsController : Controller
 
         try
         {
+            var oldStatus = requisition.Status.ToString();
             requisition.Reject(rejectionReason);
+            _dbContext.AuditLogs.Add(new AuditLog
+            {
+                EntityType = AuditValues.RequisitionEntity,
+                EntityId = id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Action = AuditValues.RejectAction,
+                Actor = _currentUser.Actor,
+                OccurredAt = DateTime.UtcNow,
+                OldValue = AuditValues.ToJson(new { status = oldStatus }),
+                NewValue = AuditValues.ToJson(new
+                {
+                    status = requisition.Status.ToString(),
+                    rejectionReason = requisition.RejectionReason,
+                }),
+            });
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (InvalidOperationException)
@@ -387,9 +484,12 @@ public sealed class RequisitionsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    private async Task PopulateCreateOptionsAsync(CreateRequisitionViewModel model, CancellationToken cancellationToken)
+    private async Task PopulateCreateOptionsAsync(
+        CreateRequisitionViewModel model,
+        DepartmentScope departmentScope,
+        CancellationToken cancellationToken)
     {
-        model.Departments = await GetDepartmentOptionsAsync(cancellationToken);
+        model.Departments = await GetDepartmentOptionsAsync(departmentScope, cancellationToken);
         model.Items = await _dbContext.Items.AsNoTracking()
             .Where(item => !item.IsDeleted)
             .OrderBy(item => item.Code)
@@ -397,12 +497,33 @@ public sealed class RequisitionsController : Controller
             .ToListAsync(cancellationToken);
     }
 
-    private async Task<IReadOnlyList<RequisitionOptionViewModel>> GetDepartmentOptionsAsync(CancellationToken cancellationToken)
-        => await _dbContext.Departments.AsNoTracking()
-            .Where(department => department.IsActive && !department.IsDeleted)
+    private async Task<IReadOnlyList<RequisitionOptionViewModel>> GetDepartmentOptionsAsync(
+        DepartmentScope departmentScope,
+        CancellationToken cancellationToken)
+    {
+        var query = _dbContext.Departments.AsNoTracking()
+            .Where(department => department.IsActive && !department.IsDeleted);
+        if (departmentScope.IsRestricted)
+        {
+            query = query.Where(department => department.Id == departmentScope.DepartmentId);
+        }
+
+        return await query
             .OrderBy(department => department.Code)
             .Select(department => new RequisitionOptionViewModel(department.Id, department.Name))
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<DepartmentScope> GetDepartmentScopeAsync()
+    {
+        if (!User.IsInRole(ApplicationRoles.Requester))
+        {
+            return DepartmentScope.Unrestricted;
+        }
+
+        var user = await _userManager.FindByNameAsync(_currentUser.Actor);
+        return new DepartmentScope(true, user?.DepartmentId);
+    }
 
     private T GetShadowValue<T>(Requisition requisition, string propertyName)
         => (T)_dbContext.Entry(requisition).Property(propertyName).CurrentValue!;
@@ -421,5 +542,10 @@ public sealed class RequisitionsController : Controller
         }
 
         return false;
+    }
+
+    private readonly record struct DepartmentScope(bool IsRestricted, long? DepartmentId)
+    {
+        public static DepartmentScope Unrestricted => new(false, null);
     }
 }

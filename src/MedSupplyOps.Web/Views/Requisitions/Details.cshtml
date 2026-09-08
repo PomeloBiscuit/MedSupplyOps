@@ -93,7 +93,7 @@
     </section>
 }
 
-@if (Model.CanIssue)
+@if (Model.CanIssue && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {
     <section class="card card-body mb-4" aria-labelledby="issue-heading">
         <h2 class="h5" id="issue-heading">發料動作</h2>
@@ -104,7 +104,7 @@
     </section>
 }
 
-@if (Model.CanRetryIssue)
+@if (Model.CanRetryIssue && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {
     <section class="card card-body mb-4" aria-labelledby="retry-issue-heading">
         <h2 class="h5" id="retry-issue-heading">重新嘗試發料</h2>
@@ -115,7 +115,7 @@
     </section>
 }
 
-@if (Model.CanReview)
+@if (Model.CanReview && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {
     <section class="card card-body" aria-labelledby="review-heading">
         <h2 class="h5" id="review-heading">審核動作</h2>
