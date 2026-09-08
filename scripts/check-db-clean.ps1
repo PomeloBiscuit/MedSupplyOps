@@ -4,7 +4,9 @@
 
 .DESCRIPTION
     整合測試共用同一個 Oracle 容器，每一條都會建立自己的科室／品項／批次／請領單，
-    並在結束時刪掉（`created_by = 'itest'` 是它們的標記）。
+    並在結束時刪掉（`created_by LIKE 'itest%'`／`actor LIKE 'itest%'` 是它們的標記）。
+
+    identity_users 裡的 itest-* 帳號是測試夾具基礎設施，等同種子資料，刻意不列為殘留。
 
     問題在於：**測試失敗或被中斷時，清理不一定跑得完。**
     而留下來的資料完全不會被任何既有檢查發現 ——
@@ -59,10 +61,11 @@ $sql = @"
 SET PAGESIZE 0
 SET FEEDBACK OFF
 SET HEADING OFF
-SELECT 'items|' || item_code FROM items WHERE created_by = '$TestMarker'
-UNION ALL SELECT 'departments|' || department_code FROM departments WHERE created_by = '$TestMarker'
-UNION ALL SELECT 'stock_lots|' || lot_number FROM stock_lots WHERE created_by = '$TestMarker'
-UNION ALL SELECT 'requisitions|' || requisition_no FROM requisitions WHERE created_by = '$TestMarker';
+SELECT 'items|' || item_code FROM items WHERE created_by LIKE '$TestMarker%'
+UNION ALL SELECT 'departments|' || department_code FROM departments WHERE created_by LIKE '$TestMarker%'
+UNION ALL SELECT 'stock_lots|' || lot_number FROM stock_lots WHERE created_by LIKE '$TestMarker%'
+UNION ALL SELECT 'requisitions|' || requisition_no FROM requisitions WHERE created_by LIKE '$TestMarker%'
+UNION ALL SELECT 'audit_logs|' || entity_type || ':' || entity_id || ':' || action FROM audit_logs WHERE actor LIKE '$TestMarker%';
 EXIT
 "@
 
@@ -84,11 +87,11 @@ $leftovers = $output -split "`n" |
     Where-Object { $_ -match '^\w+\|' }
 
 if ($leftovers.Count -eq 0) {
-    Write-Host "資料庫乾淨：沒有 created_by = '$TestMarker' 的殘留資料。" -ForegroundColor Green
+    Write-Host "資料庫乾淨：沒有 created_by / actor LIKE '$TestMarker%' 的殘留資料。" -ForegroundColor Green
     exit 0
 }
 
-Write-Host "整合測試在資料庫留下了 $($leftovers.Count) 筆資料（created_by = '$TestMarker'）：" -ForegroundColor Red
+Write-Host "整合測試在資料庫留下了 $($leftovers.Count) 筆資料（created_by / actor LIKE '$TestMarker%'）：" -ForegroundColor Red
 foreach ($row in $leftovers) {
     $parts = $row -split '\|', 2
     Write-Host ("  {0,-16} {1}" -f $parts[0], $parts[1])
@@ -101,24 +104,25 @@ if (-not $Clean) {
     exit 1
 }
 
-Write-Host '正在清除（依外鍵相依順序，只刪 created_by 為測試標記的資料）...' -ForegroundColor Cyan
+Write-Host '正在清除（依外鍵相依順序，只刪 created_by / actor 有測試前綴的資料）...' -ForegroundColor Cyan
 
 # ★ 刻意不用 ON DELETE CASCADE —— schema 全域禁止（見 docs/requirements.md MIG-2），
 #   清理腳本也不該是唯一的例外。依外鍵順序逐一刪除。
 $cleanSql = @"
 SET FEEDBACK OFF
+DELETE FROM audit_logs WHERE actor LIKE '$TestMarker%';
 DELETE FROM issue_allocations WHERE requisition_line_id IN (
     SELECT rl.requisition_line_id FROM requisition_lines rl
     JOIN requisitions r ON r.requisition_id = rl.requisition_id
-    WHERE r.created_by = '$TestMarker');
+    WHERE r.created_by LIKE '$TestMarker%');
 DELETE FROM requisition_lines WHERE requisition_id IN (
-    SELECT requisition_id FROM requisitions WHERE created_by = '$TestMarker');
-DELETE FROM requisitions WHERE created_by = '$TestMarker';
+    SELECT requisition_id FROM requisitions WHERE created_by LIKE '$TestMarker%');
+DELETE FROM requisitions WHERE created_by LIKE '$TestMarker%';
 DELETE FROM issue_allocations WHERE stock_lot_id IN (
-    SELECT stock_lot_id FROM stock_lots WHERE created_by = '$TestMarker');
-DELETE FROM stock_lots WHERE created_by = '$TestMarker';
-DELETE FROM items WHERE created_by = '$TestMarker';
-DELETE FROM departments WHERE created_by = '$TestMarker';
+    SELECT stock_lot_id FROM stock_lots WHERE created_by LIKE '$TestMarker%');
+DELETE FROM stock_lots WHERE created_by LIKE '$TestMarker%';
+DELETE FROM items WHERE created_by LIKE '$TestMarker%';
+DELETE FROM departments WHERE created_by LIKE '$TestMarker%';
 COMMIT;
 EXIT
 "@

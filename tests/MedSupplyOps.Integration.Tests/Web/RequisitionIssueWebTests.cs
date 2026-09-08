@@ -28,8 +28,8 @@ public sealed partial class RequisitionIssueWebTests
         _output = output;
     }
 
-    /// <summary>設計裁定 D4：發料／核准都要有登入者才寫得進 CREATED_BY／UPDATED_BY，見 RequisitionFlowTests。</summary>
-    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, "keeper@example.local");
+    /// <summary>既有流程同時涵蓋建立、核准與發料，因此使用具完整權限的專用測試管理員。</summary>
+    public Task InitializeAsync() => WebAuthTestHelpers.LoginAsync(_client, TestIdentitySeeder.AdministratorEmail);
 
     public Task DisposeAsync() => Task.CompletedTask;
 
@@ -306,6 +306,9 @@ public sealed partial class RequisitionIssueWebTests
     {
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
         await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "DELETE FROM audit_logs WHERE entity_type = 'Requisition' AND entity_id = TO_CHAR(:requisitionId)",
+            new { requisitionId });
         await connection.ExecuteAsync("""
             DELETE FROM issue_allocations
             WHERE requisition_line_id IN (

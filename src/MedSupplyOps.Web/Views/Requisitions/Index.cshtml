@@ -10,7 +10,10 @@
         <h1 class="h2 mb-1">請領單</h1>
         <p class="text-muted mb-0">依狀態、科室與建立日期查詢請領單。</p>
     </div>
-    <a class="btn btn-primary" asp-action="Create">建立請領單</a>
+    @if (User.IsInRole("Requester") || User.IsInRole("Administrator"))
+    {
+        <a class="btn btn-primary" asp-action="Create">建立請領單</a>
+    }
 </div>
 
 <form method="get" class="card card-body mb-4">

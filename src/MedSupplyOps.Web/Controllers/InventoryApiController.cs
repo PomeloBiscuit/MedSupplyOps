@@ -1,5 +1,7 @@
 using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Inventory;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedSupplyOps.Web.Controllers;
@@ -16,6 +18,7 @@ public sealed class InventoryApiController : ControllerBase
     }
 
     [HttpGet("expiring")]
+    [Authorize(Policy = AuthorizationPolicies.InventoryRead)]
     public async Task<ActionResult<IReadOnlyList<ExpiringLotResponse>>> GetExpiring(
         int withinDays = 30,
         DateOnly? asOf = null,

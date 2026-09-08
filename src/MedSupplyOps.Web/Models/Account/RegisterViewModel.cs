@@ -12,8 +12,9 @@ public sealed class RegisterViewModel
     [EmailAddress(ErrorMessage = "帳號格式不正確。")]
     public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "請選擇角色。")]
-    public string Role { get; set; } = string.Empty;
+    [Range(1, long.MaxValue, ErrorMessage = "請選擇科室。")]
+    [Display(Name = "科室")]
+    public long DepartmentId { get; set; }
 
     [Required(ErrorMessage = "請輸入密碼。")]
     [DataType(DataType.Password)]
@@ -24,5 +25,7 @@ public sealed class RegisterViewModel
     [Compare(nameof(Password), ErrorMessage = "兩次輸入的密碼不一致。")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
-    public IReadOnlyList<string> AvailableRoles { get; set; } = [];
+    public IReadOnlyList<RegisterDepartmentOption> Departments { get; set; } = [];
 }
+
+public sealed record RegisterDepartmentOption(long Id, string Name);

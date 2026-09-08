@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net;
 using Dapper;
+using MedSupplyOps.Web.Identity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Oracle.ManagedDataAccess.Client;
 using Xunit.Abstractions;
@@ -11,7 +13,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 /// ★ 設計裁定 D4 的整合測試：CREATED_BY 不可以有靜默預設值。
 ///
 /// 兩件事一起證明：
-///   1. 沒有登入時，會寫 created_by 的操作要整個失敗——不是「填個預設值後照樣成功」。
+///   1. 沒有登入時，授權層先拒絕；底層 Actor 取不到時仍會丟例外，不會填預設值。
 ///   2. 登入之後，created_by 是那個登入者的帳號，不是任何寫死的常數（過去是 "web"／"system"）。
 /// </summary>
 public sealed class CurrentUserAuditTests : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>
@@ -29,36 +31,33 @@ public sealed class CurrentUserAuditTests : IClassFixture<RequisitionFlowTests.R
     }
 
     [Fact]
-    public async Task Anonymous_create_fails_and_persists_nothing()
+    public async Task Anonymous_create_is_redirected_to_login_and_persists_nothing()
     {
         var before = await CountRequisitionsAsync();
-
-        var createPage = await _client.GetAsync("/Requisitions/Create?asOf=2026-09-01");
-        var token = ExtractToken(await createPage.Content.ReadAsStringAsync());
-        var (departmentId, itemId) = await GetSeedIdsAsync();
-
-        var response = await _client.PostAsync("/Requisitions/Create", new FormUrlEncodedContent(
-            new Dictionary<string, string>
-            {
-                ["__RequestVerificationToken"] = token,
-                ["AsOf"] = "2026-09-01",
-                ["DepartmentId"] = departmentId.ToString(CultureInfo.InvariantCulture),
-                ["Lines[0].ItemId"] = itemId.ToString(CultureInfo.InvariantCulture),
-                ["Lines[0].Quantity"] = "1",
-            }));
-
+        var response = await _client.GetAsync("/Requisitions/Create?asOf=2026-09-01");
         var after = await CountRequisitionsAsync();
 
-        // ★ T3：沒有靜默預設值——匿名要求會整個失敗（500），不是「填個 system 照樣成功」。
-        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/Login", response.Headers.Location?.AbsolutePath);
         Assert.Equal(before, after);
-        _output.WriteLine($"T3 HTTP={(int)response.StatusCode}；REQUISITIONS 筆數 {before} -> {after}（未增加）");
+        _output.WriteLine($"HTTP={(int)response.StatusCode} LOCATION={response.Headers.Location}；REQUISITIONS {before}->{after}");
+    }
+
+    [Fact]
+    public void Missing_authenticated_user_throws_instead_of_using_a_default_actor()
+    {
+        var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
+        var currentUser = new HttpContextCurrentUser(accessor);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => currentUser.Actor);
+        Assert.Contains("無法取得目前登入使用者", exception.Message, StringComparison.Ordinal);
+        _output.WriteLine($"ICurrentUser.Actor -> {exception.GetType().Name}: {exception.Message}");
     }
 
     [Fact]
     public async Task Logged_in_create_records_the_actual_login_user_as_created_by()
     {
-        const string email = "requester@example.local";
+        const string email = TestIdentitySeeder.RequesterEmail;
         await WebAuthTestHelpers.LoginAsync(_client, email);
 
         var createPage = await _client.GetAsync("/Requisitions/Create?asOf=2026-09-01");
@@ -107,6 +106,8 @@ public sealed class CurrentUserAuditTests : IClassFixture<RequisitionFlowTests.R
     {
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
         await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "DELETE FROM audit_logs WHERE entity_type = 'Requisition' AND entity_id = TO_CHAR(:id)", new { id });
         await connection.ExecuteAsync("DELETE FROM requisition_lines WHERE requisition_id = :id", new { id });
         await connection.ExecuteAsync("DELETE FROM requisitions WHERE requisition_id = :id", new { id });
         await connection.ExecuteAsync("COMMIT");
@@ -116,7 +117,8 @@ public sealed class CurrentUserAuditTests : IClassFixture<RequisitionFlowTests.R
     {
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
         var departmentId = await connection.QuerySingleAsync<long>(
-            "SELECT MIN(department_id) FROM departments WHERE is_active = 1 AND is_deleted = 0");
+            "SELECT department_id FROM identity_users WHERE normalized_user_name = :name",
+            new { name = TestIdentitySeeder.RequesterEmail.ToUpperInvariant() });
         var itemId = await connection.QuerySingleAsync<long>(
             "SELECT MIN(item_id) FROM items WHERE is_deleted = 0");
         return (departmentId, itemId);

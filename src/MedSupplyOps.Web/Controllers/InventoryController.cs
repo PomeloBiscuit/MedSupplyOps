@@ -1,5 +1,7 @@
 using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Inventory;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedSupplyOps.Web.Controllers;
@@ -14,6 +16,7 @@ public sealed class InventoryController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.InventoryRead)]
     public async Task<IActionResult> Index(DateOnly? asOf, CancellationToken cancellationToken)
     {
         var effectiveAsOf = asOf ?? DateOnly.FromDateTime(DateTime.Today);
@@ -32,6 +35,7 @@ public sealed class InventoryController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.InventoryRead)]
     public async Task<IActionResult> Expiring(int withinDays = 30, DateOnly? asOf = null, CancellationToken cancellationToken = default)
     {
         if (withinDays < 0)

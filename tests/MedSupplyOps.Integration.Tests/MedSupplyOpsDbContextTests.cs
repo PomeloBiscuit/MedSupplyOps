@@ -245,6 +245,35 @@ public sealed class MedSupplyOpsDbContextTests
     }
 
     [Fact]
+    public async Task AuditLog_rejects_application_updates_and_deletes()
+    {
+        await using var ctx = OracleTestDatabase.CreateContext();
+        await using var tx = await ctx.Database.BeginTransactionAsync();
+        var audit = new AuditLog
+        {
+            EntityType = "Requisition",
+            EntityId = "append-only-probe",
+            Action = "Create",
+            Actor = "integration-test",
+            OccurredAt = DateTime.UtcNow,
+            NewValue = "{}",
+        };
+        ctx.AuditLogs.Add(audit);
+        await ctx.SaveChangesAsync();
+
+        audit.NewValue = "{\"changed\":true}";
+        var updateError = await Assert.ThrowsAsync<InvalidOperationException>(() => ctx.SaveChangesAsync());
+        Assert.Contains("只允許新增", updateError.Message, StringComparison.Ordinal);
+
+        ctx.Entry(audit).State = EntityState.Unchanged;
+        ctx.AuditLogs.Remove(audit);
+        var deleteError = await Assert.ThrowsAsync<InvalidOperationException>(() => ctx.SaveChangesAsync());
+        Assert.Contains("只允許新增", deleteError.Message, StringComparison.Ordinal);
+
+        await tx.RollbackAsync();
+    }
+
+    [Fact]
     public async Task Generated_SQL_targets_uppercase_table_and_column_names()
     {
         // T1：Oracle 未加引號的識別項會折成大寫，schema 裡的表實際叫 ITEMS。

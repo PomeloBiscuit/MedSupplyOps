@@ -47,12 +47,14 @@ public sealed class MedSupplyOpsDbContext : DbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        EnsureAuditLogsAreAppendOnly();
         StampBookkeepingColumns();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
+        EnsureAuditLogsAreAppendOnly();
         StampBookkeepingColumns();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
@@ -126,6 +128,14 @@ public sealed class MedSupplyOpsDbContext : DbContext
             {
                 lineEntry.Property("LineNo").CurrentValue = i + 1;
             }
+        }
+    }
+
+    private void EnsureAuditLogsAreAppendOnly()
+    {
+        if (ChangeTracker.Entries<AuditLog>().Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException("AUDIT_LOGS 在應用程式端只允許新增，不允許修改或刪除。");
         }
     }
 

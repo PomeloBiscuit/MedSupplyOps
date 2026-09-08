@@ -9,4 +9,6 @@ namespace MedSupplyOps.Infrastructure.Identity;
 public sealed class ApplicationUser : IdentityUser
 {
     public string DisplayName { get; set; } = string.Empty;
+
+    public long? DepartmentId { get; set; }
 }

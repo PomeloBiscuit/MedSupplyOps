@@ -4,7 +4,9 @@ using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Services;
 using MedSupplyOps.Web;
+using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +16,27 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddControllersWithViews()
     .AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
+
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build())
+    .AddPolicy(AuthorizationPolicies.Authenticated, policy => policy.RequireAuthenticatedUser())
+    .AddPolicy(
+        AuthorizationPolicies.InventoryRead,
+        policy => policy.RequireRole(ApplicationRoles.Requester, ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.RequisitionRead,
+        policy => policy.RequireRole(ApplicationRoles.Requester, ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.RequisitionCreate,
+        policy => policy.RequireRole(ApplicationRoles.Requester, ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.RequisitionReview,
+        policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.RequisitionIssue,
+        policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 資料庫連線字串一律來自組態，不寫進 appsettings.json（需求 SEC-5）：
@@ -71,7 +94,7 @@ builder.Services.AddScoped<StockIssueService>(serviceProvider =>
     new StockIssueService(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Identity：認證，不含授權（D6）。
+// Identity 認證與預設拒絕授權。
 //
 // 用同一條連線字串、另一個 DbContext（設計裁定 D1）：Identity 的表與 Domain 的表
 // 是兩個不同的物件圖，硬塞進同一個 DbContext 會讓 MedSupplyOpsDbContext 的稽核簿記
@@ -99,6 +122,28 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Account/AccessDenied";
+    options.Events.OnRedirectToLogin = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
 });
 
 var app = builder.Build();
@@ -120,14 +165,10 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
-// ★ 只做驗證（誰登入了），不做授權（他能不能做這件事）——見 D6。
-//   UseAuthorization 這裡仍然存在，是因為 ASP.NET Core 的中介軟體管線需要它才能
-//   讓 [Authorize] 生效；目前沒有替任何 Controller / Action 標 [Authorize] 或 Policy，
-//   所以它目前不會擋下任何人。授權會在下一步接上。
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
 
 app.MapControllers();
 

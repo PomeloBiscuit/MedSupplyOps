@@ -166,6 +166,8 @@ internal sealed class RequisitionIssueScenario : IAsyncDisposable
         await connection.OpenAsync();
         var p = new { suffix = _suffix, reqId = RequisitionId, deptId = DepartmentId };
 
+        await connection.ExecuteAsync(
+            "DELETE FROM audit_logs WHERE entity_type = 'Requisition' AND entity_id = TO_CHAR(:reqId)", p);
         await connection.ExecuteAsync("""
             DELETE FROM issue_allocations
             WHERE requisition_line_id IN (

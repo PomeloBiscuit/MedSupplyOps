@@ -6,10 +6,7 @@
 
 <div class="mb-3">
     <h1 class="h2 mb-1">註冊</h1>
-    <p class="text-muted mb-0">
-        ⚠ 目前刻意尚未套用授權：註冊後的帳號可以自行選角色，且立即能存取所有頁面
-        （見 README 的說明）。
-    </p>
+    <p class="text-muted mb-0">新帳號會以請領人身分加入所選科室。</p>
 </div>
 
 <form asp-action="Register" method="post" class="col-md-6">
@@ -29,15 +26,15 @@
     </div>
 
     <div class="mb-3">
-        <label asp-for="Role" class="form-label"></label>
-        <select asp-for="Role" class="form-select">
-            <option value="">請選擇角色</option>
-            @foreach (var role in Model.AvailableRoles)
+        <label asp-for="DepartmentId" class="form-label"></label>
+        <select asp-for="DepartmentId" class="form-select">
+            <option value="0">請選擇科室</option>
+            @foreach (var department in Model.Departments)
             {
-                <option value="@role">@role</option>
+                <option value="@department.Id">@department.Name</option>
             }
         </select>
-        <span asp-validation-for="Role" class="text-danger"></span>
+        <span asp-validation-for="DepartmentId" class="text-danger"></span>
     </div>
 
     <div class="mb-3">

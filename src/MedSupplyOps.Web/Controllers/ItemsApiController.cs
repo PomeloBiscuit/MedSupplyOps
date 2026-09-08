@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Inventory;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedSupplyOps.Web.Controllers;
@@ -17,6 +19,7 @@ public sealed class ItemsApiController : ControllerBase
     }
 
     [HttpGet("{itemId:long}/availability")]
+    [Authorize(Policy = AuthorizationPolicies.InventoryRead)]
     public async Task<ActionResult<ItemAvailabilityResponse>> GetAvailability(
         [Range(1, long.MaxValue)] long itemId,
         DateOnly? asOf,
