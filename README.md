@@ -29,7 +29,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 126 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 129 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -File scripts/mutation-probe.ps1                                # ★ 鑑別力探針
 powershell -File scripts/generate-er-diagram.ps1 -Check                    # ★ ER 圖漂移檢查
@@ -199,13 +199,14 @@ Docker 會直接改寫 iptables/WinNAT，Windows 防火牆規則擋不住它，
 密碼相同是刻意的：這是示範帳號，用同一組好記的密碼換取「clone 下來就能登入看畫面」，
 不是正式帳號的密碼政策。
 
-| 角色 | 帳號 | 密碼 |
-|---|---|---|
-| Requester（申請人） | `requester@example.local` | `Demo#2026pass` |
-| Storekeeper（庫管員） | `keeper@example.local` | `Demo#2026pass` |
-| Administrator（管理員） | `admin@example.local` | `Demo#2026pass` |
+| 角色 | 帳號 | 密碼 | 看得到的範圍 |
+|---|---|---|---|
+| Requester（申請人） | `requester@example.local` | `Demo#2026pass` | 只有自己的科室：急診（`DEP-ER`） |
+| Storekeeper（庫管員） | `keeper@example.local` | `Demo#2026pass` | 全院 |
+| Administrator（管理員） | `admin@example.local` | `Demo#2026pass` | 全院 |
 
-⚠ **目前所有頁面都不需要登入就能開**——角色欄位已經存在，但還沒有任何頁面依角色限制存取。
+系統採**預設拒絕**：未登入時只開放登入頁、註冊頁與 FHIR 能力宣告（`/fhir/metadata`），
+其他頁面一律導向登入頁，API 回 401。
 
 ---
 
@@ -277,7 +278,7 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 ## 專案數字
 
 ```
-126 條測試（Domain 48 + Integration 78，整合測試全部跑真實 Oracle）
+129 條測試（Domain 48 + Integration 81，整合測試全部跑真實 Oracle）
 9 支程式碼探針 + 5 支資料庫探針 + ER 圖漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```

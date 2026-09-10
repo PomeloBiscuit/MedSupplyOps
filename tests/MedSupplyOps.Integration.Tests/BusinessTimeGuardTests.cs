@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using MedSupplyOps.Infrastructure.Time;
-using Microsoft.Extensions.Time.Testing;
 
 namespace MedSupplyOps.Integration.Tests;
 
@@ -49,7 +48,7 @@ public sealed class BusinessTimeGuardTests
     [Fact]
     public void Business_calendar_uses_Taipei_date_and_converts_utc_for_display()
     {
-        var provider = new FakeTimeProvider(new DateTimeOffset(2026, 9, 10, 19, 0, 0, TimeSpan.Zero));
+        var provider = new TestClock(TestBusinessCalendar.DefaultInstant);
         var calendar = new BusinessCalendar(provider, TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei"));
 
         Assert.Equal(new DateOnly(2026, 9, 11), calendar.Today);

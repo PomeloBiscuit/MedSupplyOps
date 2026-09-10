@@ -12,6 +12,7 @@ internal static class TestIdentitySeeder
     public const string RequesterEmail = "itest-requester@example.local";
     public const string StorekeeperEmail = "itest-keeper@example.local";
     public const string AdministratorEmail = "itest-admin@example.local";
+    public const string RequesterDepartmentCode = "DEP-ER";
 
     public static string Password { get; } = $"ITest#{Guid.NewGuid():N}aA1";
 
@@ -28,11 +29,13 @@ internal static class TestIdentitySeeder
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var dbContext = scope.ServiceProvider.GetRequiredService<MedSupplyOpsDbContext>();
+        // ★ 指名種子科室，與示範帳號同一條規則（L-027）。
+        //   曾經用「代碼排第一、且 created_by 不是 itest」—— 那只擋得住一個字串，
+        //   任何其他前綴建立的科室照樣會把測試帳號綁走。
         var requesterDepartmentId = await dbContext.Departments.AsNoTracking()
-            .Where(department => department.IsActive && !department.IsDeleted && department.CreatedBy != "itest")
-            .OrderBy(department => department.Code)
+            .Where(department => department.Code == RequesterDepartmentCode && department.IsActive && !department.IsDeleted)
             .Select(department => department.Id)
-            .FirstAsync();
+            .SingleAsync();
 
         foreach (var (role, email, displayName) in Accounts)
         {

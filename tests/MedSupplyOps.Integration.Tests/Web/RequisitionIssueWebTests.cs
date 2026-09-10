@@ -3,8 +3,10 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Dapper;
 using MedSupplyOps.Domain.Requisitions;
+using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Integration.Tests.Services;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Oracle.ManagedDataAccess.Client;
 using Xunit.Abstractions;
 
@@ -14,6 +16,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 public sealed partial class RequisitionIssueWebTests
     : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>, IAsyncLifetime
 {
+    private readonly RequisitionFlowTests.RequisitionWebApplicationFactory _factory;
     private readonly HttpClient _client;
     private readonly ITestOutputHelper _output;
 
@@ -21,6 +24,7 @@ public sealed partial class RequisitionIssueWebTests
         RequisitionFlowTests.RequisitionWebApplicationFactory factory,
         ITestOutputHelper output)
     {
+        _factory = factory;
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
@@ -33,39 +37,147 @@ public sealed partial class RequisitionIssueWebTests
 
     public Task DisposeAsync() => Task.CompletedTask;
 
+    /// <summary>
+    /// ★ T1：UTC 還在前一天的邊界時段，過期批次絕不能被發出。
+    ///
+    /// 刻意把時間撥到 **2030 年**，而不是「今天附近」。第一版用的是 2026-09-11 03:00（台灣），
+    /// 而寫下那條測試的日子**正好就是 2026-09-11** —— 假日期等於真日期，
+    /// 產品用假時鐘或真時鐘配出來的批次完全一樣，測試在那一天沒有任何鑑別力（L-026）。
+    ///
+    /// 選一個不可能是真實今天的日期之後：
+    ///   產品用**假時鐘**（台灣 2030-06-16）→ A（2030-06-15）已過期 → 只配到 B
+    ///   產品用**真實時鐘**（2026 年）       → 兩批都在遙遠的未來 → FEFO 先配 A
+    /// 兩者結果不同，所以這條測試不論哪一天跑都有鑑別力，
+    /// 也順帶證明產品的日曆**真的**從 DI 取了時鐘（見 <see cref="TestBusinessCalendar"/> 的說明）。
+    /// </summary>
     [Fact]
     public async Task Issue_uses_Taipei_today_at_the_UTC_boundary_and_never_allocates_yesterdays_lot()
     {
+        var boundary = new DateTimeOffset(2030, 6, 15, 19, 0, 0, TimeSpan.Zero); // = 台灣 2030-06-16 03:00
+        TestBusinessCalendar.HostClock.UtcNow = boundary;
+        try
+        {
+            // ★ 撥動 DI 裡的時鐘，影響的**不只是業務日曆** —— ASP.NET Core 的 Cookie 驗證也用它判斷到期。
+            //   建構時（2026 年）簽發的登入 Cookie 在 2030 年已經過期，不重新登入的話，
+            //   下一個請求就會被導向登入頁（實際踩到：失敗訊息是「頁面必須包含 AntiForgery token」，
+            //   完全不像是時間的問題）。所以在撥好時鐘之後，於同一個時間重新登入一次。
+            //   xUnit 每個測試方法都會建新的類別實例，這個 client 只屬於本測試，不影響其他測試。
+            await WebAuthTestHelpers.LoginAsync(_client, TestIdentitySeeder.AdministratorEmail);
+
+            await using var scenario = await RequisitionIssueScenario.CreateAsync(
+                [new("BOUNDARY", [("BOUNDARY-A", 0, 10), ("BOUNDARY-B", 0, 10)], RequestQuantity: 1)]);
+            await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+            await connection.ExecuteAsync(
+                "UPDATE stock_lots SET expiry_date = DATE '2030-06-15' WHERE lot_number = 'BOUNDARY-A'");
+            await connection.ExecuteAsync(
+                "UPDATE stock_lots SET expiry_date = DATE '2030-06-16' WHERE lot_number = 'BOUNDARY-B'");
+            var requisitionId = await CreateAndApproveAsync(scenario, [(scenario.ItemIdOf("BOUNDARY"), 1)]);
+
+            try
+            {
+                var response = await PostIssueAsync(requisitionId, await GetDetailsTokenAsync(requisitionId));
+                Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+                var allocatedLots = (await connection.QueryAsync<string>("""
+                    SELECT l.lot_number
+                    FROM issue_allocations a
+                    JOIN stock_lots l ON l.stock_lot_id = a.stock_lot_id
+                    JOIN requisition_lines rl ON rl.requisition_line_id = a.requisition_line_id
+                    WHERE rl.requisition_id = :requisitionId
+                    ORDER BY l.lot_number
+                    """, new { requisitionId })).ToList();
+
+                // ★ 斷言的是**產品 DI 裡的那個日曆**，不是測試輔助類別自己算的日期。
+                var productToday = _factory.Services.GetRequiredService<BusinessCalendar>().Today;
+                Assert.Equal(new DateOnly(2030, 6, 16), productToday);
+                Assert.Equal(["BOUNDARY-B"], allocatedLots);
+                _output.WriteLine($"T1 產品的 BusinessCalendar.Today={productToday:yyyy-MM-dd}（UTC {boundary:O}）");
+                _output.WriteLine($"T1 配到的批次={string.Join(",", allocatedLots)}（BOUNDARY-A 已過期，一個都不能出）");
+            }
+            finally
+            {
+                await DeleteRequisitionAsync(requisitionId);
+            }
+        }
+        finally
+        {
+            TestBusinessCalendar.HostClock.UtcNow = TestBusinessCalendar.DefaultInstant;
+        }
+    }
+
+    /// <summary>
+    /// ★ T3：畫面上的時間必須是業務時區（台灣），不是資料庫存的 UTC。
+    ///
+    /// 儲存時間戳來自主機的 UTC 時鐘，測試無法用假時鐘控制它（這正是這一題原本做不下去的原因）。
+    /// 所以直接把資料庫裡的時間戳改成一個已知的 UTC 值，再看畫面怎麼顯示 ——
+    /// 這一題要驗的本來就只是「顯示那一步有沒有轉換」。
+    /// </summary>
+    [Fact]
+    public async Task Details_page_shows_times_in_Taipei_not_utc()
+    {
         await using var scenario = await RequisitionIssueScenario.CreateAsync(
-            [new("BOUNDARY", [("BOUNDARY-A", 0, 10), ("BOUNDARY-B", 0, 10)], RequestQuantity: 1)]);
+            [new("DISPLAY", [("DISPLAY-A", 30, 5)], RequestQuantity: 1)]);
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
-        await connection.ExecuteAsync(
-            "UPDATE stock_lots SET expiry_date = DATE '2026-09-10' WHERE lot_number = 'BOUNDARY-A'");
-        await connection.ExecuteAsync(
-            "UPDATE stock_lots SET expiry_date = DATE '2026-09-11' WHERE lot_number = 'BOUNDARY-B'");
-        var requisitionId = await CreateAndApproveAsync(scenario, [(scenario.ItemIdOf("BOUNDARY"), 1)]);
+        var requisitionId = await CreateAndApproveAsync(scenario, [(scenario.ItemIdOf("DISPLAY"), 1)]);
 
         try
         {
-            var response = await PostIssueAsync(requisitionId, await GetDetailsTokenAsync(requisitionId));
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            var allocatedLots = (await connection.QueryAsync<string>("""
-                SELECT l.lot_number
-                FROM issue_allocations a
-                JOIN stock_lots l ON l.stock_lot_id = a.stock_lot_id
-                JOIN requisition_lines rl ON rl.requisition_line_id = a.requisition_line_id
-                WHERE rl.requisition_id = :requisitionId
-                ORDER BY l.lot_number
-                """, new { requisitionId })).ToList();
+            // UTC 2026-09-11 01:12:34 = 台灣 2026-09-11 09:12:34
+            await connection.ExecuteAsync("""
+                UPDATE requisitions
+                SET created_at = TIMESTAMP '2026-09-11 01:12:34',
+                    submitted_at = TIMESTAMP '2026-09-11 01:12:34'
+                WHERE requisition_id = :requisitionId
+                """, new { requisitionId });
 
-            Assert.Equal(new DateOnly(2026, 9, 11), TestBusinessCalendar.Today);
-            Assert.Equal(["BOUNDARY-B"], allocatedLots);
-            _output.WriteLine($"T1 BusinessCalendar.Today={TestBusinessCalendar.Today:yyyy-MM-dd}");
-            _output.WriteLine("T1 allocations=BOUNDARY-B (BOUNDARY-A=0)");
+            var html = await (await _client.GetAsync($"/Requisitions/Details/{requisitionId}"))
+                .Content.ReadAsStringAsync();
+
+            Assert.Contains("2026-09-11 09:12:34", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("2026-09-11 01:12:34", html, StringComparison.Ordinal);
+            _output.WriteLine("T3 資料庫存 UTC 2026-09-11 01:12:34 → 畫面顯示 2026-09-11 09:12:34");
         }
         finally
         {
             await DeleteRequisitionAsync(requisitionId);
+        }
+    }
+
+    /// <summary>
+    /// ★ T4：請領單號的日期部分是業務日期。UTC 還停在前一天的時段，單號不可以是前一天。
+    /// 同樣撥到 2030 年，理由見 T1：固定在「今天附近」的假日期，會在剛好等於真實日期的那一天失去鑑別力。
+    /// </summary>
+    [Fact]
+    public async Task Requisition_number_uses_Taipei_date_at_the_utc_boundary()
+    {
+        var boundary = new DateTimeOffset(2030, 6, 15, 19, 0, 0, TimeSpan.Zero); // = 台灣 2030-06-16 03:00
+        TestBusinessCalendar.HostClock.UtcNow = boundary;
+        try
+        {
+            await WebAuthTestHelpers.LoginAsync(_client, TestIdentitySeeder.AdministratorEmail); // 見 T1 的說明
+            await using var scenario = await RequisitionIssueScenario.CreateAsync(
+                [new("NUMBER", [("NUMBER-A", 0, 5)], RequestQuantity: 1)]);
+            await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+            await connection.ExecuteAsync(
+                "UPDATE stock_lots SET expiry_date = DATE '2031-01-01' WHERE lot_number = 'NUMBER-A'");
+            var requisitionId = await CreateAndApproveAsync(scenario, [(scenario.ItemIdOf("NUMBER"), 1)]);
+
+            try
+            {
+                var number = await connection.QuerySingleAsync<string>(
+                    "SELECT requisition_no FROM requisitions WHERE requisition_id = :requisitionId",
+                    new { requisitionId });
+
+                Assert.StartsWith("REQ-20300616-", number, StringComparison.Ordinal);
+                _output.WriteLine($"T4 UTC {boundary:O}（仍是 06-15）→ 單號 {number}（台灣 06-16）");
+            }
+            finally
+            {
+                await DeleteRequisitionAsync(requisitionId);
+            }
+        }
+        finally
+        {
+            TestBusinessCalendar.HostClock.UtcNow = TestBusinessCalendar.DefaultInstant;
         }
     }
 
