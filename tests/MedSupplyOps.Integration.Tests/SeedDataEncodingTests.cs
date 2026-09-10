@@ -100,4 +100,58 @@ public sealed class SeedDataEncodingTests
 
         Assert.True(longest >= 15, $"最長的品項名稱只有 {longest} 個字，不足以驗證中文長度處理。");
     }
+    /// <summary>
+    /// ★ 資料字典裡的中文註解也必須完好。
+    ///
+    /// 這條測試是補一道縫：L-015 修好了成因（初始化腳本補上 NLS_LANG），
+    /// 也補了上面那幾條檢查 —— 但它們檢查的是**種子資料的列**。
+    /// 已經被寫壞的 <c>V001</c> 表／欄位註解沒有人回頭修，也沒有任何關卡照得到它們
+    /// （ER 圖產生器不讀註解、App 畫面看不到註解），
+    /// 於是它們從 2026-08-23 一直壞到 2026-09-10，
+    /// 最後是備份還原演練跑 Data Pump 回報 ORA-39346 才被照出來。
+    ///
+    /// **修好成因，不等於修好既有的損壞。** 兩件事都要做，而且都要有關卡看著。
+    /// 修復本身在 <c>db/schema/V005__repair_v001_comments.sql</c>。
+    /// </summary>
+    [Fact]
+    public async Task No_data_dictionary_comment_contains_the_unicode_replacement_character()
+    {
+        await using var connection = await OpenAsync();
+
+        var offenders = await connection.QueryAsync<string>(
+            """
+            SELECT 'TABLE  ' || table_name FROM user_tab_comments
+            WHERE comments IS NOT NULL AND INSTR(comments, UNISTR('\FFFD')) > 0
+            UNION ALL
+            SELECT 'COLUMN ' || table_name || '.' || column_name FROM user_col_comments
+            WHERE comments IS NOT NULL AND INSTR(comments, UNISTR('\FFFD')) > 0
+            """);
+
+        var list = offenders.ToList();
+        Assert.True(
+            list.Count == 0,
+            $"資料字典有 {list.Count} 個註解含 U+FFFD 替代字元：{string.Join(", ", list)}。" +
+            "這代表某支遷移是在 NLS_LANG 未設定的情況下被套用的（踩坑紀錄 L-015／L-021）。");
+    }
+
+    /// <summary>
+    /// 註解不只要「沒有替代字元」，還得**真的存在**。
+    /// 若哪天有人把註解整批刪掉，上面那條測試會照樣全綠 —— 沒有註解就沒有壞註解。
+    /// </summary>
+    [Fact]
+    public async Task Domain_tables_still_carry_their_chinese_comments()
+    {
+        await using var connection = await OpenAsync();
+
+        var documented = await connection.QuerySingleAsync<int>(
+            """
+            SELECT COUNT(*) FROM user_tab_comments
+            WHERE comments IS NOT NULL
+              AND table_name IN ('ITEMS', 'STOCK_LOTS', 'REQUISITION_LINES', 'ISSUE_ALLOCATIONS', 'AUDIT_LOGS')
+              AND LENGTHB(comments) > LENGTH(comments)
+            """);
+
+        // LENGTHB > LENGTH 代表內容確實含多位元組字元（中文），不是被換成 ASCII 佔位字串。
+        Assert.Equal(5, documented);
+    }
 }
