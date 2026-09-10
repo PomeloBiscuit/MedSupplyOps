@@ -39,3 +39,6 @@ Thumbs.db
 
 # 本機工作筆記：不是交付物的一部分。
 _private/
+
+# 維運備份含業務資料與 Identity 密碼雜湊，絕不可納入版本控制。
+backups/
