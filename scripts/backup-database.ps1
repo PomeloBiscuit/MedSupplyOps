@@ -20,39 +20,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+
+# 容器內執行一律走共用 helper：它用「寫檔 + docker cp」而不是 stdin 管線。
+# 理由（PowerShell 5.1 會在 stdin 前面加 BOM：bash 大聲炸、sqlplus 安靜降級）
+# 寫在 scripts/lib/ContainerExec.ps1 的檔頭（踩坑紀錄 L-022）。
+. (Join-Path $PSScriptRoot 'lib/ContainerExec.ps1')
 Set-Location $repoRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $repoRoot 'backups'
-}
-
-function Invoke-ContainerSql {
-    param([string]$Sql)
-
-    $previous = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    $output = ($Sql | & docker exec -i $ContainerName sqlplus -s '/ as sysdba') | Out-String
-    $ErrorActionPreference = $previous
-    if ($output -match 'ORA-\d+') {
-        throw "SYSDBA SQL 查詢失敗：`n$output"
-    }
-
-    return $output
-}
-
-function Invoke-ContainerBash {
-    param([string]$Command)
-
-    $previous = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    # 透過 stdin 餵給 bash，避免 Windows PowerShell 5.1 對 native command 引數的第二次引號解析。
-    $output = ($Command | & docker exec -i $ContainerName bash) | Out-String
-    $exitCode = $LASTEXITCODE
-    $ErrorActionPreference = $previous
-    if ($exitCode -ne 0) {
-        throw "容器內命令失敗（exit $exitCode）：`n$output"
-    }
-
-    return $output
 }
 
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -76,7 +51,7 @@ ALTER SESSION SET CONTAINER = FREEPDB1;
 SELECT directory_path FROM dba_directories WHERE directory_name = 'DATA_PUMP_DIR';
 EXIT
 "@
-$dataPumpDirectory = (Invoke-ContainerSql $directorySql).Trim()
+$dataPumpDirectory = (Invoke-ContainerSql -ContainerName $ContainerName -Sql $directorySql).Trim()
 if ([string]::IsNullOrWhiteSpace($dataPumpDirectory)) {
     throw 'SYSDBA 找不到 DATA_PUMP_DIR，不能安全建立 Data Pump 備份。'
 }
@@ -86,7 +61,7 @@ Write-Host '正在以容器內 SYSDBA 執行 schema Data Pump 匯出...' -Foregr
 # Data Pump 必須收到保留的雙引號，才會把 "as sysdba" 視為登入修飾詞而非另一個引數。
 # 反斜線讓 bash 把雙引號保留給 expdp，同時仍能展開容器內的 ORACLE_PWD。
 $exportCommand = 'NLS_LANG=AMERICAN_AMERICA.AL32UTF8 $ORACLE_HOME/bin/expdp \"sys/$ORACLE_PWD@FREEPDB1 as sysdba\" schemas=MEDSUPPLY directory=DATA_PUMP_DIR dumpfile={0} logfile={1} metrics=Y reuse_dumpfiles=N' -f $dumpFile, $exportLogFile
-$exportOutput = Invoke-ContainerBash $exportCommand
+$exportOutput = Invoke-ContainerBash -ContainerName $ContainerName -Command $exportCommand
 $exportOutput.Trim() | Write-Host
 
 Write-Host '正在把 .dmp 與 expdp 記錄檔複製到容器外主機路徑...' -ForegroundColor Cyan
@@ -104,7 +79,7 @@ Write-Host '正在以 impdp SQLFILE 驗證備份內含 DDL（不會匯入資料�
 # Oracle 26 的 SQLFILE 會將既有中文 COMMENT 走客戶端轉碼；結構驗證排除 COMMENT，
 # 而真正的 impdp 還原仍完整匯入 dump 的 metadata 與資料。
 $sqlFileCommand = 'NLS_LANG=AMERICAN_AMERICA.AL32UTF8 $ORACLE_HOME/bin/impdp \"sys/$ORACLE_PWD@FREEPDB1 as sysdba\" directory=DATA_PUMP_DIR dumpfile={0} sqlfile={1} exclude=COMMENT' -f $dumpFile, $sqlFile
-$sqlFileOutput = Invoke-ContainerBash $sqlFileCommand
+$sqlFileOutput = Invoke-ContainerBash -ContainerName $ContainerName -Command $sqlFileCommand
 $sqlFileOutput.Trim() | Write-Host
 & docker cp "${ContainerName}:$dataPumpDirectory/$sqlFile" $logicalDirectory
 if ($LASTEXITCODE -ne 0) { throw '複製 impdp SQLFILE 到主機失敗。' }

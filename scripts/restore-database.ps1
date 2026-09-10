@@ -27,31 +27,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+
+# 容器內執行一律走共用 helper：它用「寫檔 + docker cp」而不是 stdin 管線。
+# 理由（PowerShell 5.1 會在 stdin 前面加 BOM：bash 大聲炸、sqlplus 安靜降級）
+# 寫在 scripts/lib/ContainerExec.ps1 的檔頭（踩坑紀錄 L-022）。
+. (Join-Path $PSScriptRoot 'lib/ContainerExec.ps1')
 Set-Location $repoRoot
-
-function Invoke-ContainerSql {
-    param([string]$Sql)
-
-    $previous = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    $output = ($Sql | & docker exec -i $ContainerName sqlplus -s '/ as sysdba') | Out-String
-    $ErrorActionPreference = $previous
-    if ($output -match 'ORA-\d+') { throw "SYSDBA SQL 查詢失敗：`n$output" }
-    return $output
-}
-
-function Invoke-ContainerBash {
-    param([string]$Command)
-
-    $previous = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    # 經 stdin 執行，避開 Windows PowerShell 5.1 對 native command 引數的第二次引號解析。
-    $output = ($Command | & docker exec -i $ContainerName bash) | Out-String
-    $exitCode = $LASTEXITCODE
-    $ErrorActionPreference = $previous
-    if ($exitCode -ne 0) { throw "容器內命令失敗（exit $exitCode）：`n$output" }
-    return $output
-}
 
 $resolvedBackupDirectory = (Resolve-Path -LiteralPath $BackupDirectory).Path
 if ($Mode -eq 'Logical') {
@@ -70,7 +51,7 @@ SELECT 'PRE_RESTORE|USER_TABLES=' || (SELECT COUNT(*) FROM dba_tables WHERE owne
 FROM dual;
 EXIT
 "@
-    $preflight = Invoke-ContainerSql $preflightSql
+    $preflight = Invoke-ContainerSql -ContainerName $ContainerName -Sql $preflightSql
     $preflight.Trim() | Write-Host
     if ($preflight -notmatch 'USER_TABLES=0') {
         throw '目標 MEDSUPPLY schema 不是空的；拒絕還原，避免把舊資料誤當作還原結果。'
@@ -90,7 +71,7 @@ ALTER SESSION SET CONTAINER = FREEPDB1;
 SELECT directory_path FROM dba_directories WHERE directory_name = 'DATA_PUMP_DIR';
 EXIT
 "@
-    $dataPumpDirectory = (Invoke-ContainerSql $directorySql).Trim()
+    $dataPumpDirectory = (Invoke-ContainerSql -ContainerName $ContainerName -Sql $directorySql).Trim()
     if ([string]::IsNullOrWhiteSpace($dataPumpDirectory)) { throw '找不到 DATA_PUMP_DIR。' }
     & docker cp $dump.FullName "${ContainerName}:$dataPumpDirectory/$($dump.Name)"
     if ($LASTEXITCODE -ne 0) { throw '無法把 .dmp 複製到容器內 DATA_PUMP_DIR。' }
@@ -99,7 +80,7 @@ EXIT
     # ORACLE_PWD 已在容器內；避免主機解析無 BOM UTF-8 的 .env 或將密碼洩露到主機命令列。
     # 反斜線保留 Data Pump 所需雙引號，且讓 bash 展開容器內的 ORACLE_PWD。
     $importCommand = 'NLS_LANG=AMERICAN_AMERICA.AL32UTF8 $ORACLE_HOME/bin/impdp \"sys/$ORACLE_PWD@FREEPDB1 as sysdba\" schemas=MEDSUPPLY directory=DATA_PUMP_DIR dumpfile={0} metrics=Y' -f $dump.Name
-    $importOutput = Invoke-ContainerBash $importCommand
+    $importOutput = Invoke-ContainerBash -ContainerName $ContainerName -Command $importCommand
     $importOutput.Trim() | Write-Host
     if ($importOutput -notmatch 'successfully completed') { throw 'impdp 未回報 successfully completed。' }
     Write-Host '邏輯還原完成。請以獨立查詢驗證列數、索引、約束與 IDENTITY。' -ForegroundColor Green
