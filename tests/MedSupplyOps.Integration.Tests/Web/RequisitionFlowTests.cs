@@ -412,6 +412,7 @@ public sealed partial class RequisitionFlowTests
         {
             builder.ConfigureServices(services =>
             {
+                TestBusinessCalendar.ReplaceHostClock(services);
                 services.RemoveAll<DbContextOptions<MedSupplyOpsDbContext>>();
                 services.RemoveAll<MedSupplyOpsDbContext>();
                 services.RemoveAll<InventoryQueries>();

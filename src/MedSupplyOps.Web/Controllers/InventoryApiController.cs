@@ -1,4 +1,5 @@
 using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Inventory;
 using Microsoft.AspNetCore.Authorization;
@@ -11,10 +12,12 @@ namespace MedSupplyOps.Web.Controllers;
 public sealed class InventoryApiController : ControllerBase
 {
     private readonly InventoryQueries _inventoryQueries;
+    private readonly BusinessCalendar _businessCalendar;
 
-    public InventoryApiController(InventoryQueries inventoryQueries)
+    public InventoryApiController(InventoryQueries inventoryQueries, BusinessCalendar businessCalendar)
     {
         _inventoryQueries = inventoryQueries;
+        _businessCalendar = businessCalendar;
     }
 
     [HttpGet("expiring")]
@@ -30,7 +33,7 @@ public sealed class InventoryApiController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var effectiveAsOf = asOf ?? DateOnly.FromDateTime(DateTime.Today);
+        var effectiveAsOf = asOf ?? _businessCalendar.Today;
         var lots = await _inventoryQueries.GetExpiringLotsAsync(withinDays, effectiveAsOf, cancellationToken: cancellationToken);
         return Ok(lots.Select(lot => new ExpiringLotResponse(
             lot.StockLotId,

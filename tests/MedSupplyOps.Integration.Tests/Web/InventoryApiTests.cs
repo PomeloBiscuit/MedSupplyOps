@@ -17,7 +17,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 /// <summary>以實際 MVC host 驗證 API 路由、JSON 欄位名稱與數值。</summary>
 public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.InventoryWebApplicationFactory>, IAsyncLifetime
 {
-    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
+    private static readonly DateOnly Today = TestBusinessCalendar.Today;
     private readonly HttpClient _client;
 
     public InventoryApiTests(InventoryWebApplicationFactory factory)
@@ -150,6 +150,7 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
         {
             builder.ConfigureServices(services =>
             {
+                TestBusinessCalendar.ReplaceHostClock(services);
                 services.RemoveAll<DbContextOptions<MedSupplyOpsDbContext>>();
                 services.RemoveAll<MedSupplyOpsDbContext>();
                 services.RemoveAll<InventoryQueries>();

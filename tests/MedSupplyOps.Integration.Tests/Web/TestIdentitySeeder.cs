@@ -29,7 +29,7 @@ internal static class TestIdentitySeeder
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var dbContext = scope.ServiceProvider.GetRequiredService<MedSupplyOpsDbContext>();
         var requesterDepartmentId = await dbContext.Departments.AsNoTracking()
-            .Where(department => department.IsActive && !department.IsDeleted)
+            .Where(department => department.IsActive && !department.IsDeleted && department.CreatedBy != "itest")
             .OrderBy(department => department.Code)
             .Select(department => department.Id)
             .FirstAsync();

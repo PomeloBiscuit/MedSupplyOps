@@ -11,7 +11,7 @@ namespace MedSupplyOps.Integration.Tests.Queries;
 /// <summary>以真 Oracle 驗證 Dapper 讀取查詢的答案、FEFO 次序及效期邊界。</summary>
 public sealed class InventoryQueriesTests
 {
-    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
+    private static readonly DateOnly Today = TestBusinessCalendar.Today;
 
     [Fact]
     public async Task GetItemAvailabilityAsync_sums_usable_lots_and_keeps_all_lot_details_in_FEFO_order()

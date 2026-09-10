@@ -1,6 +1,8 @@
 @using MedSupplyOps.Domain.Requisitions
+@using MedSupplyOps.Infrastructure.Time
 @using MedSupplyOps.Web.Models.Requisitions
 @model RequisitionIndexViewModel
+@inject BusinessCalendar BusinessCalendar
 @{
     ViewData["Title"] = "請領單";
 }
@@ -93,7 +95,7 @@
                         <td><a asp-action="Details" asp-route-id="@requisition.Id">@requisition.RequisitionNo</a></td>
                         <td>@requisition.DepartmentName</td>
                         <td>@RequisitionStatusText.Get(requisition.Status)</td>
-                        <td>@requisition.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@BusinessCalendar.ToBusinessTime(requisition.CreatedAt).ToString("yyyy-MM-dd HH:mm:ss")</td>
                         <td class="text-end">@requisition.LineCount</td>
                         <td><a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@requisition.Id">詳情</a></td>
                     </tr>

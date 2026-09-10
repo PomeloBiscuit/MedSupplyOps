@@ -18,7 +18,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 
 public sealed class FhirApiTests : IClassFixture<ApplicationStartupSmokeTests.ProductionLikeFactory>
 {
-    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
+    private static readonly DateOnly Today = TestBusinessCalendar.SystemToday;
     private readonly ApplicationStartupSmokeTests.ProductionLikeFactory _factory;
     private readonly ITestOutputHelper _output;
 
@@ -346,7 +346,7 @@ public sealed class FhirApiTests : IClassFixture<ApplicationStartupSmokeTests.Pr
 internal sealed class FhirTestScenario : IAsyncDisposable
 {
     private const string TestActor = "itest-fhir";
-    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
+    private static readonly DateOnly Today = TestBusinessCalendar.SystemToday;
     private readonly string _suffix;
     private readonly List<long> _requisitionIds = [];
 
