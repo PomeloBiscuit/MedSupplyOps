@@ -29,7 +29,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 116 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 123 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -File scripts/mutation-probe.ps1                                # ★ 鑑別力探針
 powershell -File scripts/generate-er-diagram.ps1 -Check                    # ★ ER 圖漂移檢查
@@ -54,9 +54,9 @@ powershell -File scripts/check-db-clean.ps1                                # ★
 | P4 允許部分發料 | FR-401 不足即整筆失敗 | 4 條變紅 |
 | P5 狀態機偷開一條非法轉換 | FR-304 非法轉換須被拒絕 | 2 條變紅 |
 | P6 駁回不再要求填原因 | FR-302 | 1 條變紅 |
-| **P7 拿掉發料的 `SELECT ... FOR UPDATE`** | **FR-402 並發不得超發** | **2 條變紅** |
+| **P7 拿掉發料的 `SELECT ... FOR UPDATE`** | **FR-402 並發不得超發** | **3 條變紅** |
 | **P8 拿掉 `InventoryQueries` 的 DI 註冊** | **正式 DI 圖必須完整** | **6 條變紅** |
-| **P9 整張單發料改成「跳過失敗的明細繼續」** | **FR-303 整張單原子發料** | **4 條變紅** |
+| **P9 整張單發料改成「跳過失敗的明細繼續」** | **FR-303 整張單原子發料** | **5 條變紅** |
 
 另有 5 支**資料庫層**探針（直接寫入壞資料，確認被限制條件擋下）：
 負數庫存 → `ORA-02290`；不存在的狀態值 → `ORA-02290`；已駁回但無原因 → `ORA-02290`；
@@ -277,7 +277,7 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 ## 專案數字
 
 ```
-116 條測試（Domain 48 + Integration 68，整合測試全部跑真實 Oracle）
+123 條測試（Domain 48 + Integration 75，整合測試全部跑真實 Oracle）
 9 支程式碼探針 + 5 支資料庫探針 + ER 圖漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```

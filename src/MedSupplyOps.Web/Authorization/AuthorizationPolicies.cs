@@ -8,6 +8,7 @@ public static class AuthorizationPolicies
     public const string RequisitionCreate = nameof(RequisitionCreate);
     public const string RequisitionReview = nameof(RequisitionReview);
     public const string RequisitionIssue = nameof(RequisitionIssue);
+    public const string FhirRead = nameof(FhirRead);
 }
 
 public static class ApplicationRoles
