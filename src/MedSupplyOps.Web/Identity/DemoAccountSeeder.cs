@@ -21,6 +21,16 @@ internal static class DemoAccountSeeder
 {
     public const string DemoPassword = "Demo#2026pass";
 
+    /// <summary>
+    /// 示範請領人固定屬於急診（V002 種子資料的 <c>DEP-ER</c>），README 也是這樣寫的。
+    ///
+    /// ★ 必須**指名**，不可以用「代碼排第一的科室」。
+    ///   這個種子每次啟動都會執行、而且會重綁；資料庫是共用的，
+    ///   任何人新增一個代碼排在前面的科室（例如整合測試暫時建立的 <c>D1EE0F72409</c>），
+    ///   下一次啟動就會把示範帳號綁過去。見 L-027。
+    /// </summary>
+    public const string RequesterDepartmentCode = "DEP-ER";
+
     private static readonly (string Role, string Email, string DisplayName)[] Accounts =
     [
         (ApplicationRoles.Requester, "requester@example.local", "王小明"),
@@ -33,11 +43,13 @@ internal static class DemoAccountSeeder
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var dbContext = services.GetRequiredService<MedSupplyOpsDbContext>();
+        // 找不到就停止啟動，不退而求其次改綁別的科室 —— 綁錯科室比啟動失敗更難被發現。
         var requesterDepartmentId = await dbContext.Departments.AsNoTracking()
-            .Where(department => department.IsActive && !department.IsDeleted)
-            .OrderBy(department => department.Code)
-            .Select(department => department.Id)
-            .FirstAsync();
+            .Where(department => department.Code == RequesterDepartmentCode && department.IsActive && !department.IsDeleted)
+            .Select(department => (long?)department.Id)
+            .SingleOrDefaultAsync()
+            ?? throw new InvalidOperationException(
+                $"找不到示範請領人的科室 {RequesterDepartmentCode}（種子資料 db/schema/V002__seed_data.sql）。");
 
         foreach (var (role, _, _) in Accounts)
         {
