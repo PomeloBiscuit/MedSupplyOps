@@ -5,6 +5,7 @@ using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Services;
 using MedSupplyOps.Web;
 using MedSupplyOps.Web.Authorization;
+using MedSupplyOps.Web.Fhir;
 using MedSupplyOps.Web.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -36,6 +37,9 @@ builder.Services.AddAuthorizationBuilder()
         policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
     .AddPolicy(
         AuthorizationPolicies.RequisitionIssue,
+        policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.FhirRead,
         policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,6 +94,8 @@ builder.Services.AddDbContext<MedSupplyOpsDbContext>(options =>
     options.UseOracle(medSupplyConnection));
 builder.Services.AddScoped<InventoryQueries>(serviceProvider =>
     new InventoryQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
+builder.Services.AddScoped<FhirQueries>(serviceProvider =>
+    new FhirQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 builder.Services.AddScoped<StockIssueService>(serviceProvider =>
     new StockIssueService(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 
@@ -124,6 +130,15 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Account/AccessDenied";
     options.Events.OnRedirectToLogin = context =>
     {
+        if (context.Request.Path.StartsWithSegments("/fhir"))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = FhirResponse.ContentType;
+            return context.Response.WriteAsync(FhirResponse.Serialize(FhirResponse.Outcome(
+                Hl7.Fhir.Model.OperationOutcome.IssueType.Login,
+                "此 FHIR 互動需要先通過驗證。")));
+        }
+
         if (context.Request.Path.StartsWithSegments("/api"))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -135,6 +150,15 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
     options.Events.OnRedirectToAccessDenied = context =>
     {
+        if (context.Request.Path.StartsWithSegments("/fhir"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = FhirResponse.ContentType;
+            return context.Response.WriteAsync(FhirResponse.Serialize(FhirResponse.Outcome(
+                Hl7.Fhir.Model.OperationOutcome.IssueType.Forbidden,
+                "目前身分沒有 FHIR 讀取權限。")));
+        }
+
         if (context.Request.Path.StartsWithSegments("/api"))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
