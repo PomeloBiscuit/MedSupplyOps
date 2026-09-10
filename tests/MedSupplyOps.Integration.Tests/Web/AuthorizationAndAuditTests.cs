@@ -9,7 +9,7 @@ using Xunit.Abstractions;
 namespace MedSupplyOps.Integration.Tests.Web;
 
 public sealed partial class AuthorizationAndAuditTests
-    : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>
+    : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>, IAsyncLifetime
 {
     private readonly RequisitionFlowTests.RequisitionWebApplicationFactory _factory;
     private readonly ITestOutputHelper _output;
@@ -21,6 +21,32 @@ public sealed partial class AuthorizationAndAuditTests
         _factory = factory;
         _output = output;
     }
+
+    /// <summary>
+    /// ★ 強制 Host 先建起來，測試專用帳號才會存在於資料庫。
+    ///
+    /// <see cref="WebApplicationFactory{TEntryPoint}"/> 是**惰性**的：
+    /// 不碰 <c>CreateClient()</c> 或 <c>Services</c> 就不會建 Host，
+    /// 而 <c>itest-*</c> 帳號是在 Host 啟動時由 <see cref="TestIdentitySeeder"/> 種進去的。
+    ///
+    /// 本類別有測試會**先直連資料庫查那些帳號、之後才 CreateClient()**
+    /// （見 <c>GetRequesterDepartmentIdAsync</c>）。少了這一行，
+    /// 在**全新的資料庫**上那個查詢會回傳 0 列並丟出
+    /// <c>Sequence contains no elements</c> ——
+    /// 而在跑過幾輪的資料庫上它會通過，因為帳號是前幾輪留下來的。
+    ///
+    /// 也就是「測試通過只因為環境有殘留」（踩坑紀錄 L-023）。
+    /// 其他四個 Web 測試類別都有 <c>IAsyncLifetime</c>，
+    /// 它們在 <c>InitializeAsync</c> 裡登入，順帶就把 Host 建起來了；
+    /// 只有這一個類別漏掉，於是沒有任何東西保證順序。
+    /// </summary>
+    public Task InitializeAsync()
+    {
+        _ = _factory.Services;
+        return Task.CompletedTask;
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Anonymous_page_redirects_but_api_returns_401_and_login_ends_the_redirect_chain()
