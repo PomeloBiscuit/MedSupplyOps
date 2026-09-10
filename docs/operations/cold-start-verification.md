@@ -127,3 +127,76 @@ identity_users=6|schema_versions=5|user_tables=15|user_indexes=38
 ## 後續修正建議（未執行）
 
 先隔離整合測試 `AuthorizationAndAuditTests.Requester_direct_url_to_another_department_is_forbidden`，確認其 fixture 建立、`TestIdentitySeeder.SeedAsync` 與讀取帳號之間的生命週期；修正應限於能證明該帳號在每條相依測試開始前存在的測試／fixture 設計，再以全新 volume 重做本驗證。這不是 schema migration、種子資料、Compose 或權限問題；本次未做任何 GRANT／REVOKE。
+
+---
+
+## 修正與再驗證（2026-09-10）
+
+> 上面到「後續修正建議」為止，是冷啟當下的原始紀錄，**刻意保留不改** ——
+> 它記的是失敗的樣子，那本身就是這份文件的價值。以下是之後發生的事。
+
+### 根因
+
+那條測試的第一行就直連資料庫，查 `itest-requester@example.local` 綁在哪個科室，
+**之後**才呼叫 `CreateClient()`。而 `itest-*` 帳號是 Host 啟動時由
+`TestIdentitySeeder` 種進去的，`WebApplicationFactory` 又是惰性的 ——
+不碰 `CreateClient()` 或 `Services` 就不會建 Host。
+
+所以實際順序是：**查帳號 → 查不到 → 才建 Host → 才種帳號**。
+在跑過幾輪的資料庫上，那些帳號是前幾輪留下來的，於是永遠查得到。
+
+上面「後續修正建議」指出的方向**完全正確**（fixture 建立、seeder、讀取帳號三者的生命週期；
+不是 schema、種子資料、Compose 或權限問題），修正即依此進行。
+
+### 修正
+
+`AuthorizationAndAuditTests` 補上 `IAsyncLifetime`，`InitializeAsync` 只做一件事：
+強制 Host 先建起來（`_ = _factory.Services;`）。commit `d5133d3`。
+
+五個 Web 測試類別中只有這一個沒有 `IAsyncLifetime`；另外四個在 `InitializeAsync` 裡登入，
+順帶就把 Host 建起來了 —— 那個保護是別的目的的副作用，所以漏掉一個沒有人發現。
+
+### 鑑別力（修正前後，同一個條件）
+
+把 `itest-*` 帳號從資料庫刪光，等同全新資料庫的身分狀態：
+
+```text
+itest 帳號數 = 0
+修正前  AuthorizationAndAuditTests.Requester_direct_url_to_another_department_is_forbidden
+        -> Failed: System.InvalidOperationException : Sequence contains no elements
+修正後  -> Passed
+```
+
+### 再驗證（在冷啟建出的同一個資料庫上）
+
+資料庫仍是上面冷啟建出的那一個（volume `CreatedAt=2026-09-10T05:59:02Z`），
+測試帳號清空後跑完整套：
+
+```text
+Domain.Tests        Passed 48 / Failed 0
+Integration.Tests   Passed 68 / Failed 0
+build 0 警告 0 錯誤／format 無差異／突變探針 9/9／ER 圖一致／資料庫乾淨
+```
+
+另確認沒有任何測試依賴示範帳號（`requester@`／`keeper@`／`admin@example.local`）
+預先存在 —— 測試一律使用 `itest-*`；示範帳號由 `Program.cs` 啟動時建立。
+
+### 冷啟之後環境沒有回到原狀（已修復，記錄以供追溯）
+
+冷啟結束後刪除了乾淨副本目錄，但：
+
+1. **容器仍掛在已刪除的目錄上**：`db/init`、`db/schema` 的 bind mount 來源是
+   `D:\Project\_coldstart-check\...` —— 遷移機制因此失效。
+2. **資料庫的 `MEDSUPPLY` 密碼是那份副本的 `.env` 設的**，主工作目錄因此連不上（`ORA-01017`）。
+   `db/init/01_create_app_user.sh` 只做 `CREATE USER`、不會重設既有使用者的密碼，重啟救不回來。
+
+修復：以 SYSDBA 把密碼校正回主工作目錄 `.env` 的值，再從主工作目錄重建容器。
+掛載已確認指回 `D:\Project\MedSupplyOps\db\{init,schema}`。
+
+⚠ 這代表冷啟演練的**收尾步驟**本身也需要驗證：刪掉乾淨副本之前，
+必須先讓容器回到主工作目錄底下，並確認 `.env` 與資料庫密碼一致。
+
+### 尚未做的事
+
+**「乾淨 clone → 冷啟 → 六道關卡」一次跑到底的完整重演**尚未在修正後重做。
+它慢且具破壞性，定位為**轉公開前的發佈關卡**。
