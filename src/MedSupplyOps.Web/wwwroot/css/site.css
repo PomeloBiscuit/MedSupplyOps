@@ -29,3 +29,18 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+/* ★ 沒有驗證錯誤時，不要畫出一個空的紅色警告框。
+ *
+ * 登入、註冊、建立請領單三頁的驗證摘要寫成
+ *   <div asp-validation-summary="All" class="alert alert-danger">
+ * 沒有錯誤時 Tag Helper 會掛上 .validation-summary-valid，但 Bootstrap 的
+ * .alert-danger 仍然會畫出底色、邊框與內距 —— 於是訪客一打開登入頁，
+ * 就看到一個空的紅框，看起來像是已經出錯了。而那正是第一個看到的畫面。
+ *
+ * 有錯誤時類別會換成 .validation-summary-errors（伺服器端與前端即時驗證
+ * 都是切換同一組類別），框就會照常出現。
+ */
+.validation-summary-valid {
+  display: none;
+}
