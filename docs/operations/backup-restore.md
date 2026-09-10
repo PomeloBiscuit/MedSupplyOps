@@ -11,6 +11,10 @@
 - **D5：先證明目標為空，再還原。** 邏輯還原只接受 `DBA_TABLES` 中 `MEDSUPPLY` 為 0 個資料表的目標；實體還原只接受不存在的 named volume，並以 `docker compose create` 建立後驗證新 volume 為 0 個項目。非空目標一律拒絕還原。
 - **D6：還原預設不執行。** `restore-database.ps1` 不帶 `-Force` 僅做備份與空目標檢查；必須顯式加 `-Force` 才會匯入或解壓。
 
+## 容器內命令的傳遞方式
+
+備份與還原在容器內執行 bash／SQL*Plus 時一律使用 `scripts/lib/ContainerExec.ps1`：它以無 BOM、LF 的暫存檔經 `docker cp` 傳入，而非把 PowerShell 5.1 的 stdin 直接管線給原生程式，避免 UTF-8 BOM 造成 bash 失敗或 SQL*Plus 安靜漏執行。
+
 ## 指令
 
 ```powershell

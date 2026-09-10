@@ -181,7 +181,7 @@ EF Core 對映到它，不是反過來。三個 Oracle 專屬的決定：
 ```bash
 cp .env.example .env        # 填入資料庫密碼
 docker compose up -d        # 起 Oracle 26ai Free，自動建 schema 與種子資料
-docker compose logs -f oracle   # 等 "DATABASE IS READY TO USE!"
+docker compose logs -f oracle   # 等 "DONE: Executing user defined scripts"（它在 "DATABASE IS READY TO USE!" 之後）
 dotnet test MedSupplyOps.slnx
 ```
 
