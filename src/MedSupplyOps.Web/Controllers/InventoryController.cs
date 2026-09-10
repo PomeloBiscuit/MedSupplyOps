@@ -1,4 +1,5 @@
 using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Inventory;
 using Microsoft.AspNetCore.Authorization;
@@ -9,17 +10,19 @@ namespace MedSupplyOps.Web.Controllers;
 public sealed class InventoryController : Controller
 {
     private readonly InventoryQueries _inventoryQueries;
+    private readonly BusinessCalendar _businessCalendar;
 
-    public InventoryController(InventoryQueries inventoryQueries)
+    public InventoryController(InventoryQueries inventoryQueries, BusinessCalendar businessCalendar)
     {
         _inventoryQueries = inventoryQueries;
+        _businessCalendar = businessCalendar;
     }
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.InventoryRead)]
     public async Task<IActionResult> Index(DateOnly? asOf, CancellationToken cancellationToken)
     {
-        var effectiveAsOf = asOf ?? DateOnly.FromDateTime(DateTime.Today);
+        var effectiveAsOf = asOf ?? _businessCalendar.Today;
         var summaries = await _inventoryQueries.GetInventoryItemsAsync(effectiveAsOf, cancellationToken: cancellationToken);
         var itemDetails = new List<InventoryItemDetailsViewModel>(summaries.Count);
         foreach (var summary in summaries)
@@ -41,10 +44,10 @@ public sealed class InventoryController : Controller
         if (withinDays < 0)
         {
             ModelState.AddModelError(nameof(ExpiringLotsViewModel.WithinDays), "天數不得為負數。");
-            return View(new ExpiringLotsViewModel(0, asOf ?? DateOnly.FromDateTime(DateTime.Today), []));
+            return View(new ExpiringLotsViewModel(0, asOf ?? _businessCalendar.Today, []));
         }
 
-        var effectiveAsOf = asOf ?? DateOnly.FromDateTime(DateTime.Today);
+        var effectiveAsOf = asOf ?? _businessCalendar.Today;
         var lots = await _inventoryQueries.GetExpiringLotsAsync(withinDays, effectiveAsOf, cancellationToken: cancellationToken);
         return View(new ExpiringLotsViewModel(withinDays, effectiveAsOf, lots));
     }

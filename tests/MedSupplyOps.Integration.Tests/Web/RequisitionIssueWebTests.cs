@@ -34,6 +34,42 @@ public sealed partial class RequisitionIssueWebTests
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
+    public async Task Issue_uses_Taipei_today_at_the_UTC_boundary_and_never_allocates_yesterdays_lot()
+    {
+        await using var scenario = await RequisitionIssueScenario.CreateAsync(
+            [new("BOUNDARY", [("BOUNDARY-A", 0, 10), ("BOUNDARY-B", 0, 10)], RequestQuantity: 1)]);
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.ExecuteAsync(
+            "UPDATE stock_lots SET expiry_date = DATE '2026-09-10' WHERE lot_number = 'BOUNDARY-A'");
+        await connection.ExecuteAsync(
+            "UPDATE stock_lots SET expiry_date = DATE '2026-09-11' WHERE lot_number = 'BOUNDARY-B'");
+        var requisitionId = await CreateAndApproveAsync(scenario, [(scenario.ItemIdOf("BOUNDARY"), 1)]);
+
+        try
+        {
+            var response = await PostIssueAsync(requisitionId, await GetDetailsTokenAsync(requisitionId));
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            var allocatedLots = (await connection.QueryAsync<string>("""
+                SELECT l.lot_number
+                FROM issue_allocations a
+                JOIN stock_lots l ON l.stock_lot_id = a.stock_lot_id
+                JOIN requisition_lines rl ON rl.requisition_line_id = a.requisition_line_id
+                WHERE rl.requisition_id = :requisitionId
+                ORDER BY l.lot_number
+                """, new { requisitionId })).ToList();
+
+            Assert.Equal(new DateOnly(2026, 9, 11), TestBusinessCalendar.Today);
+            Assert.Equal(["BOUNDARY-B"], allocatedLots);
+            _output.WriteLine($"T1 BusinessCalendar.Today={TestBusinessCalendar.Today:yyyy-MM-dd}");
+            _output.WriteLine("T1 allocations=BOUNDARY-B (BOUNDARY-A=0)");
+        }
+        finally
+        {
+            await DeleteRequisitionAsync(requisitionId);
+        }
+    }
+
+    [Fact]
     public async Task Create_submit_approve_issue_shows_allocations_and_rejects_a_duplicate_post()
     {
         await using var scenario = await RequisitionIssueScenario.CreateAsync(
@@ -235,7 +271,7 @@ public sealed partial class RequisitionIssueWebTests
         var values = new Dictionary<string, string>
         {
             ["__RequestVerificationToken"] = token,
-            ["AsOf"] = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["AsOf"] = TestBusinessCalendar.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             ["DepartmentId"] = scenario.DepartmentId.ToString(CultureInfo.InvariantCulture),
         };
         for (var index = 0; index < lines.Count; index++)

@@ -7,7 +7,7 @@ namespace MedSupplyOps.Integration.Tests.Queries;
 /// <summary>驗證庫存頁品項摘要與既有單品項查詢採用相同的可用量定義。</summary>
 public sealed class InventoryItemsQueriesTests
 {
-    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
+    private static readonly DateOnly Today = TestBusinessCalendar.Today;
 
     [Fact]
     public async Task GetInventoryItemsAsync_returns_all_seed_items_with_metadata_and_matching_availability()

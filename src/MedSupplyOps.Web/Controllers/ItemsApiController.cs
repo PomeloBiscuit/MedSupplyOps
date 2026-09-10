@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MedSupplyOps.Infrastructure.Queries;
+using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Inventory;
 using Microsoft.AspNetCore.Authorization;
@@ -12,10 +13,12 @@ namespace MedSupplyOps.Web.Controllers;
 public sealed class ItemsApiController : ControllerBase
 {
     private readonly InventoryQueries _inventoryQueries;
+    private readonly BusinessCalendar _businessCalendar;
 
-    public ItemsApiController(InventoryQueries inventoryQueries)
+    public ItemsApiController(InventoryQueries inventoryQueries, BusinessCalendar businessCalendar)
     {
         _inventoryQueries = inventoryQueries;
+        _businessCalendar = businessCalendar;
     }
 
     [HttpGet("{itemId:long}/availability")]
@@ -25,7 +28,7 @@ public sealed class ItemsApiController : ControllerBase
         DateOnly? asOf,
         CancellationToken cancellationToken)
     {
-        var effectiveAsOf = asOf ?? DateOnly.FromDateTime(DateTime.Today);
+        var effectiveAsOf = asOf ?? _businessCalendar.Today;
         var availability = await _inventoryQueries.GetItemAvailabilityAsync(itemId, effectiveAsOf, cancellationToken: cancellationToken);
         var earliestUsableExpiry = availability.Lots
             .Where(lot => lot.IsAvailable)

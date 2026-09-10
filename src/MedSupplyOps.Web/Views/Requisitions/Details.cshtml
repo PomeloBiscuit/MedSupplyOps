@@ -1,5 +1,7 @@
 @using MedSupplyOps.Web.Models.Requisitions
+@using MedSupplyOps.Infrastructure.Time
 @model RequisitionDetailsViewModel
+@inject BusinessCalendar BusinessCalendar
 @{
     ViewData["Title"] = $"請領單 {Model.RequisitionNo}";
 }
@@ -24,12 +26,12 @@
 <dl class="row card card-body mx-0 mb-4">
     <dt class="col-sm-3">科室</dt>
     <dd class="col-sm-9">@Model.DepartmentName</dd>
-    <dt class="col-sm-3">建立時間（UTC）</dt>
-    <dd class="col-sm-9">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</dd>
-    <dt class="col-sm-3">送審時間（UTC）</dt>
-    <dd class="col-sm-9">@(Model.SubmittedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</dd>
-    <dt class="col-sm-3">核准時間（UTC）</dt>
-    <dd class="col-sm-9">@(Model.ApprovedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</dd>
+    <dt class="col-sm-3">建立時間</dt>
+    <dd class="col-sm-9">@BusinessCalendar.ToBusinessTime(Model.CreatedAt).ToString("yyyy-MM-dd HH:mm:ss")</dd>
+    <dt class="col-sm-3">送審時間</dt>
+    <dd class="col-sm-9">@(Model.SubmittedAt is DateTime submittedAt ? BusinessCalendar.ToBusinessTime(submittedAt).ToString("yyyy-MM-dd HH:mm:ss") : "—")</dd>
+    <dt class="col-sm-3">核准時間</dt>
+    <dd class="col-sm-9">@(Model.ApprovedAt is DateTime approvedAt ? BusinessCalendar.ToBusinessTime(approvedAt).ToString("yyyy-MM-dd HH:mm:ss") : "—")</dd>
     @if (!string.IsNullOrWhiteSpace(Model.RejectionReason))
     {
         <dt class="col-sm-3">駁回原因</dt>

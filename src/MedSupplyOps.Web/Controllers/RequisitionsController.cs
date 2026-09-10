@@ -5,6 +5,7 @@ using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Persistence.Models;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Services;
+using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Requisitions;
 using Microsoft.AspNetCore.Authorization;
@@ -22,19 +23,22 @@ public sealed class RequisitionsController : Controller
     private readonly StockIssueService _stockIssueService;
     private readonly ICurrentUser _currentUser;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly BusinessCalendar _businessCalendar;
 
     public RequisitionsController(
         MedSupplyOpsDbContext dbContext,
         InventoryQueries inventoryQueries,
         StockIssueService stockIssueService,
         ICurrentUser currentUser,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        BusinessCalendar businessCalendar)
     {
         _dbContext = dbContext;
         _inventoryQueries = inventoryQueries;
         _stockIssueService = stockIssueService;
         _currentUser = currentUser;
         _userManager = userManager;
+        _businessCalendar = businessCalendar;
     }
 
     [HttpGet]
@@ -121,7 +125,7 @@ public sealed class RequisitionsController : Controller
             return Forbid();
         }
 
-        var effectiveAsOf = asOf ?? DateOnly.FromDateTime(DateTime.Today);
+        var effectiveAsOf = asOf ?? _businessCalendar.Today;
         var model = new CreateRequisitionViewModel
         {
             AsOf = effectiveAsOf,
@@ -323,7 +327,7 @@ public sealed class RequisitionsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Issue(long id, CancellationToken cancellationToken)
     {
-        var asOf = DateOnly.FromDateTime(DateTime.Today);
+        var asOf = _businessCalendar.Today;
         var result = await _stockIssueService.IssueRequisitionAsync(id, asOf, _currentUser.Actor, cancellationToken);
 
         if (result.IsSuccess)
@@ -528,8 +532,8 @@ public sealed class RequisitionsController : Controller
     private T GetShadowValue<T>(Requisition requisition, string propertyName)
         => (T)_dbContext.Entry(requisition).Property(propertyName).CurrentValue!;
 
-    private static string GenerateRequisitionNo()
-        => $"REQ-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..29].ToUpperInvariant();
+    private string GenerateRequisitionNo()
+        => $"REQ-{_businessCalendar.Today:yyyyMMdd}-{Guid.NewGuid():N}"[..29].ToUpperInvariant();
 
     private static bool ContainsConstraint(Exception exception, string constraintName)
     {

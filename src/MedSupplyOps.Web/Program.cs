@@ -3,6 +3,7 @@ using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Services;
+using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Fhir;
@@ -12,6 +13,28 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var businessTimeZoneId = builder.Configuration["MedSupplyOps:BusinessTimeZone"] ?? "Asia/Taipei";
+TimeZoneInfo businessTimeZone;
+try
+{
+    businessTimeZone = TimeZoneInfo.FindSystemTimeZoneById(businessTimeZoneId);
+}
+catch (TimeZoneNotFoundException exception)
+{
+    throw new InvalidOperationException(
+        $"找不到業務時區 '{businessTimeZoneId}'，App 無法啟動。請將 MedSupplyOps:BusinessTimeZone 設為有效的 IANA 時區 ID（例如 Asia/Taipei）。",
+        exception);
+}
+catch (InvalidTimeZoneException exception)
+{
+    throw new InvalidOperationException(
+        $"業務時區 '{businessTimeZoneId}' 無效，App 無法啟動。請將 MedSupplyOps:BusinessTimeZone 設為有效的 IANA 時區 ID（例如 Asia/Taipei）。",
+        exception);
+}
+
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddSingleton(new BusinessCalendar(TimeProvider.System, businessTimeZone));
 
 // Add services to the container.
 builder.Services

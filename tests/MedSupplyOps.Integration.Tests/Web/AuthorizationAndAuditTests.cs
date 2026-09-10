@@ -320,7 +320,7 @@ public sealed partial class AuthorizationAndAuditTests
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["__RequestVerificationToken"] = token,
-                ["AsOf"] = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["AsOf"] = TestBusinessCalendar.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 ["DepartmentId"] = departmentId.ToString(CultureInfo.InvariantCulture),
                 ["Lines[0].ItemId"] = itemId.ToString(CultureInfo.InvariantCulture),
                 ["Lines[0].Quantity"] = quantity.ToString(CultureInfo.InvariantCulture),
