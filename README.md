@@ -29,7 +29,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 112 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 116 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -File scripts/mutation-probe.ps1                                # ★ 鑑別力探針
 powershell -File scripts/generate-er-diagram.ps1 -Check                    # ★ ER 圖漂移檢查
@@ -268,6 +268,7 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 | 登入前後**沿用同一個 Session 識別碼** | 登入成功後重新產生識別碼（防 session fixation） |
 | 有軟刪除欄位，但**實際仍是硬刪** | 落實軟刪除 + 函數式唯一索引（只有未刪除的資料需要唯一） |
 | 用數字參數的 switch 當路由（`?act=100`） | MVC 慣例路由 + 具名 Action。**路由就是權限邊界** |
+| 授權**預設公開**，需要保護的才標註 | **預設拒絕**（fallback policy）+ 公開端點白名單。預設公開的漏標永遠不會被發現 |
 
 每一項的完整理由見 [`docs/requirements.md`](docs/requirements.md) §4 與 §7。
 
@@ -276,8 +277,9 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 ## 專案數字
 
 ```
-102 條測試（Domain 48 + Integration 54，整合測試全部跑真實 Oracle）
+116 條測試（Domain 48 + Integration 68，整合測試全部跑真實 Oracle）
 9 支程式碼探針 + 5 支資料庫探針 + ER 圖漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
+端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```
 
 測試碼與產品碼大約 1:1。這不是刻意湊的比例 ——
