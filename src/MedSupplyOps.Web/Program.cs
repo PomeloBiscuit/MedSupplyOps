@@ -68,6 +68,12 @@ builder.Services.AddAuthorizationBuilder()
         policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
     .AddPolicy(
         AuthorizationPolicies.FhirRead,
+        policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.ItemManage,
+        policy => policy.RequireRole(ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.StockReceive,
         policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -126,6 +132,10 @@ builder.Services.AddScoped<FhirQueries>(serviceProvider =>
     new FhirQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 builder.Services.AddScoped<StockIssueService>(serviceProvider =>
     new StockIssueService(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
+builder.Services.AddScoped<StockReceivingService>(serviceProvider =>
+    new StockReceivingService(
+        serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection(),
+        serviceProvider.GetRequiredService<ICurrentUser>()));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Identity 認證與預設拒絕授權。
