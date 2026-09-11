@@ -30,6 +30,7 @@ public sealed class SeedDataEncodingTests
 {
     /// <summary>U+FFFD REPLACEMENT CHARACTER。編碼轉換失敗時的產物。</summary>
     private const char ReplacementChar = '�';
+    private const string StockLotsComment = "庫存批次。品項+批號+儲位 的唯一組合（效期不在唯一鍵內：同一批號只有一個效期，入庫時效期不同會被拒絕）；數量掛在這裡。";
 
     private static async Task<OracleConnection> OpenAsync()
     {
@@ -132,6 +133,17 @@ public sealed class SeedDataEncodingTests
             list.Count == 0,
             $"資料字典有 {list.Count} 個註解含 U+FFFD 替代字元：{string.Join(", ", list)}。" +
             "這代表某支遷移是在 NLS_LANG 未設定的情況下被套用的（踩坑紀錄 L-015／L-021）。");
+    }
+
+    [Fact]
+    public async Task Stock_lots_comment_matches_the_correct_chinese_text_exactly()
+    {
+        await using var connection = await OpenAsync();
+
+        var comment = await connection.QuerySingleAsync<string>(
+            "SELECT comments FROM user_tab_comments WHERE table_name = 'STOCK_LOTS'");
+
+        Assert.Equal(StockLotsComment, comment);
     }
 
     /// <summary>

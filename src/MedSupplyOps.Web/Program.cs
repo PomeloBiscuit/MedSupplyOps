@@ -43,7 +43,24 @@ builder.Services.AddSingleton(serviceProvider =>
 
 // Add services to the container.
 builder.Services
-    .AddControllersWithViews()
+    .AddControllersWithViews(options =>
+    {
+        // 所有實際必填欄位都用明確的 [Required] 寫出中文訊息；不要讓 MVC 對非 null
+        // 參考型別自動補英文 Required。尤其 Edit 的 allow-list POST 故意不綁定唯讀欄位，
+        // 隱含 Required 會把這種合法請求誤判成無效。
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+        var messages = options.ModelBindingMessageProvider;
+        messages.SetAttemptedValueIsInvalidAccessor((value, fieldName) => $"「{value}」不是有效的 {fieldName}。");
+        messages.SetMissingBindRequiredValueAccessor(fieldName => $"{fieldName} 為必填。");
+        messages.SetMissingKeyOrValueAccessor(() => "此欄位為必填。");
+        messages.SetMissingRequestBodyRequiredValueAccessor(() => "要求本文不可為空白。");
+        messages.SetNonPropertyAttemptedValueIsInvalidAccessor(value => $"「{value}」不是有效的值。");
+        messages.SetNonPropertyUnknownValueIsInvalidAccessor(() => "提供的值無效。");
+        messages.SetUnknownValueIsInvalidAccessor(fieldName => $"提供的值對 {fieldName} 無效。");
+        messages.SetValueIsInvalidAccessor(value => $"「{value}」不是有效的值。");
+        messages.SetValueMustBeANumberAccessor(fieldName => $"{fieldName} 必須是數字。");
+        messages.SetValueMustNotBeNullAccessor(fieldName => $"{fieldName} 為必填。");
+    })
     .AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
 
 builder.Services.AddAuthorizationBuilder()

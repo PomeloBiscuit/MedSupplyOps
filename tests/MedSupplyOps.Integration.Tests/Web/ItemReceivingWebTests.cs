@@ -268,14 +268,14 @@ public sealed partial class ItemReceivingWebTests
         var itemIdsToClean = new List<long> { itemId };
         try
         {
-            // 入庫：數量空白。
+            // 入庫：數量不是數字。
             var receiveToken = await GetTokenAsync(client, "/Receiving");
             var receive = await client.PostAsync("/Receiving", Form(receiveToken, new()
             {
                 ["ItemId"] = itemId.ToString(CultureInfo.InvariantCulture),
                 ["LotNumber"] = "NB-LOT",
                 ["ExpiryDate"] = TestBusinessCalendar.Today.AddDays(90).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["Quantity"] = "",
+                ["Quantity"] = "abc",
                 ["StorageLocation"] = "ROOM-NB",
             }));
 
@@ -313,7 +313,7 @@ public sealed partial class ItemReceivingWebTests
             var failures = new List<string>();
             if (receive.StatusCode != HttpStatusCode.OK || receivedQuantity != 0)
             {
-                failures.Add($"入庫數量空白：回應 {(int)receive.StatusCode}、實際入庫 {receivedQuantity} 件（應回表單、0 件）");
+                failures.Add($"入庫數量送 abc：回應 {(int)receive.StatusCode}、實際入庫 {receivedQuantity} 件（應回表單、0 件）");
             }
 
             if (edit.StatusCode != HttpStatusCode.OK || safetyStock != 25)
@@ -326,9 +326,13 @@ public sealed partial class ItemReceivingWebTests
                 failures.Add($"新增品項安全存量送 abc：回應 {(int)create.StatusCode}、建立了 {createdIds.Count} 筆（應回表單、0 筆）");
             }
 
+            var receiveHtml = HtmlDecode(await receive.Content.ReadAsStringAsync());
+            Assert.Contains("「abc」不是有效的 數量。", receiveHtml, StringComparison.Ordinal);
+
             _output.WriteLine(
                 $"入庫：{(int)receive.StatusCode}／{receivedQuantity} 件；編輯：{(int)edit.StatusCode}／安全存量 {safetyStock}；" +
                 $"新增：{(int)create.StatusCode}／{createdIds.Count} 筆");
+            _output.WriteLine("入庫繫結錯誤：「abc」不是有效的 數量。");
             Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
         }
         finally

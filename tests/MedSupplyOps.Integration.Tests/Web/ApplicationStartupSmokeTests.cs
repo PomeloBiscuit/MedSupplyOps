@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Hosting;
@@ -128,6 +129,50 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
         var body = await response.Content.ReadAsStringAsync();
         Assert.False(string.IsNullOrWhiteSpace(body), "回傳 200 但內容是空的。");
         Assert.DoesNotContain("Unable to resolve service", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Form_pages_do_not_emit_english_default_validation_messages()
+    {
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.OpenAsync();
+        var itemId = await connection.ExecuteScalarAsync<decimal>(
+            "SELECT MIN(item_id) FROM items WHERE is_deleted = 0");
+
+        using var requester = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await WebAuthTestHelpers.LoginAsync(requester, TestIdentitySeeder.RequesterEmail);
+        using var anonymous = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var pages = new (string Path, HttpClient Client)[]
+        {
+            ("/Items/Create", _client),
+            ($"/Items/Edit/{decimal.ToInt64(itemId)}", _client),
+            ("/Receiving", _client),
+            ("/Requisitions/Create", requester),
+            ("/Account/Login", anonymous),
+            ("/Account/Register", anonymous),
+        };
+
+        foreach (var (path, client) in pages)
+        {
+            var response = await client.GetAsync(path);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+            var messages = Regex.Matches(html, "data-val-[^=]+=\"([^\"]*)\"")
+                .Select(match => match.Groups[1].Value);
+            Assert.DoesNotContain(messages, message => Regex.IsMatch(
+                message,
+                "field is required|is not valid|is invalid|must be a number",
+                RegexOptions.IgnoreCase));
+
+            if (path == "/Receiving")
+            {
+                var quantityRequired = Regex.Match(html, "data-val-required=\"([^\"]*)\"[^>]*id=\"Quantity\"");
+                Assert.True(quantityRequired.Success, "找不到 /Receiving 的 Quantity data-val-required 屬性。");
+                Assert.Equal("數量為必填。", quantityRequired.Groups[1].Value);
+            }
+        }
     }
 
     /// <summary>

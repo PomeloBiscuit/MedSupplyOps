@@ -11,6 +11,7 @@ public sealed record ReceivingItemOptionViewModel(
 public sealed class ReceivingViewModel
 {
     [Display(Name = "品項")]
+    [Required(ErrorMessage = "品項為必填。")]
     [Range(1, long.MaxValue, ErrorMessage = "請選擇品項。")]
     public long ItemId { get; set; }
 
@@ -20,10 +21,12 @@ public sealed class ReceivingViewModel
     public string LotNumber { get; set; } = string.Empty;
 
     [Display(Name = "效期")]
+    [Required(ErrorMessage = "效期為必填。")]
     [DataType(DataType.Date)]
     public DateOnly ExpiryDate { get; set; }
 
     [Display(Name = "數量")]
+    [Required(ErrorMessage = "數量為必填。")]
     [Range(1, 100_000, ErrorMessage = "數量必須是 1 到 100,000 的整數。")]
     public int Quantity { get; set; } = 1;
 

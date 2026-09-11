@@ -64,6 +64,10 @@ internal static class TestIdentitySeeder
             {
                 user.DisplayName = displayName;
                 user.DepartmentId = role == ApplicationRoles.Requester ? requesterDepartmentId : null;
+                // 測試帳號會跨 dotnet test process 留在共用資料庫；密碼每個 process 都是新的。
+                // 只重設密碼不會解除前一輪錯誤登入留下的鎖定，下一輪所有 Web 測試便會首跑失敗。
+                user.AccessFailedCount = 0;
+                user.LockoutEnd = null;
                 EnsureSucceeded(await userManager.UpdateAsync(user), $"更新測試帳號 {email}");
                 if (await userManager.HasPasswordAsync(user))
                 {
@@ -103,6 +107,11 @@ internal static class TestIdentitySeeder
         }
         else
         {
+            // 同樣清除跨 process 的 Identity lockout 狀態；此帳號雖沒有角色，仍會走真實登入端點。
+            user.AccessFailedCount = 0;
+            user.LockoutEnd = null;
+            EnsureSucceeded(await userManager.UpdateAsync(user), $"更新測試帳號 {NoRoleEmail}");
+
             if (await userManager.HasPasswordAsync(user))
             {
                 EnsureSucceeded(await userManager.RemovePasswordAsync(user), $"重設測試帳號 {NoRoleEmail} 的密碼");

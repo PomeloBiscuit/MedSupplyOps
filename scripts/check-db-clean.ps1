@@ -38,26 +38,12 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
-# 密碼與 docker compose 共用同一份 .env，不另外要求設定 —— 兩份來源就會有漂移。
-$envFile = Join-Path $repoRoot '.env'
-if (-not (Test-Path $envFile)) {
-    Write-Host '找不到 .env，無法連線。請先從 .env.example 複製一份。' -ForegroundColor Red
-    exit 1
-}
-
-$password = $null
-foreach ($line in Get-Content $envFile) {
-    $trimmed = $line.Trim()
-    if ($trimmed.StartsWith('APP_DB_PASSWORD=', [StringComparison]::Ordinal)) {
-        $password = $trimmed.Substring('APP_DB_PASSWORD='.Length).Trim()
-    }
-}
-if ([string]::IsNullOrWhiteSpace($password)) {
-    Write-Host '.env 裡沒有 APP_DB_PASSWORD。' -ForegroundColor Red
-    exit 1
-}
+. (Join-Path $PSScriptRoot 'lib/ContainerExec.ps1')
 
 $sql = @"
+whenever sqlerror exit failure rollback
+ALTER SESSION SET CONTAINER=FREEPDB1;
+ALTER SESSION SET CURRENT_SCHEMA=MEDSUPPLY;
 SET PAGESIZE 0
 SET FEEDBACK OFF
 SET HEADING OFF
@@ -69,22 +55,17 @@ UNION ALL SELECT 'audit_logs|' || entity_type || ':' || entity_id || ':' || acti
 EXIT
 "@
 
-# 不要對原生執行檔用 2>&1（PowerShell 5.1 會把 stderr 包成 ErrorRecord）。
-$previous = $ErrorActionPreference
-$ErrorActionPreference = 'Continue'
-$output = ($sql | & docker exec -i $ContainerName sqlplus -s "medsupply/$password@//localhost:1521/FREEPDB1") | Out-String
-$ErrorActionPreference = $previous
-
-if ($output -match 'ORA-\d+') {
-    Write-Host '查詢失敗，無法判斷資料庫是否乾淨：' -ForegroundColor Red
-    ($output -split "`n" | Where-Object { $_ -match 'ORA-\d+' }) | ForEach-Object { Write-Host "  $_" }
-    # ★ 「查不到」與「乾淨」是兩件事，不可以因為查詢失敗就回報通過。
+try {
+    $output = Invoke-ContainerSql -ContainerName $ContainerName -Sql $sql
+}
+catch {
+    Write-Host "查詢失敗，無法判斷資料庫是否乾淨：$($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
-$leftovers = $output -split "`n" |
+$leftovers = @($output -split "`n" |
     ForEach-Object { $_.Trim() } |
-    Where-Object { $_ -match '^\w+\|' }
+    Where-Object { $_ -match '^\w+\|' })
 
 if ($leftovers.Count -eq 0) {
     Write-Host "資料庫乾淨：沒有 created_by / actor LIKE '$TestMarker%' 的殘留資料。" -ForegroundColor Green
@@ -109,6 +90,9 @@ Write-Host '正在清除（依外鍵相依順序，只刪 created_by / actor 有
 # ★ 刻意不用 ON DELETE CASCADE —— schema 全域禁止（見 docs/requirements.md MIG-2），
 #   清理腳本也不該是唯一的例外。依外鍵順序逐一刪除。
 $cleanSql = @"
+whenever sqlerror exit failure rollback
+ALTER SESSION SET CONTAINER=FREEPDB1;
+ALTER SESSION SET CURRENT_SCHEMA=MEDSUPPLY;
 SET FEEDBACK OFF
 DELETE FROM audit_logs WHERE actor LIKE '$TestMarker%';
 DELETE FROM issue_allocations WHERE requisition_line_id IN (
@@ -127,20 +111,23 @@ COMMIT;
 EXIT
 "@
 
-$previous = $ErrorActionPreference
-$ErrorActionPreference = 'Continue'
-$cleanOutput = ($cleanSql | & docker exec -i $ContainerName sqlplus -s "medsupply/$password@//localhost:1521/FREEPDB1") | Out-String
-$ErrorActionPreference = $previous
-
-if ($cleanOutput -match 'ORA-\d+') {
-    Write-Host '清除失敗：' -ForegroundColor Red
-    ($cleanOutput -split "`n" | Where-Object { $_ -match 'ORA-\d+' }) | ForEach-Object { Write-Host "  $_" }
+try {
+    Invoke-ContainerSql -ContainerName $ContainerName -Sql $cleanSql | Out-Null
+}
+catch {
+    Write-Host "清除失敗：$($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
 # ★ 不相信「沒報錯」就當作清乾淨了 —— 回頭再查一次。
-$verify = ($sql | & docker exec -i $ContainerName sqlplus -s "medsupply/$password@//localhost:1521/FREEPDB1") | Out-String
-$remaining = $verify -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\w+\|' }
+try {
+    $verify = Invoke-ContainerSql -ContainerName $ContainerName -Sql $sql
+}
+catch {
+    Write-Host "清除後查詢失敗，無法判斷資料庫是否乾淨：$($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+$remaining = @($verify -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\w+\|' })
 
 if ($remaining.Count -eq 0) {
     Write-Host '清除完成，資料庫已回到只有種子資料的狀態。' -ForegroundColor Green

@@ -12,6 +12,7 @@ public sealed class RegisterViewModel
     [EmailAddress(ErrorMessage = "帳號格式不正確。")]
     public string Email { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "科室為必填。")]
     [Range(1, long.MaxValue, ErrorMessage = "請選擇科室。")]
     [Display(Name = "科室")]
     public long DepartmentId { get; set; }

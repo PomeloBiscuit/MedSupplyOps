@@ -12,6 +12,7 @@ public sealed class LoginViewModel
     [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "記住我為必填。")]
     public bool RememberMe { get; set; }
 
     public string? ReturnUrl { get; set; }

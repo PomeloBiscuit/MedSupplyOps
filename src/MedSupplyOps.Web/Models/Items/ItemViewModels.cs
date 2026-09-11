@@ -32,6 +32,7 @@ public sealed class CreateItemViewModel
     public string UnitOfMeasure { get; set; } = string.Empty;
 
     [Display(Name = "安全存量")]
+    [Required(ErrorMessage = "安全存量為必填。")]
     [Range(0, 1_000_000, ErrorMessage = "安全存量必須是 0 到 1,000,000 的整數。")]
     public int SafetyStockQty { get; set; }
 }
@@ -56,6 +57,7 @@ public sealed class EditItemViewModel
     public string UnitOfMeasure { get; set; } = string.Empty;
 
     [Display(Name = "安全存量")]
+    [Required(ErrorMessage = "安全存量為必填。")]
     [Range(0, 1_000_000, ErrorMessage = "安全存量必須是 0 到 1,000,000 的整數。")]
     public int SafetyStockQty { get; set; }
 }
