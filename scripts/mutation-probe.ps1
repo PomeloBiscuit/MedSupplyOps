@@ -117,6 +117,24 @@ $probes = @(
         To          = '                    continue; // 探針：改成部分發料'
         Verify      = 'continue; // 探針：改成部分發料'
         TestProject = 'tests/MedSupplyOps.Integration.Tests'
+    },
+    @{
+        Name        = 'P10 入庫拿掉品項列的 FOR UPDATE'
+        Rule        = 'D4 同品項的新批號入庫必須序列化'
+        File        = 'src/MedSupplyOps.Infrastructure/Services/StockReceivingService.cs'
+        From        = "          AND is_deleted = 0`r`n        FOR UPDATE WAIT"
+        To          = "          AND is_deleted = 0`r`n        -- 探針移除：FOR UPDATE WAIT"
+        Verify      = '-- 探針移除：FOR UPDATE WAIT'
+        TestProject = 'tests/MedSupplyOps.Integration.Tests'
+    },
+    @{
+        Name        = 'P11 入庫的過期判定 < 改成 <='
+        Rule        = 'D4 效期當天仍可入庫'
+        File        = 'src/MedSupplyOps.Infrastructure/Services/StockReceivingService.cs'
+        From        = 'if (expiryDate < asOf)'
+        To          = 'if (expiryDate <= asOf)'
+        Verify      = 'if (expiryDate <= asOf)'
+        TestProject = 'tests/MedSupplyOps.Integration.Tests'
     }
 )
 

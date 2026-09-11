@@ -51,6 +51,9 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
         "/",
         "/Inventory",
         "/Inventory/Expiring",
+        "/Items",
+        "/Items/Create",
+        "/Receiving",
         "/Requisitions",
         "/Requisitions/Create",
     ];

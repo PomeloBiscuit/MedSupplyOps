@@ -1,3 +1,10 @@
+@using MedSupplyOps.Web.Authorization
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService AuthorizationService
+@{
+    var canManageItems = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.ItemManage)).Succeeded;
+    var canReceiveStock = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.StockReceive)).Succeeded;
+}
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -32,6 +39,18 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Requisitions" asp-action="Index">請領單</a>
                         </li>
+                        @if (canManageItems)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Items" asp-action="Index">品項管理</a>
+                            </li>
+                        }
+                        @if (canReceiveStock)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Receiving" asp-action="Index">入庫</a>
+                            </li>
+                        }
                     </ul>
                     <ul class="navbar-nav">
                         @if (User.Identity?.IsAuthenticated == true)

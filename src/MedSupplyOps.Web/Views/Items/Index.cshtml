@@ -1,0 +1,55 @@
+@model IReadOnlyList<MedSupplyOps.Web.Models.Items.ItemListRowViewModel>
+@{
+    ViewData["Title"] = "品項管理";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h2 mb-1">品項管理</h1>
+        <p class="text-muted mb-0">維護可供請領與入庫使用的品項主檔。</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">新增品項</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="alert">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th scope="col">料號</th>
+                <th scope="col">名稱</th>
+                <th scope="col">規格</th>
+                <th scope="col">單位</th>
+                <th scope="col" class="text-end">安全存量</th>
+                <th scope="col"><span class="visually-hidden">操作</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.Code</td>
+                    <td class="text-break">@item.Name</td>
+                    <td class="text-break">@item.Specification</td>
+                    <td>@item.UnitOfMeasure</td>
+                    <td class="text-end">@item.SafetyStockQty.ToString("N0")</td>
+                    <td class="text-nowrap">
+                        <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@item.Id">編輯</a>
+                        <form asp-action="Disable" asp-route-id="@item.Id" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-sm btn-outline-danger" type="submit">停用</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

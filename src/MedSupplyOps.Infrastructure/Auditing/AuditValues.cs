@@ -4,11 +4,16 @@ namespace MedSupplyOps.Infrastructure.Auditing;
 
 public static class AuditValues
 {
+    public const string ItemEntity = "Item";
     public const string RequisitionEntity = "Requisition";
+    public const string StockLotEntity = "StockLot";
     public const string CreateAction = "Create";
+    public const string UpdateAction = "Update";
+    public const string DeleteAction = "Delete";
     public const string ApproveAction = "Approve";
     public const string RejectAction = "Reject";
     public const string IssueAction = "Issue";
+    public const string ReceiveAction = "Receive";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
