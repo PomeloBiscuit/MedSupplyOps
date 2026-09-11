@@ -135,6 +135,18 @@ $probes = @(
         To          = 'if (expiryDate <= asOf)'
         Verify      = 'if (expiryDate <= asOf)'
         TestProject = 'tests/MedSupplyOps.Integration.Tests'
+    },
+    @{
+        # 首頁儀表板範圍迴歸：把「沒有角色」的科室範圍改回舊行為（等同「不受限」）。
+        # 這個迴歸對三個角色沒有影響——RequisitionsController 的每個 Action 都要求三個角色之一，
+        # 沒有角色的帳號本來就進不去，所以這支探針不會讓其他測試在共用資料庫留下殘留。
+        Name        = 'P12 首頁「沒有角色」的範圍改回「不受限」（D1 迴歸）'
+        Rule        = '沒有任何角色的帳號不得看到全院資料'
+        File        = 'src/MedSupplyOps.Web/Authorization/DepartmentScopeResolver.cs'
+        From        = 'return DepartmentScope.NoScope;'
+        To          = 'return DepartmentScope.Unrestricted; // 探針 D8：沒有角色也不受限'
+        Verify      = '探針 D8：沒有角色也不受限'
+        TestProject = 'tests/MedSupplyOps.Integration.Tests'
     }
 )
 

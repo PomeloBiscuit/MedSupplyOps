@@ -44,3 +44,16 @@ body {
 .validation-summary-valid {
   display: none;
 }
+
+/* 首頁儀表板的數字卡：整卡可點擊（外層是 <a>），用邊框與陰影提示可互動。 */
+.dashboard-card {
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.dashboard-card:hover {
+  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-alert-card {
+  display: block;
+}

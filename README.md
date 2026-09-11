@@ -29,7 +29,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 143 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 151 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -File scripts/mutation-probe.ps1                                # ★ 鑑別力探針
 powershell -File scripts/generate-er-diagram.ps1 -Check                    # ★ ER 圖漂移檢查
@@ -43,7 +43,7 @@ powershell -File scripts/check-db-clean.ps1                                # ★
 > **不能區分「修前」與「修後」的驗證，等於沒有驗證。**
 
 測試全綠只代表「測試沒有失敗」，**不代表「測試測得到那件事」**。
-所以 [`scripts/mutation-probe.ps1`](scripts/mutation-probe.ps1) 會自動把實作**故意改壞 11 次**，
+所以 [`scripts/mutation-probe.ps1`](scripts/mutation-probe.ps1) 會自動把實作**故意改壞 12 次**，
 每次確認對應的測試變紅，再還原並複驗回到基線：
 
 | 探針 | 對應規則 | 結果 |
@@ -59,6 +59,7 @@ powershell -File scripts/check-db-clean.ps1                                # ★
 | **P9 整張單發料改成「跳過失敗的明細繼續」** | **FR-303 整張單原子發料** | **5 條變紅** |
 | **P10 入庫拿掉品項列的 `FOR UPDATE`** | **同品項的新批號入庫必須序列化** | **2 條變紅** |
 | **P11 入庫的過期判定 `<` 改成 `<=`** | **效期當天仍可入庫** | **1 條變紅** |
+| **P12 首頁「沒有角色」的範圍改回「不受限」** | **沒有任何角色的帳號不得看到全院資料** | **1 條變紅** |
 
 另有 5 支**資料庫層**探針（直接寫入壞資料，確認被限制條件擋下）：
 負數庫存 → `ORA-02290`；不存在的狀態值 → `ORA-02290`；已駁回但無原因 → `ORA-02290`；
@@ -280,8 +281,8 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 ## 專案數字
 
 ```
-143 條測試（Domain 48 + Integration 95，整合測試全部跑真實 Oracle）
-11 支程式碼探針 + 5 支資料庫探針 + ER 圖漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
+151 條測試（Domain 48 + Integration 103，整合測試全部跑真實 Oracle）
+12 支程式碼探針 + 5 支資料庫探針 + ER 圖漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```
 

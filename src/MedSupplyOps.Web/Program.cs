@@ -128,6 +128,8 @@ builder.Services.AddDbContext<MedSupplyOpsDbContext>(options =>
     options.UseOracle(medSupplyConnection));
 builder.Services.AddScoped<InventoryQueries>(serviceProvider =>
     new InventoryQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
+builder.Services.AddScoped<DashboardQueries>(serviceProvider =>
+    new DashboardQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 builder.Services.AddScoped<FhirQueries>(serviceProvider =>
     new FhirQueries(serviceProvider.GetRequiredService<MedSupplyOpsDbContext>().Database.GetDbConnection()));
 builder.Services.AddScoped<StockIssueService>(serviceProvider =>
@@ -160,6 +162,8 @@ builder.Services
     })
     .AddEntityFrameworkStores<MedSupplyOpsIdentityDbContext>()
     .AddDefaultTokenProviders();
+
+builder.Services.AddScoped<DepartmentScopeResolver>();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
