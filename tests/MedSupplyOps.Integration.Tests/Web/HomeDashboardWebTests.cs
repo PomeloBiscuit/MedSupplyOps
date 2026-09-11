@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Dapper;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Time;
+using MedSupplyOps.Web.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Oracle.ManagedDataAccess.Client;
@@ -357,6 +358,57 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
             await connection.ExecuteAsync("DELETE FROM requisitions WHERE requisition_no = :no", new { no = requisitionNo });
             await connection.ExecuteAsync("DELETE FROM departments WHERE department_id = :id", new { id = departmentId });
             await connection.ExecuteAsync("COMMIT");
+        }
+    }
+
+    /// <summary>
+    /// ★ 「沒有範圍」必須對**每一個**用 <c>IsRestricted</c> 判斷的地方都是「限定到沒有科室」，不是「不受限」（L-029）。
+    ///
+    /// <c>RequisitionsController</c> 的每一處都只看 <c>IsRestricted</c>。若 <c>NoScope.IsRestricted</c> 是 false，
+    /// 它在那裡就等於全院。今天那些 Action 被三角色 Policy 擋住所以看不到 ——
+    /// 哪天有人把新角色加進 <c>RequisitionRead</c>，那個角色就會看到全院的請領單，而畫面完全正常。
+    /// </summary>
+    [Fact]
+    public void NoScope_fails_closed_wherever_IsRestricted_is_checked()
+    {
+        Assert.True(DepartmentScope.NoScope.IsRestricted, "NoScope 必須算「受限」，否則只看 IsRestricted 的地方會把它當成全院。");
+        Assert.Null(DepartmentScope.NoScope.DepartmentId);
+        Assert.False(DepartmentScope.Unrestricted.IsRestricted);
+        Assert.True(DepartmentScope.RestrictedTo(3).IsRestricted);
+    }
+
+    /// <summary>
+    /// ★ <c>audit_logs.entity_id</c> 是字串欄位（L-029）。
+    /// 儀表板若在 JOIN 條件裡直接 <c>TO_NUMBER(entity_id)</c>，Oracle 不保證先比對 <c>entity_type</c> ——
+    /// 一筆非數字 id 的稽核（例如將來以 GUID 為鍵的類型）就可能讓營運儀表板整頁 ORA-01722。
+    /// D3 的要求是：不認得的類型照樣顯示，首頁不能因此壞掉。
+    /// </summary>
+    [Fact]
+    public async Task Audit_feed_survives_a_non_numeric_entity_id()
+    {
+        var entityId = "GUID-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO audit_logs (entity_type, entity_id, action, actor, occurred_at) VALUES ('Mystery', :entityId, 'Poke', :actor, :t)",
+            new { entityId, actor = TestIdentitySeeder.StorekeeperEmail, t = new DateTime(2031, 1, 1, 0, 0, 0) });
+        try
+        {
+            using var keeperClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            await WebAuthTestHelpers.LoginAsync(keeperClient, TestIdentitySeeder.StorekeeperEmail);
+
+            var response = await keeperClient.GetAsync("/");
+            var html = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"非數字 entity_id {entityId}：HTTP {(int)response.StatusCode}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("Mystery #" + entityId, html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await connection.ExecuteAsync(
+                "DELETE FROM audit_logs WHERE entity_type = 'Mystery' AND entity_id = :entityId",
+                new { entityId });
         }
     }
 
