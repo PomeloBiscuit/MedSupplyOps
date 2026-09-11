@@ -32,10 +32,12 @@ namespace MedSupplyOps.Integration.Tests.Web;
 /// </summary>
 public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStartupSmokeTests.ProductionLikeFactory>, IAsyncLifetime
 {
+    private readonly ProductionLikeFactory _factory;
     private readonly HttpClient _client;
 
     public ApplicationStartupSmokeTests(ProductionLikeFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
@@ -72,6 +74,27 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
         Assert.False(string.IsNullOrWhiteSpace(html), $"{path} 回傳 200 但內容是空的。");
 
         // 200 但內容其實是錯誤頁的情況也要擋掉。
+        Assert.DoesNotContain("Unable to resolve service", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("An unhandled exception", html, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 首頁依角色分岔成兩種畫面。上面的 <c>Every_page_renders_with_the_production_service_graph</c>
+    /// 用 Administrator 登入，只涵蓋「不受限」那一支；請領人的科室範圍分支需要另外登入才會被打到，
+    /// 否則新加的 DashboardQueries／DepartmentScopeResolver 若漏了正式 DI 註冊，
+    /// 只會在請領人這條路徑上炸開，Administrator 那條完全看不出來。
+    /// </summary>
+    [Fact]
+    public async Task Home_page_renders_for_a_requester_with_the_production_service_graph()
+    {
+        using var requesterClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await WebAuthTestHelpers.LoginAsync(requesterClient, TestIdentitySeeder.RequesterEmail);
+
+        var response = await requesterClient.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.False(string.IsNullOrWhiteSpace(html), "/ 回傳 200 但內容是空的。");
         Assert.DoesNotContain("Unable to resolve service", html, StringComparison.Ordinal);
         Assert.DoesNotContain("An unhandled exception", html, StringComparison.Ordinal);
     }

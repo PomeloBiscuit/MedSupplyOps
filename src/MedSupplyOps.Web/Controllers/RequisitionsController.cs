@@ -9,7 +9,6 @@ using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Requisitions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,7 +21,7 @@ public sealed class RequisitionsController : Controller
     private readonly InventoryQueries _inventoryQueries;
     private readonly StockIssueService _stockIssueService;
     private readonly ICurrentUser _currentUser;
-    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly DepartmentScopeResolver _departmentScopeResolver;
     private readonly BusinessCalendar _businessCalendar;
 
     public RequisitionsController(
@@ -30,14 +29,14 @@ public sealed class RequisitionsController : Controller
         InventoryQueries inventoryQueries,
         StockIssueService stockIssueService,
         ICurrentUser currentUser,
-        UserManager<ApplicationUser> userManager,
+        DepartmentScopeResolver departmentScopeResolver,
         BusinessCalendar businessCalendar)
     {
         _dbContext = dbContext;
         _inventoryQueries = inventoryQueries;
         _stockIssueService = stockIssueService;
         _currentUser = currentUser;
-        _userManager = userManager;
+        _departmentScopeResolver = departmentScopeResolver;
         _businessCalendar = businessCalendar;
     }
 
@@ -55,7 +54,7 @@ public sealed class RequisitionsController : Controller
             ModelState.AddModelError(nameof(createdTo), "建立日期的結束日不得早於開始日。");
         }
 
-        var departmentScope = await GetDepartmentScopeAsync();
+        var departmentScope = await _departmentScopeResolver.ResolveAsync(User, _currentUser.Actor);
         if (departmentScope.IsRestricted && departmentScope.DepartmentId is null)
         {
             return Forbid();
@@ -119,7 +118,7 @@ public sealed class RequisitionsController : Controller
     [Authorize(Policy = AuthorizationPolicies.RequisitionCreate)]
     public async Task<IActionResult> Create(DateOnly? asOf, CancellationToken cancellationToken)
     {
-        var departmentScope = await GetDepartmentScopeAsync();
+        var departmentScope = await _departmentScopeResolver.ResolveAsync(User, _currentUser.Actor);
         if (departmentScope.IsRestricted && departmentScope.DepartmentId is null)
         {
             return Forbid();
@@ -141,7 +140,7 @@ public sealed class RequisitionsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateRequisitionViewModel model, CancellationToken cancellationToken)
     {
-        var departmentScope = await GetDepartmentScopeAsync();
+        var departmentScope = await _departmentScopeResolver.ResolveAsync(User, _currentUser.Actor);
         if (departmentScope.IsRestricted &&
             (departmentScope.DepartmentId is null || model.DepartmentId != departmentScope.DepartmentId.Value))
         {
@@ -244,7 +243,7 @@ public sealed class RequisitionsController : Controller
     [Authorize(Policy = AuthorizationPolicies.RequisitionRead)]
     public async Task<IActionResult> Details(long id, CancellationToken cancellationToken)
     {
-        var departmentScope = await GetDepartmentScopeAsync();
+        var departmentScope = await _departmentScopeResolver.ResolveAsync(User, _currentUser.Actor);
         if (departmentScope.IsRestricted && departmentScope.DepartmentId is null)
         {
             return Forbid();
@@ -518,17 +517,6 @@ public sealed class RequisitionsController : Controller
             .ToListAsync(cancellationToken);
     }
 
-    private async Task<DepartmentScope> GetDepartmentScopeAsync()
-    {
-        if (!User.IsInRole(ApplicationRoles.Requester))
-        {
-            return DepartmentScope.Unrestricted;
-        }
-
-        var user = await _userManager.FindByNameAsync(_currentUser.Actor);
-        return new DepartmentScope(true, user?.DepartmentId);
-    }
-
     private T GetShadowValue<T>(Requisition requisition, string propertyName)
         => (T)_dbContext.Entry(requisition).Property(propertyName).CurrentValue!;
 
@@ -548,8 +536,4 @@ public sealed class RequisitionsController : Controller
         return false;
     }
 
-    private readonly record struct DepartmentScope(bool IsRestricted, long? DepartmentId)
-    {
-        public static DepartmentScope Unrestricted => new(false, null);
-    }
 }

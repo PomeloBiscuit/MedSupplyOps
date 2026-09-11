@@ -116,4 +116,13 @@ public static class RequisitionStatusText
         RequisitionStatus.Closed => "已結案",
         _ => status.ToString(),
     };
+
+    /// <summary>狀態標籤的 Bootstrap 背景色 class：已發料＝綠；審核中／待發料＝黃；已駁回＝紅；草稿／已結案＝灰。</summary>
+    public static string GetBadgeClass(RequisitionStatus status) => status switch
+    {
+        RequisitionStatus.Issued => "text-bg-success",
+        RequisitionStatus.PendingApproval or RequisitionStatus.Approved => "text-bg-warning",
+        RequisitionStatus.Rejected => "text-bg-danger",
+        _ => "text-bg-secondary",
+    };
 }

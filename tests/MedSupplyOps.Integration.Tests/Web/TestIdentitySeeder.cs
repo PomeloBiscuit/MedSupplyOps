@@ -12,6 +12,9 @@ internal static class TestIdentitySeeder
     public const string RequesterEmail = "itest-requester@example.local";
     public const string StorekeeperEmail = "itest-keeper@example.local";
     public const string AdministratorEmail = "itest-admin@example.local";
+
+    /// <summary>沒有任何角色、沒有科室的帳號（首頁儀表板 T2）：驗證首頁對「沒有範圍」的處理。</summary>
+    public const string NoRoleEmail = "itest-norole@example.local";
     public const string RequesterDepartmentCode = "DEP-ER";
 
     public static string Password { get; } = $"ITest#{Guid.NewGuid():N}aA1";
@@ -74,6 +77,38 @@ internal static class TestIdentitySeeder
             {
                 EnsureSucceeded(await userManager.AddToRoleAsync(user, role), $"將測試帳號 {email} 加入 {role}");
             }
+        }
+
+        await SeedNoRoleAccountAsync(userManager);
+    }
+
+    /// <summary>
+    /// 沒有任何角色、沒有科室的帳號。刻意不進 <see cref="Accounts"/> 的迴圈——
+    /// 那個迴圈的每一筆都會被加進一個角色，這個帳號的重點正是「不屬於任何角色」。
+    /// </summary>
+    private static async Task SeedNoRoleAccountAsync(UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByEmailAsync(NoRoleEmail);
+        if (user is null)
+        {
+            user = new ApplicationUser
+            {
+                UserName = NoRoleEmail,
+                Email = NoRoleEmail,
+                EmailConfirmed = true,
+                DisplayName = "測試無角色帳號",
+                DepartmentId = null,
+            };
+            EnsureSucceeded(await userManager.CreateAsync(user, Password), $"建立測試帳號 {NoRoleEmail}");
+        }
+        else
+        {
+            if (await userManager.HasPasswordAsync(user))
+            {
+                EnsureSucceeded(await userManager.RemovePasswordAsync(user), $"重設測試帳號 {NoRoleEmail} 的密碼");
+            }
+
+            EnsureSucceeded(await userManager.AddPasswordAsync(user, Password), $"設定測試帳號 {NoRoleEmail} 的密碼");
         }
     }
 

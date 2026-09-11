@@ -1,0 +1,92 @@
+@using System.Globalization
+@using MedSupplyOps.Domain.Requisitions
+@using MedSupplyOps.Infrastructure.Time
+@using MedSupplyOps.Web.Models.Home
+@using MedSupplyOps.Web.Models.Requisitions
+@model RequesterDashboardViewModel
+@inject BusinessCalendar BusinessCalendar
+@{
+    ViewData["Title"] = "首頁";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 py-2">
+    <h1 class="h2 mb-0">我的儀表板</h1>
+    @if (Model.CanCreateRequisition)
+    {
+        <a class="btn btn-primary" asp-controller="Requisitions" asp-action="Create">建立請領單</a>
+    }
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-4">
+    <div class="col">
+        <a class="text-decoration-none" asp-controller="Requisitions" asp-action="Index" asp-route-status="@RequisitionStatus.PendingApproval">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body">
+                    <p class="text-muted mb-1">審核中</p>
+                    <p class="display-6 mb-0" data-testid="pending-approval-count">@Model.PendingApprovalCount</p>
+                    <p class="text-muted mb-0">張</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col">
+        <a class="text-decoration-none" asp-controller="Requisitions" asp-action="Index" asp-route-status="@RequisitionStatus.Approved">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body">
+                    <p class="text-muted mb-1">待發料</p>
+                    <p class="display-6 mb-0" data-testid="approved-awaiting-issue-count">@Model.ApprovedAwaitingIssueCount</p>
+                    <p class="text-muted mb-0">張</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col">
+        <div class="card h-100 dashboard-card">
+            <div class="card-body">
+                <p class="text-muted mb-1">本月已發料</p>
+                <p class="display-6 mb-0" data-testid="issued-this-month-count">@Model.IssuedThisMonthCount</p>
+                <p class="text-muted mb-0">張</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">我科室最近的請領單</div>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0" data-testid="recent-requisitions-table">
+            <thead>
+                <tr>
+                    <th scope="col">單號</th>
+                    <th scope="col">建立日期</th>
+                    <th scope="col" class="text-end">品項數</th>
+                    <th scope="col">狀態</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.RecentRequisitions.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-center text-muted py-4">目前沒有請領單。</td></tr>
+                }
+                else
+                {
+                    @foreach (var requisition in Model.RecentRequisitions)
+                    {
+                        <tr>
+                            <td><a asp-controller="Requisitions" asp-action="Details" asp-route-id="@requisition.Id">@requisition.RequisitionNo</a></td>
+                            <td>@BusinessCalendar.ToBusinessTime(requisition.CreatedAt).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</td>
+                            <td class="text-end">@requisition.LineCount</td>
+                            <td>
+                                <span class="badge @RequisitionStatusText.GetBadgeClass(requisition.Status)">@RequisitionStatusText.Get(requisition.Status)</span>
+                                @if (requisition.Status == RequisitionStatus.Rejected && !string.IsNullOrWhiteSpace(requisition.RejectionReason))
+                                {
+                                    <div class="text-muted small mt-1" data-testid="rejection-reason">駁回原因：@requisition.RejectionReason</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
