@@ -250,6 +250,93 @@ public sealed partial class ItemReceivingWebTests
         }
     }
 
+    /// <summary>
+    /// ★ 數字欄位的「綁定錯誤」不可以在重新驗證時被吞掉（L-028）。
+    ///
+    /// 兩個 Controller 都先正規化字串欄位、再重新驗證。若用 <c>ModelState.Clear()</c> 清掉舊結果，
+    /// 會連同模型綁定的錯誤一起清掉：數字欄送空白或非數字時，屬性維持預設值
+    /// （入庫的數量預設 1、安全存量維持 0），重新驗證又是合法值 ——
+    /// 於是一個使用者**沒有輸入**的數字被寫進資料庫，畫面顯示成功。
+    /// 頁面有前端驗證會先擋，但前端驗證是介面，不是驗證（跟「藏連結不是授權」同一個道理）。
+    /// </summary>
+    [Fact]
+    public async Task Numeric_binding_errors_are_not_swallowed_when_revalidating_normalized_input()
+    {
+        using var client = CreateClient();
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.AdministratorEmail);
+        var itemId = await CreateItemThroughWebAsync(client, NewCode("NB"), "綁定錯誤測試", "盒", 25);
+        var itemIdsToClean = new List<long> { itemId };
+        try
+        {
+            // 入庫：數量空白。
+            var receiveToken = await GetTokenAsync(client, "/Receiving");
+            var receive = await client.PostAsync("/Receiving", Form(receiveToken, new()
+            {
+                ["ItemId"] = itemId.ToString(CultureInfo.InvariantCulture),
+                ["LotNumber"] = "NB-LOT",
+                ["ExpiryDate"] = TestBusinessCalendar.Today.AddDays(90).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["Quantity"] = "",
+                ["StorageLocation"] = "ROOM-NB",
+            }));
+
+            // 編輯：安全存量不是數字。
+            var editToken = await GetTokenAsync(client, $"/Items/Edit/{itemId}");
+            var edit = await client.PostAsync($"/Items/Edit/{itemId}", Form(editToken, new()
+            {
+                ["Name"] = "綁定錯誤測試",
+                ["SafetyStockQty"] = "abc",
+            }));
+
+            // 新增：安全存量不是數字（料號故意帶空白與小寫，確認正規化的重新驗證仍然有效）。
+            var createCode = NewCode("NC");
+            var create = await client.PostAsync("/Items/Create", Form(await GetTokenAsync(client, "/Items/Create"), new()
+            {
+                ["Code"] = $" {createCode.ToLowerInvariant()} ",
+                ["Name"] = "綁定錯誤測試（新增）",
+                ["UnitOfMeasure"] = "盒",
+                ["SafetyStockQty"] = "abc",
+            }));
+
+            await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+            var createdIds = (await connection.QueryAsync<long>(
+                "SELECT item_id FROM items WHERE item_code = :createCode",
+                new { createCode })).ToList();
+            itemIdsToClean.AddRange(createdIds);
+            var receivedQuantity = await connection.QuerySingleAsync<int>(
+                "SELECT NVL(SUM(quantity), 0) FROM stock_lots WHERE item_id = :itemId",
+                new { itemId });
+            var safetyStock = await connection.QuerySingleAsync<int>(
+                "SELECT safety_stock_qty FROM items WHERE item_id = :itemId",
+                new { itemId });
+
+            // 先收集再一起斷言：兩個 Controller 各自有沒有這個問題，都要看得到。
+            var failures = new List<string>();
+            if (receive.StatusCode != HttpStatusCode.OK || receivedQuantity != 0)
+            {
+                failures.Add($"入庫數量空白：回應 {(int)receive.StatusCode}、實際入庫 {receivedQuantity} 件（應回表單、0 件）");
+            }
+
+            if (edit.StatusCode != HttpStatusCode.OK || safetyStock != 25)
+            {
+                failures.Add($"安全存量送 abc：回應 {(int)edit.StatusCode}、資料庫變成 {safetyStock}（應回表單、維持 25）");
+            }
+
+            if (create.StatusCode != HttpStatusCode.OK || createdIds.Count != 0)
+            {
+                failures.Add($"新增品項安全存量送 abc：回應 {(int)create.StatusCode}、建立了 {createdIds.Count} 筆（應回表單、0 筆）");
+            }
+
+            _output.WriteLine(
+                $"入庫：{(int)receive.StatusCode}／{receivedQuantity} 件；編輯：{(int)edit.StatusCode}／安全存量 {safetyStock}；" +
+                $"新增：{(int)create.StatusCode}／{createdIds.Count} 筆");
+            Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+        }
+        finally
+        {
+            await CleanupItemsAsync(itemIdsToClean);
+        }
+    }
+
     [Fact]
     public async Task T8_direct_endpoint_requests_enforce_both_new_policies_for_every_role_and_verb()
     {
