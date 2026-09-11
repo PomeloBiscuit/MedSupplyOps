@@ -59,8 +59,10 @@ $probes = @(
         Rule   = 'FR-401 跨環境配批一致'
         File   = "$domain/Inventory/FefoAllocator.cs"
         From   = '.ThenBy(lot => lot.LotNumber, StringComparer.Ordinal)'
-        To     = ''
-        Verify = '// 最後以 Id 收尾'
+        # 不能只刪除：原先的 Verify 是原始碼裡本來就有的下一行註解，
+        # 無法用來分辨「探針尚未打入」和「上次中斷留下突變」。
+        To     = '// 探針移除：LotNumber 決勝鍵'
+        Verify = '// 探針移除：LotNumber 決勝鍵'
     },
     @{
         Name   = 'P4  允許部分發料（拿掉「不足即整筆失敗」的守衛）'
@@ -149,6 +151,32 @@ $probes = @(
         TestProject = 'tests/MedSupplyOps.Integration.Tests'
     }
 )
+
+# ★ 防呆 4：探針開始前先拒絕任何上次中斷留下的突變。
+# Verify 必須是每支探針獨有、且只在突變版本才會出現的字串；否則基線測試會在
+# 已被改壞的產品碼上跑，結果看似全綠也完全不可採信。
+$staleProbes = @(
+    foreach ($probe in $probes) {
+        $path = Join-Path $repoRoot $probe.File
+        if (-not (Test-Path -LiteralPath $path)) {
+            Write-Host ("探針目標檔不存在：{0}（{1}）" -f $probe.File, $probe.Name) -ForegroundColor Red
+            exit 1
+        }
+
+        $text = [System.IO.File]::ReadAllText($path)
+        if ($text.Contains($probe.Verify)) {
+            [pscustomobject]@{ File = $probe.File; Probe = $probe.Name; Verify = $probe.Verify }
+        }
+    }
+)
+
+if ($staleProbes.Count -gt 0) {
+    Write-Host '偵測到上次中斷留下的探針突變；拒絕開始執行。' -ForegroundColor Red
+    foreach ($stale in $staleProbes) {
+        Write-Host ("  檔案：{0}`n  探針：{1}`n  Verify：{2}" -f $stale.File, $stale.Probe, $stale.Verify) -ForegroundColor Red
+    }
+    exit 1
+}
 
 function Invoke-TestRun {
     param([string]$Project = $TestProject)

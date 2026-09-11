@@ -72,7 +72,10 @@ function Invoke-Docker {
     }
 
     if ($exitCode -ne 0) {
-        throw "Docker 指令失敗（exit $exitCode）：docker $($Arguments -join ' ')"
+        $displayArguments = $Arguments | ForEach-Object {
+            if ($_ -match '^APP_DB_PASSWORD=') { 'APP_DB_PASSWORD=***' } else { $_ }
+        }
+        throw "Docker 指令失敗（exit $exitCode）：docker $($displayArguments -join ' ')"
     }
     return $output.TrimEnd("`r", "`n")
 }

@@ -28,10 +28,12 @@ public sealed record RequisitionListItemViewModel(
 
 public sealed class CreateRequisitionViewModel
 {
+    [Required(ErrorMessage = "科室為必填。")]
     [Range(1, long.MaxValue, ErrorMessage = "請選擇科室。")]
     [Display(Name = "科室")]
     public long DepartmentId { get; set; }
 
+    [Required(ErrorMessage = "基準日為必填。")]
     public DateOnly AsOf { get; set; }
 
     [MinLength(1, ErrorMessage = "請領單至少需要一筆明細。")]
@@ -44,12 +46,14 @@ public sealed class CreateRequisitionViewModel
 
 public sealed class CreateRequisitionLineViewModel
 {
+    [Required(ErrorMessage = "品項為必填。")]
     [Range(1, long.MaxValue, ErrorMessage = "請選擇品項。")]
     [Display(Name = "品項")]
     public long ItemId { get; set; }
 
-    [Range(1, int.MaxValue, ErrorMessage = "請領數量必須為正整數。")]
     [Display(Name = "數量")]
+    [Required(ErrorMessage = "數量為必填。")]
+    [Range(1, int.MaxValue, ErrorMessage = "請領數量必須為正整數。")]
     public int Quantity { get; set; }
 }
 

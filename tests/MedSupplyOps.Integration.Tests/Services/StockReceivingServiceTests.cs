@@ -101,10 +101,13 @@ public sealed class StockReceivingServiceTests
 
         try
         {
-            _ = await blocker.QuerySingleAsync<decimal>(
+            // QuerySingleAsync 完成代表 Oracle 已授與 FOR UPDATE 鎖；在這個明確斷言後才開始入庫，
+            // 不以 sleep 或 retry 猜測鎖是否已取得。
+            var lockedItemId = await blocker.QuerySingleAsync<decimal>(
                 "SELECT item_id FROM items WHERE item_id = :itemId FOR UPDATE",
                 new { itemId },
                 blockingTransaction);
+            Assert.Equal(itemId, decimal.ToInt64(lockedItemId));
 
             await using var firstConnection = new OracleConnection(OracleTestDatabase.ConnectionString);
             await using var secondConnection = new OracleConnection(OracleTestDatabase.ConnectionString);
@@ -174,10 +177,12 @@ public sealed class StockReceivingServiceTests
         await using var blockingTransaction = await blocker.BeginTransactionAsync(IsolationLevel.ReadCommitted);
         try
         {
-            _ = await blocker.QuerySingleAsync<decimal>(
+            // 同 T3：先 await 並確認持鎖列，再開始會等待此鎖的入庫操作。
+            var lockedItemId = await blocker.QuerySingleAsync<decimal>(
                 "SELECT item_id FROM items WHERE item_id = :itemId FOR UPDATE",
                 new { itemId },
                 blockingTransaction);
+            Assert.Equal(itemId, decimal.ToInt64(lockedItemId));
 
             await using var receivingConnection = new OracleConnection(OracleTestDatabase.ConnectionString);
             var service = new StockReceivingService(
