@@ -45,6 +45,9 @@ public sealed class DashboardQueries
         int count,
         CancellationToken cancellationToken = default)
     {
+        // ★ entity_id 是字串欄位，JOIN 條件裡的轉換必須是 DEFAULT NULL ON CONVERSION ERROR。
+        //   Oracle 不保證先比對 entity_type 再轉換：原本的 TO_NUMBER(a.entity_id) 遇到一筆非數字 id
+        //   （例如將來以 GUID 為鍵的稽核類型），整個營運儀表板就是 HTTP 500。見 L-029。
         const string sql = """
             SELECT a.entity_type AS EntityType,
                    a.entity_id AS EntityId,
@@ -57,9 +60,9 @@ public sealed class DashboardQueries
                    l.lot_number AS LotNumber
             FROM audit_logs a
             LEFT JOIN identity_users u ON u.user_name = a.actor
-            LEFT JOIN requisitions r ON a.entity_type = 'Requisition' AND r.requisition_id = TO_NUMBER(a.entity_id)
-            LEFT JOIN items i ON a.entity_type = 'Item' AND i.item_id = TO_NUMBER(a.entity_id)
-            LEFT JOIN stock_lots l ON a.entity_type = 'StockLot' AND l.stock_lot_id = TO_NUMBER(a.entity_id)
+            LEFT JOIN requisitions r ON a.entity_type = 'Requisition' AND r.requisition_id = TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)
+            LEFT JOIN items i ON a.entity_type = 'Item' AND i.item_id = TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)
+            LEFT JOIN stock_lots l ON a.entity_type = 'StockLot' AND l.stock_lot_id = TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)
             ORDER BY a.occurred_at DESC, a.audit_log_id DESC
             FETCH FIRST :count ROWS ONLY
             """;

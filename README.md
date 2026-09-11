@@ -29,7 +29,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 151 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 153 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -File scripts/mutation-probe.ps1                                # ★ 鑑別力探針
 powershell -File scripts/generate-er-diagram.ps1 -Check                    # ★ ER 圖漂移檢查
@@ -281,7 +281,7 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 ## 專案數字
 
 ```
-151 條測試（Domain 48 + Integration 103，整合測試全部跑真實 Oracle）
+153 條測試（Domain 48 + Integration 105，整合測試全部跑真實 Oracle）
 12 支程式碼探針 + 5 支資料庫探針 + ER 圖漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```
