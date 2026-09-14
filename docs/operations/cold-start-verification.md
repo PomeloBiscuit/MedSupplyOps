@@ -200,3 +200,87 @@ build 0 警告 0 錯誤／format 無差異／突變探針 9/9／ER 圖一致／�
 
 **「乾淨 clone → 冷啟 → 六道關卡」一次跑到底的完整重演**尚未在修正後重做。
 它慢且具破壞性，定位為**轉公開前的發佈關卡**。
+
+---
+
+## 發佈關卡①完整重演（2026-09-14）
+
+來源主工作樹 `D:\Project\MedSupplyOps` 起始 commit 為
+`c4c21d3cb8f5647e01cf58247e153d55a62e8f08`；開工前 `git status --short` 無輸出，
+最近三筆歷史含 `939b70e`。在 repo 外建立本機 clone
+`D:\Project\MedSupplyOps-coldstart-20260914-121637`，兩端 HEAD 完全相同；只複製主目錄既有的
+`.env`，未輸出或記錄任何密碼。全程僅使用本機 Docker、local clone 與 NuGet restore。
+
+### T0 — 安全網
+
+冷啟前以既有備份腳本完成邏輯與實體兩層備份，並驗證 15 張資料表、乾淨關機、archive 內 22 個
+`.dbf` 資料檔，以及重啟後 `running|healthy`：
+
+```text
+邏輯：D:\Project\MedSupplyOps\backups\database-20260914-121637\logical\medsupply-20260914-121637.dmp (1,228,800 bytes)
+實體：D:\Project\MedSupplyOps\backups\database-20260914-121637\physical\medsupply-oracle-data-20260914-121637.tar (5,668,761,600 bytes)
+CLEAN_SHUTDOWN|shutdown immediate completed
+CONTAINER=medsupplyops-oracle STATUS=exited EXIT_CODE=143
+HEALTHCHECK|running|healthy
+```
+
+### T1 — 全新 volume、migration 與 V006
+
+只在 clean clone 中執行 `docker compose down -v`，輸出明確顯示
+`Volume medsupplyops-oracle-data Removed`；後續 `up -d` 重新顯示 `Volume ... Created`。Oracle 日誌依序為
+`OK V001`、`OK V002`、`OK V003`、`OK V004`、`OK V005`、`OK V006`，最後為
+`DONE: Executing user defined scripts`。新資料庫的 `schema_versions` 完整內容：
+
+```text
+V001|V001__initial_schema.sql
+V002|V002__seed_data.sql
+V003|V003__identity.sql
+V004|V004__authorization_department.sql
+V005|V005__repair_v001_comments.sql
+V006|V006__fix_stock_lots_comment.sql
+U_FFFD|0
+```
+
+`SeedDataEncodingTests.Stock_lots_comment_matches_the_correct_chinese_text_exactly` 包含在下列 107 條
+整合測試中並通過，故 V006 的逐字註解斷言已在**全新資料庫**上驗證。直接 SQL*Plus 顯示中文時會受
+主控台字碼頁影響而呈現 `?`，不以該顯示結果取代精確的 .NET Unicode 字串斷言；資料字典 U+FFFD 掃描為 0。
+
+### T2 — 六道關卡（第一次冷啟、修正與最終結果）
+
+初次 `dotnet build` 為 0 warnings、0 errors。初次 README 原樣 `dotnet test` 的結果是 Domain 48/48、
+Integration 106/107；唯一失敗為
+`InventoryApiTests.GetExpiring_returns_camel_case_fields_and_usable_seed_lot_values`。這是明顯的測試碼缺陷，
+不是產品／migration 缺陷：測試用固定的 `TestBusinessCalendar.Today` 查詢以 `TRUNC(SYSDATE)` 建立的種子批次。
+新 DB 的 `GLO-FEFO-A` 是建庫日 +30，已落在固定假日期的 +30 範圍外；累積資料庫的舊建庫日恰好掩蓋問題。
+
+屬於「明顯的測試碼缺陷，可直接修正」的例外，最小修正為改用 `TestBusinessCalendar.SystemToday`。
+修正後第一次完整測試為 Domain 48/48、Integration 107/107（共 155）；最終 clean-clone build 再次為
+0 warnings、0 errors。格式檢查曾抓到新加三行的 LF/CRLF 行尾差異，僅格式化該測試檔後通過。
+
+```text
+1 build                         成功；0 warnings、0 errors
+2 dotnet test                   Domain 48/48；Integration 107/107；共 155 passed
+3 dotnet format --verify        成功；無差異
+4 mutation-probe                P1–P12 全有鑑別力；變紅數 2,2,1,4,2,1,3,9,5,2,1,1；還原後 48/48、107/107
+5 generate-er-diagram -Check    ER 圖與資料字典一致
+6 check-db-clean                0 筆 created_by / actor LIKE 'itest%' 殘留
+```
+
+### T3 — 接回主目錄
+
+在刪除 clone 前，從主目錄執行 `docker compose up -d`；Docker 輸出 `Recreate`、`Recreated`、`Started`，
+接著為 `HEALTHCHECK|running|healthy`。主目錄的實際結果：
+
+```text
+scripts/check-db-clean.ps1  資料庫乾淨：沒有 created_by / actor LIKE 'itest%' 的殘留資料。
+dotnet test                 Domain 48/48；Integration 107/107；共 155 passed
+```
+
+主目錄可連線，表示容器掛載已指回主工作樹，且既有 `.env` 的連線設定有效。
+
+### T4 — README
+
+本次使用的順序與 README 的四行相同：既有 `.env`、`docker compose up -d`、等候
+`DONE: Executing user defined scripts`、`dotnet test MedSupplyOps.slnx`。README **沒有缺少必要步驟**；
+冷啟前為了刻意取得新 volume 額外執行的 `docker compose down -v` 是發佈驗證專用的破壞性前置，
+不屬於一般使用者的「怎麼跑起來」流程。

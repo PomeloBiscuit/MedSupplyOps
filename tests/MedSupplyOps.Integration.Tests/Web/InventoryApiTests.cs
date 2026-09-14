@@ -17,7 +17,9 @@ namespace MedSupplyOps.Integration.Tests.Web;
 /// <summary>以實際 MVC host 驗證 API 路由、JSON 欄位名稱與數值。</summary>
 public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.InventoryWebApplicationFactory>, IAsyncLifetime
 {
-    private static readonly DateOnly Today = TestBusinessCalendar.Today;
+    // 查的是 cold-start 時以 TRUNC(SYSDATE) 建立的種子批次；基準日必須跟著真實業務日期，
+    // 不可使用只供 Web host 邊界測試的固定假時鐘（見 L-033）。
+    private static readonly DateOnly Today = TestBusinessCalendar.SystemToday;
     private readonly HttpClient _client;
 
     public InventoryApiTests(InventoryWebApplicationFactory factory)
