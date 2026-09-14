@@ -4,7 +4,8 @@
     ViewData["Title"] = "建立請領單";
 }
 
-<div class="mb-3">
+<div class="mso-page">
+<div class="mso-page-heading mb-4">
     <h1 class="h2 mb-1">建立請領單</h1>
     <p class="text-muted mb-0">選擇科室並加入請領品項；送出後會直接進入待審核。</p>
 </div>
@@ -15,7 +16,7 @@
     <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
     <div class="alert alert-danger d-none" id="client-validation-message" role="alert" aria-live="assertive"></div>
 
-    <div class="card card-body mb-4">
+    <div class="card card-body mb-4 mso-form-card">
         <label asp-for="DepartmentId" class="form-label"></label>
         <select asp-for="DepartmentId" class="form-select">
             <option value="0">請選擇科室</option>
@@ -27,13 +28,13 @@
         <span asp-validation-for="DepartmentId" class="text-danger"></span>
     </div>
 
-    <div class="card mb-4">
+    <div class="card mb-4 mso-table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>請領明細</span>
             <button class="btn btn-sm btn-outline-primary" type="button" id="add-requisition-line">新增明細</button>
         </div>
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
+        <div class="table-responsive mso-table-scroll">
+            <table class="table align-middle mb-0 mso-data-table">
                 <thead>
                     <tr>
                         <th scope="col">品項</th>
@@ -74,6 +75,7 @@
         <a class="btn btn-outline-secondary" asp-action="Index">取消</a>
     </div>
 </form>
+</div>
 
 <template id="requisition-line-template">
     <tr class="requisition-line">

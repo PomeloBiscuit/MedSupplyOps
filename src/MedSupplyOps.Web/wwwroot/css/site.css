@@ -287,3 +287,202 @@ a:hover {
     max-width: 11rem;
   }
 }
+
+/* 共用頁首需要一致的標題尺度，避免各清單與表單頁出現不同視覺層級。 */
+.mso-page-heading h1 {
+  color: var(--mso-text-strong);
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Bootstrap muted 字色偏淡，工作區的輔助文字改用設計語彙可達可讀對比。 */
+.mso-page .text-muted,
+.mso-auth-card .text-muted {
+  color: var(--mso-text-muted) !important;
+}
+
+/* 篩選卡需與結果表格以一致表面層級呈現，讓查詢流程更易掃讀。 */
+.mso-filter-card .card,
+.mso-form-card {
+  border-color: var(--mso-border);
+  box-shadow: 0 1px 3px rgba(16, 23, 31, 0.06);
+}
+
+/* 互動查詢區的輸出框改用淡色表面，避免被誤認為錯誤警示。 */
+.mso-feature-card output {
+  color: var(--mso-text);
+  background: var(--mso-surface-muted) !important;
+  border-color: var(--mso-border) !important;
+  border-radius: var(--mso-radius-md) !important;
+}
+
+/* 資料表置於卡片時需移除 Bootstrap 底部間距，保持外框完整。 */
+.mso-table-card {
+  overflow: hidden;
+}
+
+/* 所有資料表採同一個淡色表頭與較緊密列高，呼應畫板資訊密度。 */
+.mso-data-table thead th {
+  padding: 0.75rem 1.15rem;
+  color: var(--mso-text-muted);
+  background: var(--mso-surface-muted);
+  border-bottom-color: var(--mso-border);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 資料列保留足夠水平留白，讓寬表格在捲動時仍可辨認列界。 */
+.mso-data-table tbody td {
+  padding: 0.8rem 1.15rem;
+  vertical-align: middle;
+}
+
+/* 單號、料號與批號使用等寬數字，長識別碼不會推破欄寬。 */
+.mso-code-cell {
+  display: inline-block;
+  max-width: 16rem;
+  overflow: hidden;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+/* 清單首欄固定為識別欄時，未額外加 class 的舊連結也維持等寬與截斷。 */
+.mso-data-table tbody td:first-child,
+.mso-data-table tbody td:first-child a {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 品名、規格與駁回原因可在字詞邊界外換行，承受規格允許的極長資料。 */
+.mso-long-text {
+  overflow-wrap: anywhere;
+}
+
+/* 空資料不保留空表格感，改為明確且安靜的工作區回饋。 */
+.mso-empty-state {
+  padding: 2.75rem 1.15rem !important;
+  color: var(--mso-text-muted) !important;
+  background: var(--mso-surface-muted) !important;
+}
+
+/* 到期批次需在整列提供低干擾危險提示，不能只靠日期文字傳達。 */
+.mso-row-danger > * {
+  background: var(--mso-danger-bg) !important;
+}
+
+/* 語意標籤共用膠囊外觀，避免各頁沿用不一致的 Bootstrap text-bg 色票。 */
+.mso-badge-ok,
+.mso-badge-warn,
+.mso-badge-bad,
+.mso-badge-idle {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* 可用、已發料等正向狀態使用通過 AA 的深綠字與淺綠底。 */
+.mso-badge-ok {
+  color: var(--mso-success);
+  background: var(--mso-success-bg);
+  border-color: var(--mso-success-border);
+}
+
+/* 快過期、待處理與審核中使用琥珀色，保持明顯但不與錯誤混淆。 */
+.mso-badge-warn {
+  color: var(--mso-warning);
+  background: var(--mso-warning-bg);
+  border-color: var(--mso-warning-border);
+}
+
+/* 已過期、已駁回與不可用採紅色語意，和正向狀態有明確區隔。 */
+.mso-badge-bad {
+  color: var(--mso-danger);
+  background: var(--mso-danger-bg);
+  border-color: var(--mso-danger-border);
+}
+
+/* 草稿、已結案等中性狀態採低彩度灰，不誤導為需要立即處理。 */
+.mso-badge-idle {
+  color: var(--mso-text-muted);
+  background: var(--mso-surface-subtle);
+  border-color: var(--mso-border-strong);
+}
+
+/* 詳情定義清單以淡色分隔與長文換行呈現，讓 500 字駁回原因仍可閱讀。 */
+.mso-detail-list dt,
+.mso-detail-list dd {
+  margin-bottom: 0;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--mso-surface-subtle);
+}
+
+/* 未登入頁用窄欄卡片建立單一焦點，讓首次進站的登入動作更清楚。 */
+.mso-auth-page {
+  display: grid;
+  min-height: calc(100vh - 190px);
+  place-items: center;
+}
+
+/* 登入、註冊與拒絕頁共用寬度與內距，避免驗證訊息擠壓表單。 */
+.mso-auth-card {
+  width: min(100%, 34rem);
+  padding: 2rem;
+}
+
+/* 未登入頁保留產品識別但不引入字型或圖示等外部資源。 */
+.mso-auth-brand {
+  margin-bottom: 2rem;
+  color: var(--mso-navy);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* 登入與註冊原本的 col-md-6 在窄卡中會縮半，需固定為卡片全寬。 */
+.mso-auth-card form {
+  width: 100%;
+  max-width: none;
+}
+
+/* 平板容許寬表格水平捲動，並固定表頭與識別欄的可讀最低寬度。 */
+@media (max-width: 991.98px) {
+  .mso-table-scroll {
+    overflow-x: auto;
+  }
+
+  .mso-data-table {
+    min-width: 48rem;
+  }
+
+  .mso-data-table th:first-child,
+  .mso-data-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--mso-surface);
+  }
+
+  .mso-data-table thead th:first-child {
+    z-index: 2;
+    background: var(--mso-surface-muted);
+  }
+}
+
+/* 手機將頁首按鈕換行，避免長單號或長品名擠壓主要操作。 */
+@media (max-width: 575.98px) {
+  .mso-auth-card {
+    padding: 1.5rem;
+  }
+
+  .mso-page-heading .btn {
+    width: 100%;
+  }
+}

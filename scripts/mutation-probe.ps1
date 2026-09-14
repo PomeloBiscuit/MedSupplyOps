@@ -162,9 +162,43 @@ $probes = @(
     }
 )
 
-# ★ 防呆 4：探針開始前先拒絕任何上次中斷留下的突變。
-# Verify 必須是每支探針獨有、且只在突變版本才會出現的字串；否則基線測試會在
-# 已被改壞的產品碼上跑，結果看似全綠也完全不可採信。
+# 從 HEAD 直接讀取位元組，才能在自動還原時保持既有換行與編碼，不依賴工作目錄備份。
+function Get-HeadFileBytes {
+    param([Parameter(Mandatory = $true)][string]$RelativePath)
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo.FileName = 'git'
+    $process.StartInfo.Arguments = "show --no-textconv HEAD:$RelativePath"
+    $process.StartInfo.RedirectStandardOutput = $true
+    $process.StartInfo.RedirectStandardError = $true
+    $process.StartInfo.UseShellExecute = $false
+    [void]$process.Start()
+    $memory = New-Object System.IO.MemoryStream
+    $process.StandardOutput.BaseStream.CopyTo($memory)
+    $errorOutput = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    if ($process.ExitCode -ne 0) {
+        throw "無法讀取 HEAD:$RelativePath：$errorOutput"
+    }
+
+    return $memory.ToArray()
+}
+
+# 比對時正規化換行，因為 Git checkout 與本機 working tree 的 CRLF 策略可能不同；
+# 除了換行外，檔案內容仍必須逐字等於「HEAD 套用這一支探針」的結果。
+function ConvertTo-NormalizedText {
+    param([Parameter(Mandatory = $true)][string]$Text)
+
+    return $Text -replace "`r`n", "`n"
+}
+
+# ★ 防呆 4：探針開始前檢查任何上次中斷留下的突變。只有整個檔案精確等於
+# HEAD 套用同一支探針的結果時，才可安全自動還原；混入任何其他差異一律拒絕。
+# ★ 比對的是「內容」，不是位元組：BOM 與 CRLF/LF 的差異會被正規化掉
+#   （ReadAllText 讀檔時會吃掉 BOM；換行由 ConvertTo-NormalizedText 統一）。
+#   這是刻意的 —— 不同工具寫檔的換行與編碼不一致，嚴格比對會讓自動還原幾乎永遠不觸發。
+#   代價（已實測）：檔案「只多了一個 BOM」仍會被判定為可安全還原，那個 BOM 會一併改回 HEAD；
+#   內容層級的差異（多一行、改一個字）則一律拒絕 —— 這點也實測過。
 $staleProbes = @(
     foreach ($probe in $probes) {
         $path = Join-Path $repoRoot $probe.File
@@ -175,17 +209,53 @@ $staleProbes = @(
 
         $text = [System.IO.File]::ReadAllText($path)
         if ($text.Contains($probe.Verify)) {
-            [pscustomobject]@{ File = $probe.File; Probe = $probe.Name; Verify = $probe.Verify }
+            $headBytes = Get-HeadFileBytes -RelativePath $probe.File
+            $headText = [System.Text.Encoding]::UTF8.GetString($headBytes)
+            $fromIndex = $headText.IndexOf($probe.From, [System.StringComparison]::Ordinal)
+            $expectedMutation = if ($fromIndex -ge 0) {
+                $headText.Substring(0, $fromIndex) + $probe.To + $headText.Substring($fromIndex + $probe.From.Length)
+            }
+            else {
+                $null
+            }
+            $isExactMutation = $null -ne $expectedMutation -and
+                (ConvertTo-NormalizedText -Text $text) -ceq (ConvertTo-NormalizedText -Text $expectedMutation)
+
+            [pscustomobject]@{
+                File = $probe.File
+                Probe = $probe.Name
+                Verify = $probe.Verify
+                HeadText = $headText
+                IsExactMutation = $isExactMutation
+            }
         }
     }
 )
 
 if ($staleProbes.Count -gt 0) {
-    Write-Host '偵測到上次中斷留下的探針突變；拒絕開始執行。' -ForegroundColor Red
-    foreach ($stale in $staleProbes) {
-        Write-Host ("  檔案：{0}`n  探針：{1}`n  Verify：{2}" -f $stale.File, $stale.Probe, $stale.Verify) -ForegroundColor Red
+    $unsafeStaleProbes = @($staleProbes | Where-Object { -not $_.IsExactMutation })
+    if ($unsafeStaleProbes.Count -gt 0) {
+        Write-Host '偵測到上次中斷留下的探針突變，且檔案混有其他差異；拒絕開始執行。' -ForegroundColor Red
+        foreach ($stale in $unsafeStaleProbes) {
+            Write-Host ("  檔案：{0}`n  探針：{1}`n  Verify：{2}" -f $stale.File, $stale.Probe, $stale.Verify) -ForegroundColor Red
+        }
+        exit 1
     }
-    exit 1
+
+    foreach ($stale in $staleProbes) {
+        Write-Host ("偵測到可安全自動還原的探針殘留：{0}（{1}）" -f $stale.File, $stale.Probe) -ForegroundColor Yellow
+        Write-Host '還原前完整 diff：' -ForegroundColor Yellow
+        $diff = & git diff --no-ext-diff -- $stale.File
+        if ($LASTEXITCODE -gt 1) {
+            throw "無法取得還原前 diff：$($stale.File)"
+        }
+        $diff | ForEach-Object { Write-Host $_ }
+        $stalePath = Join-Path $repoRoot $stale.File
+        $workingText = [System.IO.File]::ReadAllText($stalePath)
+        $restoreText = if ($workingText.Contains("`r`n")) { $stale.HeadText -replace "`n", "`r`n" } else { $stale.HeadText }
+        [System.IO.File]::WriteAllText($stalePath, $restoreText, (New-Object System.Text.UTF8Encoding $false))
+        Write-Host ("已自動還原檔案：{0}`n  探針：{1}" -f $stale.File, $stale.Probe) -ForegroundColor Green
+    }
 }
 
 function Invoke-TestRun {

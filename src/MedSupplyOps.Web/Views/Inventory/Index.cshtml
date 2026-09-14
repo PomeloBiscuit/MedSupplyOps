@@ -5,7 +5,8 @@
     var dateFormat = CultureInfo.GetCultureInfo("zh-TW");
 }
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+<div class="mso-page">
+<div class="mso-page-heading d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">庫存查詢</h1>
         <p class="text-muted mb-0">基準日：@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
@@ -19,7 +20,7 @@
     </form>
 </div>
 
-<section class="card mb-4" aria-labelledby="availability-heading">
+<section class="card mso-feature-card mb-4" aria-labelledby="availability-heading">
     <div class="card-body">
         <h2 class="h5" id="availability-heading">即時可用量查詢</h2>
         <p class="text-muted">選取品項後，會在不重新整理整頁的情況下讀取即時可用量與最早可用效期。</p>
@@ -42,8 +43,13 @@
     </div>
 </section>
 
-<div class="table-responsive">
-    <table class="table align-middle">
+<section class="card mso-table-card" aria-labelledby="inventory-list-heading">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h2 class="h5 mb-0" id="inventory-list-heading">庫存總覽</h2>
+        <span class="text-muted small">可展開查看各批次明細</span>
+    </div>
+<div class="table-responsive mso-table-scroll">
+    <table class="table align-middle mb-0 mso-data-table">
         <thead>
             <tr>
                 <th scope="col">料號</th>
@@ -55,11 +61,15 @@
             </tr>
         </thead>
         <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="6" class="mso-empty-state text-center">目前沒有可顯示的庫存品項。</td></tr>
+            }
             @foreach (var item in Model.Items)
             {
                 <tr>
-                    <td>@item.Summary.ItemCode</td>
-                    <td class="text-break">@item.Summary.ItemName</td>
+                    <td class="mso-code-cell">@item.Summary.ItemCode</td>
+                    <td class="text-break mso-long-text">@item.Summary.ItemName</td>
                     <td class="text-break">@item.Summary.Specification</td>
                     <td>@item.Summary.UnitOfMeasure</td>
                     <td class="text-end">@item.Summary.AvailableQuantity.ToString("N0", dateFormat)</td>
@@ -69,8 +79,8 @@
                     <td colspan="6" class="pt-0">
                         <details>
                             <summary class="btn btn-sm btn-outline-secondary">展開批次明細（@item.Lots.Count 批）</summary>
-                            <div class="table-responsive mt-2">
-                                <table class="table table-sm mb-0">
+                            <div class="table-responsive mso-table-scroll mt-2">
+                                <table class="table table-sm mb-0 mso-data-table">
                                     <thead>
                                         <tr>
                                             <th scope="col">批號</th>
@@ -86,18 +96,18 @@
                                             var isExpired = lot.ExpiryDate < Model.AsOf;
                                             var isZeroQuantity = lot.Quantity == 0;
                                             <tr class="@(!lot.IsAvailable ? "table-warning" : string.Empty)">
-                                                <td>@lot.LotNumber</td>
+                                                <td class="mso-code-cell">@lot.LotNumber</td>
                                                 <td>@lot.ExpiryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</td>
                                                 <td class="text-end">@lot.Quantity.ToString("N0", dateFormat)</td>
                                                 <td>@lot.StorageLocation</td>
                                                 <td>
                                                     @if (lot.IsAvailable)
                                                     {
-                                                        <span class="badge text-bg-success">可用</span>
+                                                        <span class="badge mso-badge-ok">可用</span>
                                                     }
                                                     else
                                                     {
-                                                        <span class="badge text-bg-warning">不可用</span>
+                                                        <span class="badge mso-badge-bad">不可用</span>
                                                         @if (isExpired)
                                                         {
                                                             <span class="ms-1">已過期</span>
@@ -119,6 +129,8 @@
             }
         </tbody>
     </table>
+</div>
+</section>
 </div>
 
 @section Scripts {
