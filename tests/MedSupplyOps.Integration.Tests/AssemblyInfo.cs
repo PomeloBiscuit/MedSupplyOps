@@ -1,5 +1,7 @@
 using Xunit;
 
+[assembly: TestCaseOrderer("MedSupplyOps.Integration.Tests.MutexTestCaseOrderer", "MedSupplyOps.Integration.Tests")]
+
 // ★ 整合測試不平行執行。
 //
 // 這個組件裡的每一條測試都打同一個 Oracle 容器、同一個 schema。

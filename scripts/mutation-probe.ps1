@@ -35,6 +35,16 @@ Set-Location $repoRoot
 
 $domain = 'src/MedSupplyOps.Domain'
 
+# 整合測試共用同一個 Oracle schema。探針會暫時改動原始碼，絕不能在另一個
+# testhost 正在執行時開始；拒絕比「偶爾互相污染後才出現一串無關紅燈」可診斷得多。
+$testHosts = @(Get-Process -Name testhost -ErrorAction SilentlyContinue)
+if ($testHosts.Count -gt 0) {
+    $pids = $testHosts | ForEach-Object { $_.Id } | Sort-Object
+    Write-Host ("偵測到 testhost 程序正在執行（PID: {0}）；拒絕開始鑑別力探針。" -f ($pids -join ', ')) -ForegroundColor Red
+    Write-Host '請等待或停止另一個 dotnet test 程序後再執行；本腳本不會自動終止別人的測試。' -ForegroundColor Yellow
+    exit 1
+}
+
 # 每一條探針對應需求文件裡的一條規則。
 # Verify 是「改壞之後檔案裡應該找得到的字串」，用來證明探針真的打進去了。
 $probes = @(

@@ -238,7 +238,6 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 | **SEC-8** | 已實作 | `src/MedSupplyOps.Web/Program.cs`（`Lockout.MaxFailedAccessAttempts = 5`、`DefaultLockoutTimeSpan = 15 分鐘`） | `src/MedSupplyOps.Web/Program.cs` |
 | **NFR-1** | 已實作 | `docker-compose.yml`（Oracle Database Free 官方映像） | `docker-compose.yml` |
 | **NFR-2** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`（讀取，Dapper 手寫 SQL）、`src/MedSupplyOps.Infrastructure/Persistence/MedSupplyOpsDbContext.cs`（寫入，EF Core） | `Generated_SQL_targets_uppercase_table_and_column_names` |
-| **NFR-3** | 已實作 | `docs/performance/dapper-fefo.md` | `docs/performance/dapper-fefo.md` |
+| **NFR-3** | 已實作 | `docs/performance/dapper-fefo.md`、`docs/performance/dashboard-read-paths.md` | `docs/performance/dapper-fefo.md`、`docs/performance/dashboard-read-paths.md` |
 | **NFR-4** | 已實作 | `docs/operations/backup-restore.md`、`scripts/backup-database.ps1`、`scripts/restore-database.ps1` | `docs/operations/backup-restore.md` |
 | **NFR-5** | 已實作 | `scripts/mutation-probe.ps1`、`scripts/generate-er-diagram.ps1`、`scripts/check-db-clean.ps1` | `scripts/mutation-probe.ps1` |
-
