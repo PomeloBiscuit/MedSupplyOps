@@ -101,6 +101,14 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 - **FR-501** 提供 REST API 覆蓋 FR-201 / FR-202 / FR-301 / FR-303，附 OpenAPI 文件。
 - **FR-502** MVC 頁面與 API 共用同一組 Application 服務，**業務規則不得在兩處各寫一份**。
 
+### 3.6 首頁
+- **FR-601** 首頁依角色顯示不同的工作儀表板：庫管員／系統管理員看全院營運數字（待審核、待發料、效期預警、低於安全庫存、已過期仍在庫、最近異動），
+  請領人看自己科室的數字（待審核、待發料、本月已發料）；沒有任何角色的帳號只看到提示文字，不顯示任何數字。
+
+### 3.7 系統整合
+- **FR-602** 提供 HL7 FHIR R4 的唯讀介接（`SupplyRequest` 對應請領明細、`SupplyDelivery` 對應發料配批），
+  供院內其他系統查詢請領與發料狀態。**只支援 read 與 search-type，不接受任何寫入操作**。
+
 ---
 
 ## 4. 資安需求
@@ -120,14 +128,19 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 
 ## 5. 非功能需求
 
-- **NFR-1** 資料庫為 **Oracle Database 23ai Free**（`localhost:1521/FREEPDB1`）。
+- **NFR-1** 資料庫為 **Oracle Database 26ai Free**（image tag `latest`，實測版本 23.26.3；
+  `localhost:1521/FREEPDB1`）。
 - **NFR-2** 讀取/報表路徑使用**手寫 Oracle SQL**（Dapper），寫入路徑使用 EF Core。
   理由：JD 明列「撰寫與調整 Oracle SQL、優化資料流程與系統效能」，全用 ORM 無法展示 SQL 能力。
 - **NFR-3** 至少一支查詢要有**索引最佳化的前後對照**（含實際執行計畫與邏輯讀取次數）。
   **門檻用「邏輯讀取次數 / 掃描列數」，不用執行時間**（時間受排程與 GC 干擾，無法證偽）。
-- **NFR-4** 備份與還原：提供 `backup.ps1` / `restore.ps1`，並**實際做過一次完整還原演練**，
-  在 `docs/dr-drill.md` 記錄 RPO / RTO 實測值。
-- **NFR-5** 四道關卡（`test` / `build` / 格式檢查 / OpenAPI 產出）皆須可在一行指令內執行。
+- **NFR-4** 備份與還原：提供 `scripts/backup-database.ps1` / `scripts/restore-database.ps1`，並**實際做過一次完整還原演練**，
+  在 [`docs/operations/backup-restore.md`](operations/backup-restore.md) 記錄演練實況
+  （備份/還原前後的資料筆數與結構對照、失敗案例、判準修正過程）。
+  ⚠ 目前的演練以「還原前寫入標記資料、還原後標記消失＋列數與結構回到基準」證明真的還原，
+  尚未量化成一組固定的 RPO / RTO 數字，見該文件「備份還原實測」一節。
+- **NFR-5** 六道關卡（`build` / `test`（含 §9 需求追溯結構性關卡）/ 格式檢查 / 鑑別力探針 / ER 圖漂移檢查 / 資料庫殘留檢查）
+  皆須可在一行指令內執行。
 
 ---
 
@@ -182,3 +195,50 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 - **Q-2** `[待確認]` 效期預警的 N 天預設值？暫定 **30 天**。
 - **Q-3** `[待確認]` 是否需要 Azure OpenAI 功能（JD 第 5 點）？目前排除在 v1 外，時程有餘再評估。
 - **Q-4** `[待確認]` 是否要做批號管制的「例外品項」（不管制效期的耗材）？FR-101 已保留欄位，但流程尚未定義。
+
+---
+
+## 9. ★ 需求追溯表
+
+> 這張表由 [`RequirementsTraceabilityTests`](../tests/MedSupplyOps.Integration.Tests/RequirementsTraceabilityTests.cs) 結構性檢查：
+> 每個 §3～§5 定義的編號恰好一列；「已實作」列的驗證欄必須指向真的存在的測試方法、探針編號（`scripts/mutation-probe.ps1`）
+> 或 repo 檔案路徑；「v1 不做」「延後」列的驗證欄一律 `—`；程式與測試也不得引用表外不存在的 FR 編號。
+> 狀態只允許四種字串：**已實作**、**部分實作**、**v1 不做**、**延後**。
+> 只做了一部分的，狀態一律是**部分實作**，實作位置欄以「部分：」開頭寫明缺什麼 —— 關卡會擋住「部分卻標成已實作」。
+
+| 需求 | 狀態 | 實作位置 | 驗證 |
+|---|---|---|---|
+| **FR-101** | 部分實作 | 部分：`src/MedSupplyOps.Web/Controllers/ItemsController.cs`（新增／編輯／停用、料號正規化、停用守衛已完成；`TracksLot`／`TracksExpiry` 寫死 `true`，尚無可設定畫面） | `T5_disable_guards_stock_and_open_requisitions_then_allows_safe_reuse_of_code`、`T6_item_code_is_trimmed_and_uppercased_before_duplicate_check`、`T7_forged_edit_post_cannot_change_code_or_unit_but_can_change_name` |
+| **FR-102** | 延後 | 未建立：無 `DepartmentsController` 或對應畫面，科室僅由 migration 種子資料建立 | — |
+| **FR-103** | 延後 | 未建立：無使用者管理 Controller／畫面，`AccountController` 只有登入／自助註冊／登出 | — |
+| **FR-201** | 已實作 | `src/MedSupplyOps.Infrastructure/Services/StockReceivingService.cs` | `T1_receiving_uses_the_Taipei_business_date_at_the_utc_boundary`、`T2_same_lot_with_different_expiry_is_rejected_then_matching_expiry_adds_atomically`、`T3_two_concurrent_receipts_of_a_new_lot_wait_for_item_lock_then_merge_into_one_row`、`T4_item_lock_timeout_returns_explicit_result_without_writes_or_audit`、P10、P11 |
+| **FR-202** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs` | `GetItemAvailabilityAsync_sums_usable_lots_and_keeps_all_lot_details_in_FEFO_order`、`GetAvailability_returns_camel_case_fields_and_MD_0001_values` |
+| **FR-203** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`src/MedSupplyOps.Web/Controllers/InventoryController.cs`（`Expiring`） | `GetExpiringLotsAsync_returns_only_usable_lots_in_requested_window`、`GetExpiring_returns_camel_case_fields_and_usable_seed_lot_values` |
+| **FR-204** | 部分實作 | 部分：`src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`（`GetItemsBelowSafetyStockAsync` 已實作，數字顯示於首頁營運儀表板卡片；沒有列出品項明細的獨立清單頁） | `GetItemsBelowSafetyStockAsync_counts_only_unexpired_nonzero_lots` |
+| **FR-301** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Create`） | `Create_submit_approve_completes_full_flow`、`Duplicate_item_returns_friendly_message_and_persists_nothing`、`Empty_lines_and_zero_quantity_are_rejected` |
+| **FR-302** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Approve`／`Reject`） | `Create_submit_reject_completes_full_flow`、`Reject_WithoutReason_FailsAndLeavesStatusUnchanged`、P6 |
+| **FR-303** | 已實作 | `src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs`、`RequisitionsController.cs`（`Issue`） | `Create_submit_approve_issue_shows_allocations_and_rejects_a_duplicate_post`、`Issues_every_line_and_moves_the_requisition_to_issued`、`A_single_insufficient_line_rolls_back_the_entire_requisition`、P9 |
+| **FR-304** | 已實作 | `src/MedSupplyOps.Domain/Requisitions/RequisitionStateMachine.cs` | `ExactlyFiveTransitionsAreAllowed_AndTheyAreTheExpectedOnes`、`IllegalTransition_ThrowsInsteadOfBeingSilentlyIgnored`、`ForbiddenTransition_IsRejected`、P5 |
+| **FR-305** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Index` 依狀態／科室／建立日期區間查詢） | `Keeper_dashboard_card_numbers_match_the_pages_they_link_to` |
+| **FR-401** | 已實作 | `src/MedSupplyOps.Domain/Inventory/FefoAllocator.cs` | `MultipleLots_TakesEarliestExpiryFirst`、`ExpiredLot_IsNeverAllocated_EvenWhenItIsTheOnlyLotWithStock`、`LotExpiringExactlyOnAsOfDate_IsStillUsable`、`LotsWithSameExpiry_AreOrderedByLotNumberSoResultIsDeterministic`、`WhenTotalAvailableIsLess_FailsEntirelyAndAllocatesNothing`、P1、P2、P3、P4 |
+| **FR-402** | 已實作 | `src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs` | `Two_concurrent_issues_of_the_last_units_never_oversell`、`Concurrent_issues_deplete_exactly_the_available_quantity_and_no_more`、`Issue_lock_timeout_shows_retry_without_claiming_stock_is_insufficient`、P7 |
+| **FR-403** | 已實作 | `src/MedSupplyOps.Infrastructure/Auditing`（`AuditLog` 唯讀約束＋所有寫入路徑的稽核紀錄） | `AuditLog_rejects_application_updates_and_deletes`、`Cross_role_flow_records_all_four_actions_with_actual_actors`、`T10_item_and_receiving_actions_write_complete_audits_with_the_logged_in_actor` |
+| **FR-404** | 已實作 | `src/MedSupplyOps.Web/Controllers/ItemsController.cs`（`Disable`）＋函數式唯一索引 `UX_ITEMS_CODE_ACTIVE` | `T5_disable_guards_stock_and_open_requisitions_then_allows_safe_reuse_of_code`、`T6_item_code_is_trimmed_and_uppercased_before_duplicate_check` |
+| **FR-501** | 部分實作 | 部分：`src/MedSupplyOps.Web/Controllers/InventoryApiController.cs`、`src/MedSupplyOps.Web/Controllers/ItemsApiController.cs`（僅涵蓋 FR-202／FR-203 查詢；未涵蓋 FR-301 建立與 FR-303 發料；沒有 OpenAPI 文件產出） | `GetAvailability_returns_camel_case_fields_and_MD_0001_values`、`GetExpiring_returns_camel_case_fields_and_usable_seed_lot_values` |
+| **FR-502** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs`（MVC 與 API controller 共用同一組服務／查詢類別，未各寫一份） | P8 |
+| **FR-601** | 已實作 | `src/MedSupplyOps.Web/Controllers/HomeController.cs` | `Keeper_dashboard_card_numbers_match_the_pages_they_link_to`、`Requester_does_not_see_other_departments_pending_requisition_while_keepers_count_increases`、`NoRole_account_sees_the_notice_without_any_dashboard_data`、P12 |
+| **FR-602** | 已實作 | `src/MedSupplyOps.Web/Controllers/FhirController.cs` | `CapabilityStatement_declares_exactly_the_working_read_only_surface`、`Fhir_authorization_and_not_found_errors_use_FHIR_HTTP_semantics`、`Based_on_search_preserves_two_FEFO_allocations_as_contained_Devices` |
+| **SEC-1** | 已實作 | `src/MedSupplyOps.Web/Program.cs`（`AddIdentity`，未自訂 `PasswordHasher`，沿用 ASP.NET Core Identity 預設 PBKDF2 + 每帳號 salt） | `src/MedSupplyOps.Web/Program.cs` |
+| **SEC-2** | 已實作 | `src/MedSupplyOps.Web/Controllers/ItemsController.cs`、`RequisitionsController.cs`（`[ValidateAntiForgeryToken]`） | `Approve_without_antiforgery_token_is_rejected_with_400` |
+| **SEC-3** | 已實作 | Razor 預設自動編碼；全 repo 未使用 `Html.Raw` | `Inventory_page_html_encodes_item_names_and_removes_the_probe_item` |
+| **SEC-4** | 已實作 | `src/MedSupplyOps.Web/Controllers/AccountController.cs`（`SignInManager.PasswordSignInAsync` 登入成功後由 ASP.NET Core Identity 簽發全新驗證 Cookie） | `src/MedSupplyOps.Web/Controllers/AccountController.cs` |
+| **SEC-5** | 已實作 | `src/MedSupplyOps.Web/DevelopmentConnectionString.cs`（開發連線字串來自 gitignore 的 `.env`；正式環境走環境變數） | `.gitignore` |
+| **SEC-6** | 已實作 | `src/MedSupplyOps.Web/Program.cs`（`SetFallbackPolicy` 預設拒絕，逐一 `[Authorize(Policy = ...)]`） | `Every_routed_controller_action_is_explicitly_classified`、`Deliberately_public_list_has_no_stale_entries` |
+| **SEC-7** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`DashboardQueries.cs`、`FhirQueries.cs`（Dapper `CommandDefinition` 具名參數，逐處手寫 SQL 皆參數化） | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs` |
+| **SEC-8** | 已實作 | `src/MedSupplyOps.Web/Program.cs`（`Lockout.MaxFailedAccessAttempts = 5`、`DefaultLockoutTimeSpan = 15 分鐘`） | `src/MedSupplyOps.Web/Program.cs` |
+| **NFR-1** | 已實作 | `docker-compose.yml`（Oracle Database Free 官方映像） | `docker-compose.yml` |
+| **NFR-2** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`（讀取，Dapper 手寫 SQL）、`src/MedSupplyOps.Infrastructure/Persistence/MedSupplyOpsDbContext.cs`（寫入，EF Core） | `Generated_SQL_targets_uppercase_table_and_column_names` |
+| **NFR-3** | 已實作 | `docs/performance/dapper-fefo.md` | `docs/performance/dapper-fefo.md` |
+| **NFR-4** | 已實作 | `docs/operations/backup-restore.md`、`scripts/backup-database.ps1`、`scripts/restore-database.ps1` | `docs/operations/backup-restore.md` |
+| **NFR-5** | 已實作 | `scripts/mutation-probe.ps1`、`scripts/generate-er-diagram.ps1`、`scripts/check-db-clean.ps1` | `scripts/mutation-probe.ps1` |
+

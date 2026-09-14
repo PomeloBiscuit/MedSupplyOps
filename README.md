@@ -29,7 +29,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 155 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 158 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mutation-probe.ps1                # ★ 鑑別力探針
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-er-diagram.ps1 -Check    # ★ ER 圖漂移檢查
@@ -92,6 +92,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 它由 [`scripts/generate-er-diagram.ps1`](scripts/generate-er-diagram.ps1)
 從 Oracle 的**資料字典**產生，並提供 `-Check` 模式：
 schema 改了而圖沒重產，這道關卡就 `exit 1`。
+
+### 4.5 ★ 需求追溯關卡：需求表不會偷偷過期
+
+[`RequirementsTraceabilityTests`](tests/MedSupplyOps.Integration.Tests/RequirementsTraceabilityTests.cs)
+解析需求規格與第 9 章追溯表：每個 FR／SEC／NFR 必須恰好一列；已實作列的測試方法、探針或檔案
+必須真的存在；未完成列不能掛上假的證明；**只做了一半的不准標成「已實作」**（實作位置以「部分：」
+開頭的列，狀態必須是「部分實作」）；程式與測試也不能引用不存在的 FR。它隨第二道 `dotnet test`
+執行，不另加一個可被遺忘的命令。
+
+最後那條規則是覆核時加上的：原先的版本把 `FR-501`（REST API + OpenAPI 文件）標成「已實作」，
+而同一列的實作位置欄寫著「沒有 OpenAPI 文件、未涵蓋建立與發料」。**狀態欄才是別人會讀的那一格**。
 
 ### 5. 效能用「邏輯讀取次數」，不用執行時間
 
@@ -281,8 +292,8 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 ## 專案數字
 
 ```
-155 條測試（Domain 48 + Integration 107，整合測試全部跑真實 Oracle）
-12 支程式碼探針 + 5 支資料庫探針 + ER 圖漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
+158 條測試（Domain 48 + Integration 110，整合測試全部跑真實 Oracle）
+12 支程式碼探針 + 5 支資料庫探針 + ER 圖與需求追溯漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```
 
