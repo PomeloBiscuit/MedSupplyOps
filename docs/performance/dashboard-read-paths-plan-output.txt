@@ -1,0 +1,539 @@
+
+Session altered.
+
+
+Index altered.
+
+
+
+Session altered.
+
+
+Session altered.
+
+
+0 rows deleted.
+
+
+0 rows deleted.
+
+
+PL/SQL procedure successfully completed.
+
+PERF_AUDIT_LOG_ROWS
+
+AUDIT_LOG_COUNT
+---------------
+	 200000
+
+PERF_STOCK_LOT_ROWS
+
+STOCK_LOT_COUNT
+---------------
+	  20000
+
+PERF_EXPIRED_IN_STOCK_ROWS
+
+EXPIRED_IN_STOCK_COUNT
+----------------------
+		   100
+
+
+
+Session altered.
+
+
+Session altered.
+
+
+PL/SQL procedure successfully completed.
+
+
+PL/SQL procedure successfully completed.
+
+
+PL/SQL procedure successfully completed.
+
+
+
+Session altered.
+
+=== AUDIT_BASELINE_RUN_1 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('aqcs0xt2juvy7', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	aqcs0xt2juvy7, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_AUDIT_BASELINE_RUN_1 */
+    a.entity_type AS EntityType, a.entity_id AS EntityId, a.action AS
+Action,        a.actor AS Actor, a.occurred_at AS OccurredAt,
+u.display_name AS DisplayName,	      r.requisition_no AS
+RequisitionNo, i.item_code AS ItemCode, l.lot_number AS LotNumber
+FROM audit_logs a   LEFT JOIN identity_users u ON u.user_name = a.actor
+  LEFT JOIN requisitions r ON a.entity_type = 'Requisition' AND
+r.requisition_id = TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION
+ERROR)	 LEFT JOIN items i ON a.entity_type = 'Item' AND i.item_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)   LEFT JOIN
+stock_lots l ON a.entity_type = 'StockLot' AND l.stock_lot_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)  ORDER BY
+a.occurred_at DESC, a.audit_log_id DESC  FETCH FIRST :count ROWS ONLY
+
+Plan hash value: 2663115297
+
+---------------------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation		    | Name		 | Starts | E-Rows | A-Rows |	A-Time	 | Buffers |  OMem |  1Mem | Used-Mem |
+---------------------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	    |			 |	1 |	   |	  5 |00:00:00.09 |    2006 |	   |	   |	      |
+|*  1 |  COUNT STOPKEY		    |			 |	1 |	   |	  5 |00:00:00.09 |    2006 |	   |	   |	      |
+|   2 |   VIEW			    |			 |	1 |    200K|	  5 |00:00:00.09 |    2006 |	   |	   |	      |
+|*  3 |    SORT ORDER BY STOPKEY    |			 |	1 |    200K|	  5 |00:00:00.09 |    2006 |   115K|   115K|  102K (0)|
+|*  4 |     HASH JOIN RIGHT OUTER   |			 |	1 |    200K|	200K|00:00:00.07 |    2006 |  2491K|  1595K| 2220K (0)|
+|   5 |      INDEX FAST FULL SCAN   | IX_STOCK_LOTS_FEFO |	1 |  20011 |  20011 |00:00:00.01 |     250 |	   |	   |	      |
+|*  6 |      HASH JOIN RIGHT OUTER  |			 |	1 |    200K|	200K|00:00:00.05 |    1756 |  1115K|  1115K|  808K (0)|
+|   7 |       TABLE ACCESS FULL     | IDENTITY_USERS	 |	1 |	 7 |	  7 |00:00:00.01 |	 7 |	   |	   |	      |
+|*  8 |       HASH JOIN RIGHT OUTER |			 |	1 |    200K|	200K|00:00:00.04 |    1749 |  1449K|  1449K|  867K (0)|
+|   9 |        TABLE ACCESS FULL    | ITEMS		 |	1 |	 5 |	  5 |00:00:00.01 |	 7 |	   |	   |	      |
+|* 10 |        HASH JOIN RIGHT OUTER|			 |	1 |    200K|	200K|00:00:00.03 |    1742 |  2920K|  2920K|  220K (0)|
+|  11 | 	TABLE ACCESS FULL   | REQUISITIONS	 |	1 |	 1 |	  0 |00:00:00.01 |	 7 |	   |	   |	      |
+|  12 | 	TABLE ACCESS FULL   | AUDIT_LOGS	 |	1 |    200K|	200K|00:00:00.02 |    1735 |	   |	   |	      |
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(ROWNUM<=:COUNT)
+   3 - filter(ROWNUM<=:COUNT)
+   4 - access("A"."ENTITY_TYPE"=CASE  WHEN ("L"."STOCK_LOT_ID" IS NOT NULL) THEN 'StockLot' ELSE 'StockLot' END  AND
+	      "L"."STOCK_LOT_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+   6 - access("U"."USER_NAME"="A"."ACTOR")
+   8 - access("A"."ENTITY_TYPE"=CASE  WHEN ("I"."ITEM_ID" IS NOT NULL) THEN 'Item' ELSE 'Item' END  AND
+	      "I"."ITEM_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+  10 - access("A"."ENTITY_TYPE"=CASE  WHEN ("R"."REQUISITION_ID" IS NOT NULL) THEN 'Requisition' ELSE 'Requisition' END  AND
+	      "R"."REQUISITION_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+
+
+53 rows selected.
+
+=== AUDIT_BASELINE_RUN_2 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('6prdst5gfahut', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	6prdst5gfahut, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_AUDIT_BASELINE_RUN_2 */
+    a.entity_type AS EntityType, a.entity_id AS EntityId, a.action AS
+Action,        a.actor AS Actor, a.occurred_at AS OccurredAt,
+u.display_name AS DisplayName,	      r.requisition_no AS
+RequisitionNo, i.item_code AS ItemCode, l.lot_number AS LotNumber
+FROM audit_logs a   LEFT JOIN identity_users u ON u.user_name = a.actor
+  LEFT JOIN requisitions r ON a.entity_type = 'Requisition' AND
+r.requisition_id = TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION
+ERROR)	 LEFT JOIN items i ON a.entity_type = 'Item' AND i.item_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)   LEFT JOIN
+stock_lots l ON a.entity_type = 'StockLot' AND l.stock_lot_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)  ORDER BY
+a.occurred_at DESC, a.audit_log_id DESC  FETCH FIRST :count ROWS ONLY
+
+Plan hash value: 2663115297
+
+---------------------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation		    | Name		 | Starts | E-Rows | A-Rows |	A-Time	 | Buffers |  OMem |  1Mem | Used-Mem |
+---------------------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	    |			 |	1 |	   |	  5 |00:00:00.07 |    2006 |	   |	   |	      |
+|*  1 |  COUNT STOPKEY		    |			 |	1 |	   |	  5 |00:00:00.07 |    2006 |	   |	   |	      |
+|   2 |   VIEW			    |			 |	1 |    200K|	  5 |00:00:00.07 |    2006 |	   |	   |	      |
+|*  3 |    SORT ORDER BY STOPKEY    |			 |	1 |    200K|	  5 |00:00:00.07 |    2006 |   115K|   115K|  102K (0)|
+|*  4 |     HASH JOIN RIGHT OUTER   |			 |	1 |    200K|	200K|00:00:00.05 |    2006 |  2491K|  1595K| 2220K (0)|
+|   5 |      INDEX FAST FULL SCAN   | IX_STOCK_LOTS_FEFO |	1 |  20011 |  20011 |00:00:00.01 |     250 |	   |	   |	      |
+|*  6 |      HASH JOIN RIGHT OUTER  |			 |	1 |    200K|	200K|00:00:00.04 |    1756 |  1115K|  1115K|  808K (0)|
+|   7 |       TABLE ACCESS FULL     | IDENTITY_USERS	 |	1 |	 7 |	  7 |00:00:00.01 |	 7 |	   |	   |	      |
+|*  8 |       HASH JOIN RIGHT OUTER |			 |	1 |    200K|	200K|00:00:00.03 |    1749 |  1449K|  1449K|  867K (0)|
+|   9 |        TABLE ACCESS FULL    | ITEMS		 |	1 |	 5 |	  5 |00:00:00.01 |	 7 |	   |	   |	      |
+|* 10 |        HASH JOIN RIGHT OUTER|			 |	1 |    200K|	200K|00:00:00.02 |    1742 |  2920K|  2920K|  220K (0)|
+|  11 | 	TABLE ACCESS FULL   | REQUISITIONS	 |	1 |	 1 |	  0 |00:00:00.01 |	 7 |	   |	   |	      |
+|  12 | 	TABLE ACCESS FULL   | AUDIT_LOGS	 |	1 |    200K|	200K|00:00:00.01 |    1735 |	   |	   |	      |
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(ROWNUM<=:COUNT)
+   3 - filter(ROWNUM<=:COUNT)
+   4 - access("A"."ENTITY_TYPE"=CASE  WHEN ("L"."STOCK_LOT_ID" IS NOT NULL) THEN 'StockLot' ELSE 'StockLot' END  AND
+	      "L"."STOCK_LOT_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+   6 - access("U"."USER_NAME"="A"."ACTOR")
+   8 - access("A"."ENTITY_TYPE"=CASE  WHEN ("I"."ITEM_ID" IS NOT NULL) THEN 'Item' ELSE 'Item' END  AND
+	      "I"."ITEM_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+  10 - access("A"."ENTITY_TYPE"=CASE  WHEN ("R"."REQUISITION_ID" IS NOT NULL) THEN 'Requisition' ELSE 'Requisition' END  AND
+	      "R"."REQUISITION_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+
+
+53 rows selected.
+
+=== EXPIRED_BASELINE_RUN_1 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('d5d2syq126zsn', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	d5d2syq126zsn, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_EXPIRED_BASELINE_RUN_1 */
+COUNT(*)   FROM stock_lots l  INNER JOIN items i ON i.item_id =
+l.item_id  WHERE i.is_deleted = 0 AND l.quantity > 0 AND l.expiry_date
+< TO_DATE(:asOf, 'YYYY-MM-DD')
+
+Plan hash value: 3673456331
+
+--------------------------------------------------------------------------------------------------------------
+| Id  | Operation		      | Name		   | Starts | E-Rows | A-Rows |   A-Time   | Buffers |
+--------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	      | 		   |	  1 |	     |	    1 |00:00:00.01 |	  19 |
+|   1 |  SORT AGGREGATE 	      | 		   |	  1 |	   1 |	    1 |00:00:00.01 |	  19 |
+|   2 |   NESTED LOOPS		      | 		   |	  1 |	 109 |	  107 |00:00:00.01 |	  19 |
+|   3 |    NESTED LOOPS 	      | 		   |	  1 |	 110 |	  108 |00:00:00.01 |	  16 |
+|*  4 |     TABLE ACCESS FULL	      | ITEMS		   |	  1 |	   5 |	    5 |00:00:00.01 |	   7 |
+|*  5 |     INDEX RANGE SCAN	      | IX_STOCK_LOTS_FEFO |	  5 |	  22 |	  108 |00:00:00.01 |	   9 |
+|*  6 |    TABLE ACCESS BY INDEX ROWID| STOCK_LOTS	   |	108 |	  22 |	  107 |00:00:00.01 |	   3 |
+--------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   4 - filter("I"."IS_DELETED"=0)
+   5 - access("I"."ITEM_ID"="L"."ITEM_ID" AND "L"."EXPIRY_DATE"<TO_DATE(:ASOF,'YYYY-MM-DD'))
+   6 - filter("L"."QUANTITY">0)
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+   - this is an adaptive plan
+
+
+33 rows selected.
+=== EXPIRED_BASELINE_RUN_2 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('frt19ztut9pdt', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	frt19ztut9pdt, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_EXPIRED_BASELINE_RUN_2 */
+COUNT(*)   FROM stock_lots l  INNER JOIN items i ON i.item_id =
+l.item_id  WHERE i.is_deleted = 0 AND l.quantity > 0 AND l.expiry_date
+< TO_DATE(:asOf, 'YYYY-MM-DD')
+
+Plan hash value: 3673456331
+
+--------------------------------------------------------------------------------------------------------------
+| Id  | Operation		      | Name		   | Starts | E-Rows | A-Rows |   A-Time   | Buffers |
+--------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	      | 		   |	  1 |	     |	    1 |00:00:00.01 |	  19 |
+|   1 |  SORT AGGREGATE 	      | 		   |	  1 |	   1 |	    1 |00:00:00.01 |	  19 |
+|   2 |   NESTED LOOPS		      | 		   |	  1 |	 109 |	  107 |00:00:00.01 |	  19 |
+|   3 |    NESTED LOOPS 	      | 		   |	  1 |	 110 |	  108 |00:00:00.01 |	  16 |
+|*  4 |     TABLE ACCESS FULL	      | ITEMS		   |	  1 |	   5 |	    5 |00:00:00.01 |	   7 |
+|*  5 |     INDEX RANGE SCAN	      | IX_STOCK_LOTS_FEFO |	  5 |	  22 |	  108 |00:00:00.01 |	   9 |
+|*  6 |    TABLE ACCESS BY INDEX ROWID| STOCK_LOTS	   |	108 |	  22 |	  107 |00:00:00.01 |	   3 |
+--------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   4 - filter("I"."IS_DELETED"=0)
+   5 - access("I"."ITEM_ID"="L"."ITEM_ID" AND "L"."EXPIRY_DATE"<TO_DATE(:ASOF,'YYYY-MM-DD'))
+   6 - filter("L"."QUANTITY">0)
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+   - this is an adaptive plan
+
+
+33 rows selected.
+
+
+
+Session altered.
+
+
+Index altered.
+
+
+
+Session altered.
+
+
+Session altered.
+
+
+PL/SQL procedure successfully completed.
+
+
+PL/SQL procedure successfully completed.
+
+
+PL/SQL procedure successfully completed.
+
+
+
+Session altered.
+
+=== AUDIT_INDEXED_RUN_1 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('5q47zyrdz4s3r', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	5q47zyrdz4s3r, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_AUDIT_INDEXED_RUN_1 */
+   a.entity_type AS EntityType, a.entity_id AS EntityId, a.action AS
+Action,        a.actor AS Actor, a.occurred_at AS OccurredAt,
+u.display_name AS DisplayName,	      r.requisition_no AS
+RequisitionNo, i.item_code AS ItemCode, l.lot_number AS LotNumber
+FROM audit_logs a   LEFT JOIN identity_users u ON u.user_name = a.actor
+  LEFT JOIN requisitions r ON a.entity_type = 'Requisition' AND
+r.requisition_id = TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION
+ERROR)	 LEFT JOIN items i ON a.entity_type = 'Item' AND i.item_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)   LEFT JOIN
+stock_lots l ON a.entity_type = 'StockLot' AND l.stock_lot_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)  ORDER BY
+a.occurred_at DESC, a.audit_log_id DESC  FETCH FIRST :count ROWS ONLY
+
+Plan hash value: 3362614035
+
+----------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation			  | Name			 | Starts | E-Rows | A-Rows |	A-Time	 | Buffers |
+----------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT		  |				 |	1 |	   |	  5 |00:00:00.01 |	54 |
+|*  1 |  COUNT STOPKEY			  |				 |	1 |	   |	  5 |00:00:00.01 |	54 |
+|   2 |   VIEW				  |				 |	1 |	 5 |	  5 |00:00:00.01 |	54 |
+|   3 |    NESTED LOOPS OUTER		  |				 |	1 |	 5 |	  5 |00:00:00.01 |	54 |
+|   4 |     NESTED LOOPS OUTER		  |				 |	1 |	 5 |	  5 |00:00:00.01 |	19 |
+|   5 |      NESTED LOOPS OUTER 	  |				 |	1 |	 5 |	  5 |00:00:00.01 |	16 |
+|   6 |       NESTED LOOPS OUTER	  |				 |	1 |	 5 |	  5 |00:00:00.01 |	 8 |
+|   7 |        TABLE ACCESS BY INDEX ROWID| AUDIT_LOGS			 |	1 |    200K|	  5 |00:00:00.01 |	 6 |
+|   8 | 	INDEX FULL SCAN 	  | IX_AUDIT_LOGS_DASHBOARD_FEED |	1 |	 5 |	  5 |00:00:00.01 |	 4 |
+|   9 |        TABLE ACCESS BY INDEX ROWID| REQUISITIONS		 |	5 |	 1 |	  0 |00:00:00.01 |	 2 |
+|* 10 | 	INDEX UNIQUE SCAN	  | PK_REQUISITIONS		 |	5 |	 1 |	  0 |00:00:00.01 |	 2 |
+|  11 |       TABLE ACCESS BY INDEX ROWID | STOCK_LOTS			 |	5 |	 1 |	  1 |00:00:00.01 |	 8 |
+|* 12 |        INDEX UNIQUE SCAN	  | PK_STOCK_LOTS		 |	5 |	 1 |	  1 |00:00:00.01 |	 7 |
+|  13 |      TABLE ACCESS BY INDEX ROWID  | ITEMS			 |	5 |	 1 |	  1 |00:00:00.01 |	 3 |
+|* 14 |       INDEX UNIQUE SCAN 	  | PK_ITEMS			 |	5 |	 1 |	  1 |00:00:00.01 |	 2 |
+|* 15 |     TABLE ACCESS FULL		  | IDENTITY_USERS		 |	5 |	 1 |	  0 |00:00:00.01 |	35 |
+----------------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(ROWNUM<=:COUNT)
+  10 - access("R"."REQUISITION_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+       filter("A"."ENTITY_TYPE"=CASE  WHEN ("R"."REQUISITION_ID" IS NOT NULL) THEN 'Requisition' ELSE 'Requisition'
+	      END )
+  12 - access("L"."STOCK_LOT_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+       filter("A"."ENTITY_TYPE"=CASE  WHEN ("L"."STOCK_LOT_ID" IS NOT NULL) THEN 'StockLot' ELSE 'StockLot' END )
+  14 - access("I"."ITEM_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+       filter("A"."ENTITY_TYPE"=CASE  WHEN ("I"."ITEM_ID" IS NOT NULL) THEN 'Item' ELSE 'Item' END )
+  15 - filter("U"."USER_NAME"="A"."ACTOR")
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+
+
+56 rows selected.
+
+=== AUDIT_INDEXED_RUN_2 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('2s2w2f0hgy1p3', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	2s2w2f0hgy1p3, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_AUDIT_INDEXED_RUN_2 */
+   a.entity_type AS EntityType, a.entity_id AS EntityId, a.action AS
+Action,        a.actor AS Actor, a.occurred_at AS OccurredAt,
+u.display_name AS DisplayName,	      r.requisition_no AS
+RequisitionNo, i.item_code AS ItemCode, l.lot_number AS LotNumber
+FROM audit_logs a   LEFT JOIN identity_users u ON u.user_name = a.actor
+  LEFT JOIN requisitions r ON a.entity_type = 'Requisition' AND
+r.requisition_id = TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION
+ERROR)	 LEFT JOIN items i ON a.entity_type = 'Item' AND i.item_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)   LEFT JOIN
+stock_lots l ON a.entity_type = 'StockLot' AND l.stock_lot_id =
+TO_NUMBER(a.entity_id DEFAULT NULL ON CONVERSION ERROR)  ORDER BY
+a.occurred_at DESC, a.audit_log_id DESC  FETCH FIRST :count ROWS ONLY
+
+Plan hash value: 3362614035
+
+----------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation			  | Name			 | Starts | E-Rows | A-Rows |	A-Time	 | Buffers |
+----------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT		  |				 |	1 |	   |	  5 |00:00:00.01 |	54 |
+|*  1 |  COUNT STOPKEY			  |				 |	1 |	   |	  5 |00:00:00.01 |	54 |
+|   2 |   VIEW				  |				 |	1 |	 5 |	  5 |00:00:00.01 |	54 |
+|   3 |    NESTED LOOPS OUTER		  |				 |	1 |	 5 |	  5 |00:00:00.01 |	54 |
+|   4 |     NESTED LOOPS OUTER		  |				 |	1 |	 5 |	  5 |00:00:00.01 |	19 |
+|   5 |      NESTED LOOPS OUTER 	  |				 |	1 |	 5 |	  5 |00:00:00.01 |	16 |
+|   6 |       NESTED LOOPS OUTER	  |				 |	1 |	 5 |	  5 |00:00:00.01 |	 8 |
+|   7 |        TABLE ACCESS BY INDEX ROWID| AUDIT_LOGS			 |	1 |    200K|	  5 |00:00:00.01 |	 6 |
+|   8 | 	INDEX FULL SCAN 	  | IX_AUDIT_LOGS_DASHBOARD_FEED |	1 |	 5 |	  5 |00:00:00.01 |	 4 |
+|   9 |        TABLE ACCESS BY INDEX ROWID| REQUISITIONS		 |	5 |	 1 |	  0 |00:00:00.01 |	 2 |
+|* 10 | 	INDEX UNIQUE SCAN	  | PK_REQUISITIONS		 |	5 |	 1 |	  0 |00:00:00.01 |	 2 |
+|  11 |       TABLE ACCESS BY INDEX ROWID | STOCK_LOTS			 |	5 |	 1 |	  1 |00:00:00.01 |	 8 |
+|* 12 |        INDEX UNIQUE SCAN	  | PK_STOCK_LOTS		 |	5 |	 1 |	  1 |00:00:00.01 |	 7 |
+|  13 |      TABLE ACCESS BY INDEX ROWID  | ITEMS			 |	5 |	 1 |	  1 |00:00:00.01 |	 3 |
+|* 14 |       INDEX UNIQUE SCAN 	  | PK_ITEMS			 |	5 |	 1 |	  1 |00:00:00.01 |	 2 |
+|* 15 |     TABLE ACCESS FULL		  | IDENTITY_USERS		 |	5 |	 1 |	  0 |00:00:00.01 |	35 |
+----------------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(ROWNUM<=:COUNT)
+  10 - access("R"."REQUISITION_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+       filter("A"."ENTITY_TYPE"=CASE  WHEN ("R"."REQUISITION_ID" IS NOT NULL) THEN 'Requisition' ELSE 'Requisition'
+	      END )
+  12 - access("L"."STOCK_LOT_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+       filter("A"."ENTITY_TYPE"=CASE  WHEN ("L"."STOCK_LOT_ID" IS NOT NULL) THEN 'StockLot' ELSE 'StockLot' END )
+  14 - access("I"."ITEM_ID"=TO_NUMBER("A"."ENTITY_ID" DEFAULT NULL ON CONVERSION ERROR ))
+       filter("A"."ENTITY_TYPE"=CASE  WHEN ("I"."ITEM_ID" IS NOT NULL) THEN 'Item' ELSE 'Item' END )
+  15 - filter("U"."USER_NAME"="A"."ACTOR")
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+
+
+56 rows selected.
+
+=== EXPIRED_INDEXED_RUN_1 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('8cg5f1gx15w99', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	8cg5f1gx15w99, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_EXPIRED_INDEXED_RUN_1 */
+COUNT(*)   FROM stock_lots l  INNER JOIN items i ON i.item_id =
+l.item_id  WHERE i.is_deleted = 0 AND l.quantity > 0 AND l.expiry_date
+< TO_DATE(:asOf, 'YYYY-MM-DD')
+
+Plan hash value: 3673456331
+
+--------------------------------------------------------------------------------------------------------------
+| Id  | Operation		      | Name		   | Starts | E-Rows | A-Rows |   A-Time   | Buffers |
+--------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	      | 		   |	  1 |	     |	    1 |00:00:00.01 |	  19 |
+|   1 |  SORT AGGREGATE 	      | 		   |	  1 |	   1 |	    1 |00:00:00.01 |	  19 |
+|   2 |   NESTED LOOPS		      | 		   |	  1 |	 109 |	  107 |00:00:00.01 |	  19 |
+|   3 |    NESTED LOOPS 	      | 		   |	  1 |	 110 |	  108 |00:00:00.01 |	  16 |
+|*  4 |     TABLE ACCESS FULL	      | ITEMS		   |	  1 |	   5 |	    5 |00:00:00.01 |	   7 |
+|*  5 |     INDEX RANGE SCAN	      | IX_STOCK_LOTS_FEFO |	  5 |	  22 |	  108 |00:00:00.01 |	   9 |
+|*  6 |    TABLE ACCESS BY INDEX ROWID| STOCK_LOTS	   |	108 |	  22 |	  107 |00:00:00.01 |	   3 |
+--------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   4 - filter("I"."IS_DELETED"=0)
+   5 - access("I"."ITEM_ID"="L"."ITEM_ID" AND "L"."EXPIRY_DATE"<TO_DATE(:ASOF,'YYYY-MM-DD'))
+   6 - filter("L"."QUANTITY">0)
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+   - this is an adaptive plan
+
+
+33 rows selected.
+
+=== EXPIRED_INDEXED_RUN_2 ===
+
+
+
+
+old   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&plan_sql_id', NULL, 'ALLSTATS LAST'))
+new   1: SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('b72179zjfatqx', NULL, 'ALLSTATS LAST'))
+
+PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID	b72179zjfatqx, child number 0
+-------------------------------------
+SELECT /*+ GATHER_PLAN_STATISTICS */ /* WO_S_EXPIRED_INDEXED_RUN_2 */
+COUNT(*)   FROM stock_lots l  INNER JOIN items i ON i.item_id =
+l.item_id  WHERE i.is_deleted = 0 AND l.quantity > 0 AND l.expiry_date
+< TO_DATE(:asOf, 'YYYY-MM-DD')
+
+Plan hash value: 3673456331
+
+--------------------------------------------------------------------------------------------------------------
+| Id  | Operation		      | Name		   | Starts | E-Rows | A-Rows |   A-Time   | Buffers |
+--------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	      | 		   |	  1 |	     |	    1 |00:00:00.01 |	  19 |
+|   1 |  SORT AGGREGATE 	      | 		   |	  1 |	   1 |	    1 |00:00:00.01 |	  19 |
+|   2 |   NESTED LOOPS		      | 		   |	  1 |	 109 |	  107 |00:00:00.01 |	  19 |
+|   3 |    NESTED LOOPS 	      | 		   |	  1 |	 110 |	  108 |00:00:00.01 |	  16 |
+|*  4 |     TABLE ACCESS FULL	      | ITEMS		   |	  1 |	   5 |	    5 |00:00:00.01 |	   7 |
+|*  5 |     INDEX RANGE SCAN	      | IX_STOCK_LOTS_FEFO |	  5 |	  22 |	  108 |00:00:00.01 |	   9 |
+|*  6 |    TABLE ACCESS BY INDEX ROWID| STOCK_LOTS	   |	108 |	  22 |	  107 |00:00:00.01 |	   3 |
+--------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   4 - filter("I"."IS_DELETED"=0)
+   5 - access("I"."ITEM_ID"="L"."ITEM_ID" AND "L"."EXPIRY_DATE"<TO_DATE(:ASOF,'YYYY-MM-DD'))
+   6 - filter("L"."QUANTITY">0)
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+   - this is an adaptive plan
+
+
+33 rows selected.

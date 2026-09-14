@@ -55,7 +55,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 | P5 狀態機偷開一條非法轉換 | FR-304 非法轉換須被拒絕 | 2 條變紅 |
 | P6 駁回不再要求填原因 | FR-302 | 1 條變紅 |
 | **P7 拿掉發料的 `SELECT ... FOR UPDATE`** | **FR-402 並發不得超發** | **3 條變紅** |
-| **P8 拿掉 `InventoryQueries` 的 DI 註冊** | **正式 DI 圖必須完整** | **6 條變紅** |
+| **P8 拿掉 `InventoryQueries` 的 DI 註冊** | **正式 DI 圖必須完整** | **9 條變紅** |
 | **P9 整張單發料改成「跳過失敗的明細繼續」** | **FR-303 整張單原子發料** | **5 條變紅** |
 | **P10 入庫拿掉品項列的 `FOR UPDATE`** | **同品項的新批號入庫必須序列化** | **2 條變紅** |
 | **P11 入庫的過期判定 `<` 改成 `<=`** | **效期當天仍可入庫** | **1 條變紅** |
@@ -82,6 +82,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 
 [`scripts/check-db-clean.ps1`](scripts/check-db-clean.ps1) 就是補這個盲區的：
 跑完測試之後，資料庫必須回到只剩種子資料的狀態，否則 `exit 1`。
+
+整合測試組件另以系統層級 `Global\MedSupplyOps.IntegrationTests` mutex 保護同一個 Oracle schema。
+第二個 `dotnet test` 最多等 5 秒後會直接說明已有另一個 `testhost` 佔用，要求等待或停止前一個程序；
+它不會排隊後再用同一批測試帳號／種子資料互相覆寫。`mutation-probe.ps1` 也會在啟動前列出現有
+`testhost` 的 PID 並拒絕執行，絕不自動終止別人的測試。
 
 ### 4. ★ ER 圖漂移檢查：文件不會偷偷過期
 
@@ -111,7 +116,8 @@ schema 改了而圖沒重產，這道關卡就 `exit 1`。
 跟索引一點關係都沒有 —— 數字還會很漂亮。
 
 所以 [`docs/performance/dapper-fefo.md`](docs/performance/dapper-fefo.md)
-用的是 `DBMS_XPLAN` 的實際執行計畫與 **Buffers（邏輯讀取）**：
+與 [`docs/performance/dashboard-read-paths.md`](docs/performance/dashboard-read-paths.md)
+都用 `DBMS_XPLAN` 的實際執行計畫與 **Buffers（邏輯讀取）**：
 
 ```
 TABLE ACCESS FULL  STOCK_LOTS           A-Rows 101   Buffers 1004
@@ -120,6 +126,10 @@ INDEX RANGE SCAN   IX_STOCK_LOTS_FEFO   A-Rows 101   Buffers   10   （總計 11
 
 **A-Rows 兩邊都是 101** —— 這一行才是關鍵：實際回傳列數沒變，
 代表這是最佳化，不是「把查詢改壞來換數字」。
+
+`Buffers` 是 logical reads；cache 變暖主要會改變 physical I/O 與 elapsed time，不應被誤讀成
+Buffers 的改善。兩份實證仍都連跑兩次、保存兩次計畫，以確認第二次沒有換 cursor／換計畫；
+實際的索引前後比較則固定採相同資料、相同 bind、相同 A-Rows 的第二次計畫。
 
 ---
 
