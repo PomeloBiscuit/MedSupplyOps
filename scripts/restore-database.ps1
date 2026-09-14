@@ -22,7 +22,9 @@ param(
     [switch]$Force,
 
     [string]$ContainerName = 'medsupplyops-oracle',
-    [string]$VolumeName = 'medsupplyops-oracle-data'
+    [string]$VolumeName = 'medsupplyops-oracle-data',
+    [string]$DumpFileName,
+    [ValidateRange(1, 900)][int]$HealthTimeoutSeconds = 300
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,10 +36,28 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'lib/ContainerExec.ps1')
 Set-Location $repoRoot
 
+function Wait-OracleHealthy {
+    $deadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)
+    do {
+        $state = (& docker inspect -f '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' $ContainerName).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "無法讀取容器 $ContainerName 的健康狀態。" }
+        Write-Host "RESTORE_HEALTHCHECK|$state"
+        if ($state -eq 'running|healthy') { return }
+        Start-Sleep -Seconds 5
+    } while ((Get-Date) -lt $deadline)
+
+    throw "還原後的 Oracle 在 $HealthTimeoutSeconds 秒內沒有成為 healthy（最後狀態：$state）。"
+}
+
 $resolvedBackupDirectory = (Resolve-Path -LiteralPath $BackupDirectory).Path
 if ($Mode -eq 'Logical') {
     $logicalDirectory = Join-Path $resolvedBackupDirectory 'logical'
-    $dump = Get-ChildItem -LiteralPath $logicalDirectory -Filter '*.dmp' -File | Select-Object -First 1
+    $dump = if ([string]::IsNullOrWhiteSpace($DumpFileName)) {
+        Get-ChildItem -LiteralPath $logicalDirectory -Filter '*.dmp' -File | Select-Object -First 1
+    }
+    else {
+        Get-Item -LiteralPath (Join-Path $logicalDirectory $DumpFileName) -ErrorAction SilentlyContinue
+    }
     if ($null -eq $dump -or $dump.Length -le 0) { throw '找不到有效的邏輯 .dmp 備份。' }
 
     $preflightSql = @"
@@ -79,10 +99,31 @@ EXIT
     Write-Host '正在以容器內 SYSDBA 匯入 MEDSUPPLY schema...' -ForegroundColor Cyan
     # ORACLE_PWD 已在容器內；避免主機解析無 BOM UTF-8 的 .env 或將密碼洩露到主機命令列。
     # 反斜線保留 Data Pump 所需雙引號，且讓 bash 展開容器內的 ORACLE_PWD。
-    $importCommand = 'NLS_LANG=AMERICAN_AMERICA.AL32UTF8 $ORACLE_HOME/bin/impdp \"sys/$ORACLE_PWD@FREEPDB1 as sysdba\" schemas=MEDSUPPLY directory=DATA_PUMP_DIR dumpfile={0} metrics=Y' -f $dump.Name
+    $importLogFile = "restore-$($dump.BaseName)-impdp.log"
+    $importCommand = 'NLS_LANG=AMERICAN_AMERICA.AL32UTF8 $ORACLE_HOME/bin/impdp \"sys/$ORACLE_PWD@FREEPDB1 as sysdba\" schemas=MEDSUPPLY directory=DATA_PUMP_DIR dumpfile={0} logfile={1} metrics=Y' -f $dump.Name, $importLogFile
     $importOutput = Invoke-ContainerBash -ContainerName $ContainerName -Command $importCommand
     $importOutput.Trim() | Write-Host
-    if ($importOutput -notmatch 'successfully completed') { throw 'impdp 未回報 successfully completed。' }
+    $hostImportLog = Join-Path $logicalDirectory $importLogFile
+    & docker cp "${ContainerName}:$dataPumpDirectory/$importLogFile" $logicalDirectory
+    if ($LASTEXITCODE -ne 0) { throw '無法把 impdp log 複製到容器外；拒絕把還原視為成功。' }
+    $importLog = Get-Content -LiteralPath $hostImportLog -Raw
+    if ($importLog -notmatch 'Job .+ successfully completed') {
+        throw "impdp 結束碼為 0，但容器內 impdp log 沒有 successfully completed：$hostImportLog"
+    }
+    Write-Host "RESTORE_IMPORT_LOG|$hostImportLog" -ForegroundColor Green
+    $postRestoreSql = @"
+SET PAGESIZE 0
+SET FEEDBACK OFF
+SET HEADING OFF
+ALTER SESSION SET CONTAINER = FREEPDB1;
+SELECT 'POST_RESTORE|items=' || (SELECT COUNT(*) FROM MEDSUPPLY.items)
+    || '|departments=' || (SELECT COUNT(*) FROM MEDSUPPLY.departments)
+    || '|stock_lots=' || (SELECT COUNT(*) FROM MEDSUPPLY.stock_lots)
+    || '|requisitions=' || (SELECT COUNT(*) FROM MEDSUPPLY.requisitions)
+FROM dual;
+EXIT
+"@
+    (Invoke-ContainerSql -ContainerName $ContainerName -Sql $postRestoreSql).Trim() | Write-Host
     Write-Host '邏輯還原完成。請以獨立查詢驗證列數、索引、約束與 IDENTITY。' -ForegroundColor Green
     exit 0
 }
@@ -90,6 +131,16 @@ EXIT
 $physicalDirectory = Join-Path $resolvedBackupDirectory 'physical'
 $archive = Get-ChildItem -LiteralPath $physicalDirectory -Filter '*.tar' -File | Select-Object -First 1
 if ($null -eq $archive -or $archive.Length -le 0) { throw '找不到有效的實體 .tar 備份。' }
+
+$archiveDirectory = (Resolve-Path -LiteralPath $physicalDirectory).Path
+$archiveEntries = @(& docker run --rm --user 0:0 --entrypoint /bin/bash --mount "type=bind,source=$archiveDirectory,target=/backup,readonly" container-registry.oracle.com/database/free:latest -lc "tar -tf /backup/$($archive.Name)")
+if ($LASTEXITCODE -ne 0) { throw '無法列出實體備份 tar 內容。' }
+$hasExplicitOradataRoot = @($archiveEntries | Where-Object { $_ -match '^oradata/.+\.dbf$' }).Count -gt 0
+$hasLegacyDataFiles = @($archiveEntries | Where-Object { $_ -match '\.dbf$' }).Count -gt 0
+if (-not $hasExplicitOradataRoot -and -not $hasLegacyDataFiles) {
+    throw '實體備份 tar 未包含 Oracle .dbf 資料檔；拒絕還原。'
+}
+Write-Host "PRE_RESTORE|ARCHIVE_LAYOUT=$(if ($hasExplicitOradataRoot) { 'oradata-root' } else { 'legacy-volume-root' })"
 
 $volumeExists = (& docker volume ls --filter "name=^$VolumeName$" --format '{{.Name}}') -contains $VolumeName
 Write-Host "PRE_RESTORE|VOLUME_EXISTS=$volumeExists"
@@ -113,9 +164,13 @@ $targetEntries = & docker run --rm --user 0:0 --entrypoint /bin/bash --mount "ty
 if ($targetEntries.Count -ne 0) { throw "新建目標 volume 不是空的：$($targetEntries -join ', ')" }
 Write-Host 'PRE_RESTORE|VOLUME_ENTRIES=0'
 
-$archiveDirectory = (Resolve-Path -LiteralPath $physicalDirectory).Path
 Write-Host '正在解開 cold volume 備份...' -ForegroundColor Cyan
-& docker run --rm --user 0:0 --entrypoint /bin/bash --mount "type=volume,source=$VolumeName,target=/target" --mount "type=bind,source=$archiveDirectory,target=/backup,readonly" container-registry.oracle.com/database/free:latest -lc "tar -C /target -xf /backup/$($archive.Name)"
+if ($hasExplicitOradataRoot) {
+    & docker run --rm --user 0:0 --entrypoint /bin/bash --mount "type=volume,source=$VolumeName,target=/target" --mount "type=bind,source=$archiveDirectory,target=/backup,readonly" container-registry.oracle.com/database/free:latest -lc "tar --strip-components=1 -C /target -xf /backup/$($archive.Name)"
+}
+else {
+    & docker run --rm --user 0:0 --entrypoint /bin/bash --mount "type=volume,source=$VolumeName,target=/target" --mount "type=bind,source=$archiveDirectory,target=/backup,readonly" container-registry.oracle.com/database/free:latest -lc "tar -C /target -xf /backup/$($archive.Name)"
+}
 if ($LASTEXITCODE -ne 0) { throw 'volume tar 解壓失敗。' }
 
 Write-Host '正在由 compose 建立已還原 volume 的 Oracle 容器...' -ForegroundColor Cyan
@@ -125,5 +180,6 @@ if ($LASTEXITCODE -ne 0) { throw 'docker compose create oracle 失敗。' }
 Write-Host '正在啟動實體還原後的 Oracle...' -ForegroundColor Cyan
 & docker compose start oracle
 if ($LASTEXITCODE -ne 0) { throw 'docker compose start oracle 失敗。' }
+Wait-OracleHealthy
 Write-Host '實體還原完成。請等健康檢查通過後再驗證應用程式資料。' -ForegroundColor Green
 
