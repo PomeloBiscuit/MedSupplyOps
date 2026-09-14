@@ -15,15 +15,16 @@
     <div class="alert alert-danger" role="alert">@errorMessage</div>
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="mso-page">
+<div class="mso-page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">@Model.RequisitionNo</h1>
-        <p class="text-muted mb-0">目前狀態：<strong>@RequisitionStatusText.Get(Model.Status)</strong></p>
+        <p class="text-muted mb-0">目前狀態：<span class="badge @(Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Issued ? "mso-badge-ok" : Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Rejected ? "mso-badge-bad" : Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Draft || Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Closed ? "mso-badge-idle" : "mso-badge-warn")">@RequisitionStatusText.Get(Model.Status)</span></p>
     </div>
     <a class="btn btn-outline-secondary" asp-action="Index">返回列表</a>
 </div>
 
-<dl class="row card card-body mx-0 mb-4">
+<dl class="row card card-body mx-0 mb-4 mso-detail-list">
     <dt class="col-sm-3">科室</dt>
     <dd class="col-sm-9">@Model.DepartmentName</dd>
     <dt class="col-sm-3">建立時間</dt>
@@ -35,12 +36,14 @@
     @if (!string.IsNullOrWhiteSpace(Model.RejectionReason))
     {
         <dt class="col-sm-3">駁回原因</dt>
-        <dd class="col-sm-9">@Model.RejectionReason</dd>
+        <dd class="col-sm-9 mso-long-text">@Model.RejectionReason</dd>
     }
 </dl>
 
-<div class="table-responsive mb-4">
-    <table class="table table-striped align-middle">
+<section class="card mso-table-card mb-4" aria-labelledby="requisition-lines-heading">
+    <div class="card-header"><h2 class="h5 mb-0" id="requisition-lines-heading">請領明細</h2></div>
+<div class="table-responsive mso-table-scroll">
+    <table class="table table-striped align-middle mb-0 mso-data-table">
         <thead>
             <tr>
                 <th scope="col">行號</th>
@@ -54,21 +57,22 @@
             {
                 <tr>
                     <td>@line.LineNo</td>
-                    <td>@line.ItemCode</td>
-                    <td>@line.ItemName</td>
+                    <td class="mso-code-cell">@line.ItemCode</td>
+                    <td class="mso-long-text">@line.ItemName</td>
                     <td class="text-end">@line.Quantity @line.UnitOfMeasure</td>
                 </tr>
             }
         </tbody>
     </table>
 </div>
+</section>
 
 @if (Model.IssueAllocations.Count > 0)
 {
-    <section class="mb-4" aria-labelledby="issue-allocation-heading">
-        <h2 class="h4" id="issue-allocation-heading">發料配批明細</h2>
-        <div class="table-responsive">
-            <table class="table table-striped align-middle">
+    <section class="card mso-table-card mb-4" aria-labelledby="issue-allocation-heading">
+        <div class="card-header"><h2 class="h5 mb-0" id="issue-allocation-heading">發料配批明細</h2></div>
+        <div class="table-responsive mso-table-scroll">
+            <table class="table table-striped align-middle mb-0 mso-data-table">
                 <thead>
                     <tr>
                         <th scope="col">明細行</th>
@@ -83,8 +87,8 @@
                     {
                         <tr>
                             <td>@allocation.LineNo</td>
-                            <td>@allocation.ItemCode（@allocation.ItemName）</td>
-                            <td>@allocation.LotNumber</td>
+                            <td class="mso-long-text"><span class="mso-code-cell">@allocation.ItemCode</span>（@allocation.ItemName）</td>
+                            <td class="mso-code-cell">@allocation.LotNumber</td>
                             <td>@allocation.ExpiryDate.ToString("yyyy-MM-dd")</td>
                             <td class="text-end">@allocation.Quantity @allocation.UnitOfMeasure</td>
                         </tr>
@@ -94,6 +98,8 @@
         </div>
     </section>
 }
+
+</div>
 
 @if (Model.CanIssue && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {

@@ -5,7 +5,8 @@
     var dateFormat = CultureInfo.GetCultureInfo("zh-TW");
 }
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+<div class="mso-page">
+<div class="mso-page-heading d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">效期預警</h1>
         <p class="text-muted mb-0">基準日：@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
@@ -24,8 +25,13 @@
     </form>
 </div>
 
-<div class="table-responsive">
-    <table class="table align-middle">
+<section class="card mso-table-card" aria-labelledby="expiring-list-heading">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h2 class="h5 mb-0" id="expiring-list-heading">近效期批次</h2>
+        <span class="badge mso-badge-warn">@Model.WithinDays 天內</span>
+    </div>
+<div class="table-responsive mso-table-scroll">
+    <table class="table align-middle mb-0 mso-data-table">
         <thead>
             <tr>
                 <th scope="col">料號</th>
@@ -40,20 +46,23 @@
             @if (Model.Lots.Count == 0)
             {
                 <tr>
-                    <td colspan="6" class="text-center text-muted">此條件下沒有仍有數量的近效期批次。</td>
+                    <td colspan="6" class="mso-empty-state text-center">此條件下沒有仍有數量的近效期批次。</td>
                 </tr>
             }
             @foreach (var lot in Model.Lots)
             {
-                <tr>
-                    <td>@lot.ItemCode</td>
-                    <td class="text-break">@lot.ItemName</td>
-                    <td>@lot.LotNumber</td>
-                    <td>@lot.ExpiryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</td>
+                var isExpired = lot.ExpiryDate < Model.AsOf;
+                <tr class="@(isExpired ? "mso-row-danger" : string.Empty)">
+                    <td class="mso-code-cell">@lot.ItemCode</td>
+                    <td class="text-break mso-long-text">@lot.ItemName</td>
+                    <td class="mso-code-cell">@lot.LotNumber</td>
+                    <td><span class="badge @(isExpired ? "mso-badge-bad" : "mso-badge-warn")">@lot.ExpiryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</span></td>
                     <td class="text-end">@lot.Quantity.ToString("N0", dateFormat)</td>
                     <td>@lot.StorageLocation</td>
                 </tr>
             }
         </tbody>
     </table>
+</div>
+</section>
 </div>

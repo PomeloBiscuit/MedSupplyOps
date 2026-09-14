@@ -3,7 +3,8 @@
     ViewData["Title"] = "入庫";
 }
 
-<div class="mb-4">
+<div class="mso-page mso-form-page">
+<div class="mso-page-heading mb-4">
     <h1 class="h2 mb-1">入庫</h1>
     <p class="text-muted mb-0">批號與儲位會自動去除首尾空白並轉成大寫。</p>
 </div>
@@ -13,6 +14,7 @@
     <div class="alert alert-success" role="alert">@successMessage</div>
 }
 
+<div class="card card-body mso-form-card">
 <form asp-action="Index" method="post">
     @Html.AntiForgeryToken()
     <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
@@ -55,6 +57,8 @@
         <button class="btn btn-primary" type="submit">確認入庫</button>
     </div>
 </form>
+</div>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

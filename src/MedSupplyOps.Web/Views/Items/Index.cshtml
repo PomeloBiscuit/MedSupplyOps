@@ -3,7 +3,8 @@
     ViewData["Title"] = "品項管理";
 }
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+<div class="mso-page">
+<div class="mso-page-heading d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">品項管理</h1>
         <p class="text-muted mb-0">維護可供請領與入庫使用的品項主檔。</p>
@@ -20,8 +21,13 @@
     <div class="alert alert-danger" role="alert">@errorMessage</div>
 }
 
-<div class="table-responsive">
-    <table class="table align-middle">
+<section class="card mso-table-card" aria-labelledby="item-list-heading">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h2 class="h5 mb-0" id="item-list-heading">品項主檔</h2>
+        <span class="text-muted small">料號建立後不可修改</span>
+    </div>
+<div class="table-responsive mso-table-scroll">
+    <table class="table align-middle mb-0 mso-data-table">
         <thead>
             <tr>
                 <th scope="col">料號</th>
@@ -33,11 +39,15 @@
             </tr>
         </thead>
         <tbody>
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="6" class="mso-empty-state text-center">目前沒有可管理的品項。</td></tr>
+            }
             @foreach (var item in Model)
             {
                 <tr>
-                    <td>@item.Code</td>
-                    <td class="text-break">@item.Name</td>
+                    <td class="mso-code-cell">@item.Code</td>
+                    <td class="text-break mso-long-text">@item.Name</td>
                     <td class="text-break">@item.Specification</td>
                     <td>@item.UnitOfMeasure</td>
                     <td class="text-end">@item.SafetyStockQty.ToString("N0")</td>
@@ -52,4 +62,6 @@
             }
         </tbody>
     </table>
+</div>
+</section>
 </div>

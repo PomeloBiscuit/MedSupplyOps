@@ -4,8 +4,11 @@
     ViewData["Title"] = "登入";
 }
 
-<div class="mb-3">
-    <h1 class="h2 mb-1">登入</h1>
+<div class="mso-auth-page">
+<section class="card mso-auth-card" aria-labelledby="login-heading">
+    <div class="mso-auth-brand">MedSupplyOps</div>
+    <div class="mb-4">
+    <h1 class="h2 mb-1" id="login-heading">登入</h1>
     <p class="text-muted mb-0">
         示範帳號：requester@example.local／keeper@example.local／admin@example.local，密碼皆為
         <code>Demo#2026pass</code>（見 README）。
@@ -39,6 +42,8 @@
         <a class="btn btn-outline-secondary" asp-action="Register">還沒有帳號？註冊</a>
     </div>
 </form>
+</section>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

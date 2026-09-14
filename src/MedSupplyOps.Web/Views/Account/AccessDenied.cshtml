@@ -2,6 +2,11 @@
     ViewData["Title"] = "存取被拒";
 }
 
-<h1 class="h2 mb-3">存取被拒</h1>
-<p>目前的帳號沒有權限執行這個操作。</p>
+<div class="mso-auth-page">
+    <section class="card mso-auth-card" aria-labelledby="access-denied-heading">
+        <div class="mso-auth-brand">MedSupplyOps</div>
+        <h1 class="h2 mb-3" id="access-denied-heading">存取被拒</h1>
+        <p class="text-muted">目前的帳號沒有權限執行這個操作。</p>
 <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Index">回首頁</a>
+    </section>
+</div>
