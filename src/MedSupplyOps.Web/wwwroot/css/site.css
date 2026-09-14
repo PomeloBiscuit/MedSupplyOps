@@ -1,59 +1,289 @@
+/* 設計語彙集中在變數；Bootstrap 沒有本專案所需的語意色、字級與圓角刻度。 */
+:root {
+  --mso-navy: #12304a;
+  --mso-primary: #1b5e9c;
+  --mso-primary-hover: #123f6b;
+  --mso-text: #2b3440;
+  --mso-text-strong: #10171f;
+  --mso-text-muted: #5b6775;
+  --mso-page: #f4f6f8;
+  --mso-surface: #ffffff;
+  --mso-surface-muted: #f2f4f7;
+  --mso-surface-subtle: #eef1f4;
+  --mso-border: #e2e7ec;
+  --mso-border-strong: #cfd6de;
+  --mso-success: #146b41;
+  --mso-success-bg: #e3f3ea;
+  --mso-success-border: #c3e4d2;
+  --mso-warning: #7a5200;
+  --mso-warning-bg: #fdf3d7;
+  --mso-warning-border: #e8d08a;
+  --mso-danger: #8f1d17;
+  --mso-danger-bg: #fdecea;
+  --mso-danger-border: #f0b7b2;
+  --mso-font-size: 13px;
+  --mso-radius-sm: 5px;
+  --mso-radius-md: 7px;
+  --mso-radius-lg: 10px;
+  --mso-space-page: 1.75rem;
+}
+
+/* Bootstrap 預設根字級為 16px，無法符合畫板的 13px 資訊密度。 */
 html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
+  font-size: var(--mso-font-size);
   position: relative;
   min-height: 100%;
 }
 
+/* Bootstrap 的 body 背景透明，無法建立卡片與工作區的層次。 */
 body {
-  margin-bottom: 60px;
+  margin: 0;
+  color: var(--mso-text);
+  background: var(--mso-page);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  line-height: 1.6;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+/* Bootstrap 的預設 primary 藍不同於畫板指定的可讀性主色。 */
+a {
+  color: var(--mso-primary);
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+/* Bootstrap 未為一般連結提供畫板指定的深色 hover 狀態。 */
+a:hover {
+  color: var(--mso-primary-hover);
 }
 
-/* ★ 沒有驗證錯誤時，不要畫出一個空的紅色警告框。
- *
- * 登入、註冊、建立請領單三頁的驗證摘要寫成
- *   <div asp-validation-summary="All" class="alert alert-danger">
- * 沒有錯誤時 Tag Helper 會掛上 .validation-summary-valid，但 Bootstrap 的
- * .alert-danger 仍然會畫出底色、邊框與內距 —— 於是訪客一打開登入頁，
- * 就看到一個空的紅框，看起來像是已經出錯了。而那正是第一個看到的畫面。
- *
- * 有錯誤時類別會換成 .validation-summary-errors（伺服器端與前端即時驗證
- * 都是切換同一組類別），框就會照常出現。
- */
+/* Bootstrap 的焦點框顏色不隨專案主色，需保留鍵盤辨識性。 */
+:focus-visible {
+  outline: 3px solid rgba(27, 94, 156, 0.35);
+  outline-offset: 2px;
+}
+
+/* Bootstrap container 的寬度與畫板 1280px 工作區不相符。 */
+.mso-shell {
+  max-width: 1280px;
+}
+
+/* Bootstrap 導覽列沒有專案的深藍應用列與固定高度。 */
+.mso-navbar {
+  min-height: 56px;
+  background: var(--mso-navy);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* Bootstrap brand 不含畫板所需的白色字重與分隔留白。 */
+.mso-navbar .navbar-brand {
+  margin-right: 1.25rem;
+  color: #ffffff;
+  font-size: 16.5px;
+  font-weight: 600;
+}
+
+/* Bootstrap dark 導覽連結的不透明度與 active 狀態不符合畫板。 */
+.mso-navbar .nav-link {
+  color: rgba(255, 255, 255, 0.78) !important;
+  font-size: 14px;
+}
+
+/* Bootstrap 導覽連結沒有畫板指定的白色 hover 狀態。 */
+.mso-navbar .nav-link:hover,
+.mso-navbar .nav-link:focus {
+  color: #ffffff !important;
+}
+
+/* 使用者名稱在窄螢幕可能很長，需要避免推破收合列。 */
+.mso-user-name {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bootstrap 沒有工作區的上下留白與最低內容高度。 */
+.mso-main {
+  min-height: calc(100vh - 112px);
+  padding-top: var(--mso-space-page);
+  padding-bottom: var(--mso-space-page);
+}
+
+/* Bootstrap footer 預設不提供畫板的淡色底與小型資訊排版。 */
+.mso-footer {
+  padding: 1rem 0;
+  color: var(--mso-text-muted);
+  background: var(--mso-surface);
+  border-top: 1px solid var(--mso-border);
+  font-size: 12px;
+}
+
+/* Bootstrap primary 按鈕色與邊框不符合專案主色。 */
+.btn-primary {
+  --bs-btn-bg: var(--mso-primary);
+  --bs-btn-border-color: var(--mso-primary);
+  --bs-btn-hover-bg: var(--mso-primary-hover);
+  --bs-btn-hover-border-color: var(--mso-primary-hover);
+  --bs-btn-active-bg: var(--mso-primary-hover);
+  --bs-btn-active-border-color: var(--mso-primary-hover);
+  --bs-btn-focus-shadow-rgb: 27, 94, 156;
+  border-radius: var(--mso-radius-md);
+  font-weight: 600;
+}
+
+/* Bootstrap card 的預設圓角、邊框與陰影不足以呈現畫板的表面層次。 */
+.card {
+  --bs-card-border-color: var(--mso-border);
+  --bs-card-border-radius: var(--mso-radius-lg);
+  --bs-card-bg: var(--mso-surface);
+  box-shadow: 0 1px 3px rgba(16, 23, 31, 0.06);
+}
+
+/* Bootstrap card header 沒有畫板規定的區塊標題階層。 */
+.card-header {
+  padding: 0.9rem 1.15rem;
+  color: var(--mso-text-strong);
+  background: var(--mso-surface);
+  border-bottom-color: var(--mso-surface-subtle);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+/* Bootstrap table striped 的灰階過深，無法維持資料表的輕量分隔。 */
+.table {
+  --bs-table-color: var(--mso-text);
+  --bs-table-striped-bg: var(--mso-surface-muted);
+  --bs-table-striped-color: var(--mso-text);
+  --bs-table-border-color: var(--mso-border);
+}
+
+/* Bootstrap validation-summary-valid 不會隱藏帶 alert 類別的空容器。 */
 .validation-summary-valid {
   display: none;
 }
 
-/* 首頁儀表板的數字卡：整卡可點擊（外層是 <a>），用邊框與陰影提示可互動。 */
+/* Bootstrap 沒有 KPI 卡的互動邊框、陰影與鍵盤焦點協調。 */
 .dashboard-card {
-  transition: box-shadow 0.15s ease-in-out;
+  color: inherit;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, transform 0.15s ease-in-out;
 }
 
+/* Bootstrap card 沒有可點擊資料卡的 hover 回饋。 */
 .dashboard-card:hover {
-  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+  color: inherit;
+  border-color: var(--mso-border-strong);
+  box-shadow: 0 4px 12px rgba(16, 23, 31, 0.1);
+  transform: translateY(-1px);
 }
 
+/* Bootstrap display 字級過大且不使用等寬數字，無法對齊 KPI。 */
+.dashboard-kpi-number {
+  color: var(--mso-text-strong);
+  font-size: 36px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Bootstrap 沒有 KPI 標題前的語意色點。 */
+.dashboard-kpi-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+/* Bootstrap 的語意色不包含畫板較沈穩的琥珀色。 */
+.dashboard-kpi-dot-warning {
+  background: #c08a00;
+}
+
+/* Bootstrap success 色與畫板指定綠色不同。 */
+.dashboard-kpi-dot-success {
+  background: #197a4b;
+}
+
+/* Bootstrap danger 色與畫板指定紅色不同。 */
+.dashboard-kpi-dot-danger {
+  background: #b3261e;
+}
+
+/* Bootstrap secondary 色與畫板的低強度指標色不同。 */
+.dashboard-kpi-dot-muted {
+  background: #8a94a0;
+}
+
+/* Bootstrap alert-danger 不使用畫板的紅色語意底、框與文字組合。 */
 .dashboard-alert-card {
-  display: block;
+  color: var(--mso-danger);
+  background: var(--mso-danger-bg);
+  border-color: var(--mso-danger-border);
+  border-radius: var(--mso-radius-lg);
+}
+
+/* Bootstrap list-group 的單列內距不足以維持儀表板資訊節奏。 */
+.dashboard-audit-item {
+  padding: 0.85rem 1.15rem;
+  border-color: var(--mso-surface-subtle);
+}
+
+/* Bootstrap flex 項目預設可撐破容器，長稽核目標須能截斷。 */
+.dashboard-audit-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Bootstrap 表頭字級與背景未對應畫板的資料層級。 */
+.dashboard-table thead th {
+  padding: 0.75rem 1.15rem;
+  color: var(--mso-text-muted);
+  background: #f7f9fb;
+  border-bottom-color: var(--mso-border);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Bootstrap 表格識別碼不使用等寬字，長單號也缺乏截斷保護。 */
+.dashboard-table td:first-child a {
+  display: inline-block;
+  max-width: 16rem;
+  overflow: hidden;
+  color: inherit;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+/* Bootstrap 的數字欄只提供靠右，未提供資料數字等寬對齊。 */
+.dashboard-number-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bootstrap badge 類別由既有業務程式供應，需要補上畫板的膠囊邊框。 */
+.dashboard-table .badge {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Bootstrap 在平板會於 lg 斷點提前排成四欄，需維持 2×2 工作密度。 */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .dashboard-operations-grid {
+    --bs-columns: 2;
+  }
+}
+
+/* Bootstrap 導覽列在 sm 即展開，平板操作時需保留完整收合選單。 */
+@media (max-width: 991.98px) {
+  .mso-navbar .navbar-nav {
+    padding-top: 0.5rem;
+  }
+}
+
+/* Bootstrap 的表格欄位在手機沒有識別碼截斷上限。 */
+@media (max-width: 767.98px) {
+  .dashboard-requisition-no {
+    max-width: 11rem;
+  }
 }
