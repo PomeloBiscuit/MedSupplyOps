@@ -148,7 +148,7 @@ T3_BACKUP_EXIT=1
 
 `UNTRUSTED.txt` 存在，沒有「兩層備份完成」。
 
-### R-T4 — 還原：假失敗已修，成功路徑尚未演練
+### R-T4 — 還原：假失敗已修，成功路徑已演練通過
 
 **已修**：還原腳本原本依主控台輸出判斷成敗，`impdp` 明明印出 `successfully completed` 仍被判為失敗（假紅燈）。
 現在改以**容器內的 `impdp` log 檔內容**加上退出碼判定，不再依賴主控台字串。
@@ -162,9 +162,29 @@ restore(fail case) EXIT=1
 
 失敗會大聲失敗，沒有宣稱成功。
 
-**真成功案例（覆蓋式還原）尚未執行**：依 D5，邏輯還原前必須先以 SYSDBA `DROP USER MEDSUPPLY CASCADE`
-把目標清空；那是不可逆操作，需要明確授權。**在它補做之前，本文件不宣稱「還原演練通過」。**
+**真成功案例（覆蓋式還原）已完成（2026-09-14）**：依 D5 的流程 —— 先記基準、寫入一筆標記資料、
+以 SYSDBA `DROP USER MEDSUPPLY CASCADE` 清空目標、確認 0 張表，再還原：
 
+```text
+R_T4_BASELINE_2|items=5|departments=4|stock_lots=11|requisitions=0
+R_T4_MARKED|items=6|marker=1
+R_T4_EMPTY|user_tables=0
+R_T4_POST|items=5|departments=4|stock_lots=11|requisitions=0|marker=0
+running|healthy|0
+```
+
+**標記資料消失、四張表列數回到基準** —— 這才是「真的還原了」，不是「匯入到既有資料上還回報成功」。
+
+還原後的應用層驗收（重跑）：
+
+```text
+dotnet test MedSupplyOps.slnx      Domain 48 + Integration 107 = 155 全過
+check-db-clean.ps1                 資料庫乾淨
+generate-er-diagram.ps1 -Check     ER 圖與資料字典一致
+```
+
+155 條整合測試是真實 HTTP + 真實 Oracle，涵蓋登入、庫存查詢、請領與發料；
+ER 檢查則證明還原回來的**結構**（表、欄位、主外鍵）也與資料字典一致，不只是列數對得上。
 **★ 驗收方式的修正（實測發現）**：備份內容與當下資料庫相同時，「還原後列數一致」**連一個什麼都沒做的還原也會通過**。
 所以成功路徑的驗收是：還原前先寫入一筆標記資料，還原後**那筆標記必須消失**，且四張表列數回到備份當時的值。
 另已實測：對**非空** schema 執行還原會被腳本拒絕（`目標 MEDSUPPLY schema 不是空的；拒絕還原`），
