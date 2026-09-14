@@ -18,8 +18,8 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg navbar-dark mso-navbar">
+            <div class="container-xxl mso-shell">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
@@ -56,7 +56,7 @@
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item d-flex align-items-center me-2">
-                                <span class="text-muted">@User.Identity.Name</span>
+                                <span class="mso-user-name">@User.Identity.Name</span>
                             </li>
                             <li class="nav-item">
                                 <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
@@ -76,14 +76,14 @@
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+    <div class="container-xxl mso-shell">
+        <main role="main" class="mso-main">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
+    <footer class="mso-footer">
+        <div class="container-xxl mso-shell">
             &copy; 2026 - MedSupplyOps
         </div>
     </footer>
