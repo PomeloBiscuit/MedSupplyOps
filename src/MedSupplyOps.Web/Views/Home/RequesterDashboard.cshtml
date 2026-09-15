@@ -28,7 +28,7 @@
                 </div>
                 <div class="d-flex align-items-baseline gap-2">
                     <span class="dashboard-kpi-number" data-testid="pending-approval-count">@Model.PendingApprovalCount</span>
-                    <span class="text-body-secondary">張</span>
+                    <span class="text-body-secondary">@L["張"]</span>
                 </div>
                 </div>
             </div>
@@ -44,7 +44,7 @@
                 </div>
                 <div class="d-flex align-items-baseline gap-2">
                     <span class="dashboard-kpi-number" data-testid="approved-awaiting-issue-count">@Model.ApprovedAwaitingIssueCount</span>
-                    <span class="text-body-secondary">張</span>
+                    <span class="text-body-secondary">@L["張"]</span>
                 </div>
                 </div>
             </div>
@@ -59,7 +59,7 @@
                 </div>
                 <div class="d-flex align-items-baseline gap-2">
                     <span class="dashboard-kpi-number" data-testid="issued-this-month-count">@Model.IssuedThisMonthCount</span>
-                    <span class="text-body-secondary">張</span>
+                    <span class="text-body-secondary">@L["張"]</span>
                 </div>
             </div>
         </div>
@@ -95,7 +95,7 @@
                                 <span class="badge @RequisitionStatusText.GetBadgeClass(requisition.Status)">@L[RequisitionStatusText.Get(requisition.Status)]</span>
                                 @if (requisition.Status == RequisitionStatus.Rejected && !string.IsNullOrWhiteSpace(requisition.RejectionReason))
                                 {
-                                    <div class="text-muted small mt-1" data-testid="rejection-reason">駁回原因：@requisition.RejectionReason</div>
+                                    <div class="text-muted small mt-1" data-testid="rejection-reason">@L["駁回原因："]@requisition.RejectionReason</div>
                                 }
                             </td>
                         </tr>

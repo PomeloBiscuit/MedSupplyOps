@@ -9,16 +9,16 @@
 <div class="mso-page-heading d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">@L["效期預警"]</h1>
-        <p class="text-muted mb-0">基準日：@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
+        <p class="text-muted mb-0">@L["基準日："]@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
     </div>
     <form method="get" class="d-flex align-items-end gap-2">
         <div>
-            <label class="form-label mb-1" for="withinDays">N 天內到期</label>
+            <label class="form-label mb-1" for="withinDays">@L["N 天內到期"]</label>
             <input class="form-control" id="withinDays" name="withinDays" type="number" min="0" value="@Model.WithinDays" />
             <span class="text-danger" asp-validation-for="WithinDays"></span>
         </div>
         <div>
-            <label class="form-label mb-1" for="asOf">查詢基準日</label>
+            <label class="form-label mb-1" for="asOf">@L["查詢基準日"]</label>
             <input class="form-control" id="asOf" name="asOf" type="date" value="@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
         </div>
         <button class="btn btn-outline-primary" type="submit">@L["查詢"]</button>
@@ -27,26 +27,26 @@
 
 <section class="card mso-table-card" aria-labelledby="expiring-list-heading">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <h2 class="h5 mb-0" id="expiring-list-heading">近效期批次</h2>
-        <span class="badge mso-badge-warn">@Model.WithinDays 天內</span>
+        <h2 class="h5 mb-0" id="expiring-list-heading">@L["近效期批次"]</h2>
+        <span class="badge mso-badge-warn">@L["{0} 天內", Model.WithinDays]</span>
     </div>
 <div class="table-responsive mso-table-scroll">
     <table class="table align-middle mb-0 mso-data-table">
         <thead>
             <tr>
-                <th scope="col">料號</th>
-                <th scope="col">品名</th>
-                <th scope="col">批號</th>
-                <th scope="col">效期</th>
-                <th scope="col" class="text-end">數量</th>
-                <th scope="col">儲位</th>
+                <th scope="col">@L["料號"]</th>
+                <th scope="col">@L["品名"]</th>
+                <th scope="col">@L["批號"]</th>
+                <th scope="col">@L["效期"]</th>
+                <th scope="col" class="text-end">@L["數量"]</th>
+                <th scope="col">@L["儲位"]</th>
             </tr>
         </thead>
         <tbody>
             @if (Model.Lots.Count == 0)
             {
                 <tr>
-                    <td colspan="6" class="mso-empty-state text-center">此條件下沒有仍有數量的近效期批次。</td>
+                    <td colspan="6" class="mso-empty-state text-center">@L["此條件下沒有仍有數量的近效期批次。"]</td>
                 </tr>
             }
             @foreach (var lot in Model.Lots)

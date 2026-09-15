@@ -27,7 +27,7 @@
 <body class="@(useSidebarNavigation ? "mso-sidebar-layout" : "mso-top-navigation-layout")">
 @if (useSidebarNavigation)
 {
-    <div class="mso-app-shell">
+    <div class="mso-app-shell @(sidebarState == "hidden" ? "mso-app-shell-hidden" : null)">
         @await Component.InvokeAsync("SidebarNavigation", new { state = sidebarState })
         <div class="mso-app-content">
             <main role="main" class="mso-main @(sidebarState == "hidden" ? "mso-main-wide" : null)">
@@ -43,11 +43,14 @@ else
         <nav class="navbar navbar-expand-lg navbar-dark mso-navbar">
             <div class="container-xxl mso-shell">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
-                <span class="mso-navbar-subtitle">@L["醫材耗材請領與庫存管理"]</span>
+                @if (User.Identity?.IsAuthenticated != true)
+                {
+                    <span class="mso-navbar-subtitle">@L["醫材耗材請領與庫存管理"]</span>
+                }
                 @if (User.Identity?.IsAuthenticated == true)
                 {
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                            aria-expanded="false" aria-label="切換導覽">
+                            aria-expanded="false" aria-label="@L["切換導覽"]">
                         <span class="navbar-toggler-icon"></span>
                     </button>
                     <div class="navbar-collapse collapse d-lg-flex justify-content-between">

@@ -6,7 +6,7 @@
 <div class="mso-page mso-form-page">
 <div class="mso-page-heading mb-4">
     <h1 class="h2 mb-1">@L["編輯品項"]</h1>
-    <p class="text-muted mb-0">更新品項名稱、規格與安全存量。</p>
+    <p class="text-muted mb-0">@L["更新品項名稱、規格與安全存量。"]</p>
 </div>
 
 <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
@@ -18,7 +18,7 @@
         <div class="col-md-6">
             <label asp-for="Code" class="form-label"></label>
             <input asp-for="Code" class="form-control" readonly aria-readonly="true" />
-            <div class="form-text">料號建立後不可修改。</div>
+            <div class="form-text">@L["料號建立後不可修改。"]</div>
         </div>
         <div class="col-md-6">
             <label asp-for="Name" class="form-label"></label>
@@ -33,7 +33,7 @@
         <div class="col-md-6">
             <label asp-for="UnitOfMeasure" class="form-label"></label>
             <input asp-for="UnitOfMeasure" class="form-control" readonly aria-readonly="true" />
-            <div class="form-text">計量單位建立後不可修改；建錯時請停用並建立新品項。</div>
+            <div class="form-text">@L["計量單位建立後不可修改；建錯時請停用並建立新品項。"]</div>
         </div>
         <div class="col-md-6">
             <label asp-for="SafetyStockQty" class="form-label"></label>

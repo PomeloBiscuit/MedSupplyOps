@@ -21,7 +21,7 @@
 @if (isHidden)
 {
     <header class="mso-compact-header">
-        <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="開啟導覽">
+        <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="@L["開啟導覽"]">
             <partial name="_NavigationIcon" model='"menu"' />
             <span>@L["導覽"]</span>
         </button>
@@ -31,7 +31,7 @@
     <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label">
         <div class="offcanvas-header">
             <span class="offcanvas-title" id="mso-navigation-offcanvas-label">MedSupplyOps</span>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="關閉"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="@L["關閉"]"></button>
         </div>
         <div class="offcanvas-body d-flex flex-column">
             @if (Model.HasRole)
@@ -73,7 +73,7 @@ else
     <aside class="mso-sidebar @(isCompact ? "mso-sidebar-compact" : "mso-sidebar-expanded")" data-sidebar-state="@Model.State" data-sidebar-width="@(isCompact ? "64" : "248")">
         <div class="mso-sidebar-brand-row">
             <a class="mso-sidebar-brand" asp-controller="Home" asp-action="Index">@(isCompact ? "MS" : "MedSupplyOps")</a>
-            <button class="btn mso-sidebar-toggle" type="button" data-mso-sidebar-toggle aria-expanded="@(isCompact ? "false" : "true")" aria-label="@(isCompact ? "展開側欄" : "收合側欄")" title="@(isCompact ? "展開側欄" : "收合側欄")">
+            <button class="btn mso-sidebar-toggle" type="button" data-mso-sidebar-toggle aria-expanded="@(isCompact ? "false" : "true")" aria-label="@(isCompact ? L["展開側欄"] : L["收合側欄"])" title="@(isCompact ? L["展開側欄"] : L["收合側欄"])">
                 <partial name="_NavigationIcon" model="toggleIcon" />
             </button>
         </div>

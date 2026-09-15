@@ -31,7 +31,7 @@
     <div class="mb-3">
         <label asp-for="DepartmentId" class="form-label"></label>
         <select asp-for="DepartmentId" class="form-select">
-            <option value="0">請選擇科室</option>
+            <option value="0">@L["請選擇科室"]</option>
             @foreach (var department in Model.Departments)
             {
                 <option value="@department.Id">@department.Name</option>

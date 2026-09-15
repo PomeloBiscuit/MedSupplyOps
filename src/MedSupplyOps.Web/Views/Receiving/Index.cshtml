@@ -6,7 +6,7 @@
 <div class="mso-page mso-form-page">
 <div class="mso-page-heading mb-4">
     <h1 class="h2 mb-1">@L["入庫"]</h1>
-    <p class="text-muted mb-0">批號與儲位會自動去除首尾空白並轉成大寫。</p>
+    <p class="text-muted mb-0">@L["批號與儲位會自動去除首尾空白並轉成大寫。"]</p>
 </div>
 
 @if (TempData["SuccessMessage"] is string successMessage)
@@ -23,7 +23,7 @@
         <div class="col-12">
             <label asp-for="ItemId" class="form-label"></label>
             <select asp-for="ItemId" class="form-select">
-                <option value="0">請選擇品項</option>
+                <option value="0">@L["請選擇品項"]</option>
                 @foreach (var item in Model.Items)
                 {
                     <option value="@item.Id">@item.Code @item.Name（@item.UnitOfMeasure）</option>

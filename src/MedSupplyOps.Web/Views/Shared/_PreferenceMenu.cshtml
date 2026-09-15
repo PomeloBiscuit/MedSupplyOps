@@ -69,8 +69,10 @@
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@(Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString)" />
             <select class="form-select form-select-sm" name="timeZone" aria-labelledby="@prefix-time-zone-label" onchange="this.form.submit()">
-                <option value="Asia/Taipei" selected="@(DisplayTimeZone.Id == "Asia/Taipei")">UTC+08:00 @L["台北"]</option>
-                <option value="UTC" selected="@(DisplayTimeZone.Id == "UTC")">UTC</option>
+                @foreach (var timeZoneId in DisplayTimeZone.SupportedIds)
+                {
+                    <option value="@timeZoneId" selected="@(DisplayTimeZone.Id == timeZoneId)">@DisplayTimeZone.OffsetPrefix(timeZoneId)@L[DisplayTimeZone.CityKey(timeZoneId)]</option>
+                }
             </select>
         </form>
         <p class="small text-muted mt-2 mb-0">@L["資料一律以 UTC 儲存；清單與稽核時間依此時區顯示。"]</p>

@@ -143,17 +143,27 @@
             {
                 var displayTime = DisplayTimeZone.ConvertFromUtc(entry.OccurredAtUtc);
                 var timeText = displayTime.ToString("MM-dd HH:mm");
+                // ★ AuditFeedItemViewModel.TargetText 把「請領單」這個可翻譯的標籤直接串進資料字串
+                //   （當時的改動範圍不含 Web/Models）。
+                //   這裡只在畫面端把已知前綴拆開重新翻譯，不去動 Model 產生資料的方式。
+                const string requisitionLabelPrefix = "請領單 ";
+                var isRequisitionTarget = entry.TargetText.StartsWith(requisitionLabelPrefix, StringComparison.Ordinal);
+                var targetDisplay = isRequisitionTarget ? entry.TargetText[requisitionLabelPrefix.Length..] : entry.TargetText;
                 <li class="list-group-item dashboard-audit-item d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <span class="text-body-secondary font-monospace" style="min-width: 5.5rem;">@timeText</span>
                     <span class="dashboard-audit-content flex-grow-1">
                         <strong>@entry.ActorDisplay</strong> @L[entry.ActionText]@L["動作完成助詞"]
+                        @if (isRequisitionTarget)
+                        {
+                            @L["請領單"]<text> </text>
+                        }
                         @if (entry.TargetRequisitionId is { } requisitionId)
                         {
-                            <a asp-controller="Requisitions" asp-action="Details" asp-route-id="@requisitionId">@entry.TargetText</a>
+                            <a asp-controller="Requisitions" asp-action="Details" asp-route-id="@requisitionId">@targetDisplay</a>
                         }
                         else
                         {
-                            @entry.TargetText
+                            @targetDisplay
                         }
                     </span>
                 </li>
