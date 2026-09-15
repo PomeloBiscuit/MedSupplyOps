@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 
 namespace MedSupplyOps.Web.Controllers;
@@ -22,17 +23,20 @@ public sealed class AccountController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly MedSupplyOpsDbContext _dbContext;
     private readonly PasswordOptions _passwordOptions;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
     public AccountController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         MedSupplyOpsDbContext dbContext,
-        IOptions<IdentityOptions> identityOptions)
+        IOptions<IdentityOptions> identityOptions,
+        IStringLocalizer<SharedResource> localizer)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _dbContext = dbContext;
         _passwordOptions = identityOptions.Value.Password;
+        _localizer = localizer;
     }
 
     [AcceptVerbs("GET", "HEAD")]
@@ -67,11 +71,11 @@ public sealed class AccountController : Controller
 
         if (result.IsLockedOut)
         {
-            ModelState.AddModelError(string.Empty, "登入失敗次數過多，帳號已被暫時鎖定，請稍後再試。");
+            ModelState.AddModelError(string.Empty, _localizer["登入失敗次數過多，帳號已被暫時鎖定，請稍後再試。"]);
             return View(model);
         }
 
-        ModelState.AddModelError(string.Empty, "帳號或密碼不正確。");
+        ModelState.AddModelError(string.Empty, _localizer["帳號或密碼不正確。"]);
         return View(model);
     }
 
@@ -95,7 +99,7 @@ public sealed class AccountController : Controller
                 cancellationToken);
         if (!departmentExists)
         {
-            ModelState.AddModelError(nameof(model.DepartmentId), "選擇的科室不存在或已停用。");
+            ModelState.AddModelError(nameof(model.DepartmentId), _localizer["選擇的科室不存在或已停用。"]);
         }
 
         if (!ModelState.IsValid)
@@ -164,9 +168,9 @@ public sealed class AccountController : Controller
             ? await _dbContext.Departments.AsNoTracking()
                 .Where(department => department.Id == departmentId && !department.IsDeleted)
                 .Select(department => department.Name)
-                .SingleOrDefaultAsync(cancellationToken) ?? "未指定"
-            : "未指定";
-        var displayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email ?? user.UserName ?? "使用者" : user.DisplayName;
+                .SingleOrDefaultAsync(cancellationToken) ?? _localizer["未指定"]
+            : _localizer["未指定"];
+        var displayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email ?? user.UserName ?? _localizer["使用者"] : user.DisplayName;
 
         return View(new ProfileViewModel(
             displayName,
@@ -250,30 +254,30 @@ public sealed class AccountController : Controller
         {
             var message = error.Code switch
             {
-                "PasswordMismatch" => "目前密碼不正確，密碼未變更。",
-                "PasswordTooShort" => $"新密碼必須至少 {_passwordOptions.RequiredLength} 個字元。",
-                "PasswordRequiresUniqueChars" => $"新密碼必須至少包含 {_passwordOptions.RequiredUniqueChars} 個不同字元。",
-                "PasswordRequiresNonAlphanumeric" => "新密碼必須至少包含一個符號。",
-                "PasswordRequiresDigit" => "新密碼必須至少包含一個數字。",
-                "PasswordRequiresLower" => "新密碼必須至少包含一個小寫英文字母。",
-                "PasswordRequiresUpper" => "新密碼必須至少包含一個大寫英文字母。",
-                _ => "密碼無法更新，請確認輸入後再試。",
+                "PasswordMismatch" => _localizer["目前密碼不正確，密碼未變更。"],
+                "PasswordTooShort" => _localizer["新密碼必須至少 {0} 個字元。", _passwordOptions.RequiredLength],
+                "PasswordRequiresUniqueChars" => _localizer["新密碼必須至少包含 {0} 個不同字元。", _passwordOptions.RequiredUniqueChars],
+                "PasswordRequiresNonAlphanumeric" => _localizer["新密碼必須至少包含一個符號。"],
+                "PasswordRequiresDigit" => _localizer["新密碼必須至少包含一個數字。"],
+                "PasswordRequiresLower" => _localizer["新密碼必須至少包含一個小寫英文字母。"],
+                "PasswordRequiresUpper" => _localizer["新密碼必須至少包含一個大寫英文字母。"],
+                _ => _localizer["密碼無法更新，請確認輸入後再試。"],
             };
             ModelState.AddModelError(string.Empty, message);
         }
     }
 
-    private static string DisplayRoles(IEnumerable<string> roles)
+    private string DisplayRoles(IEnumerable<string> roles)
     {
         var displayNames = roles.Select(role => role switch
         {
-            ApplicationRoles.Administrator => "管理員",
-            ApplicationRoles.Storekeeper => "庫管員",
-            ApplicationRoles.Requester => "請領人",
+            ApplicationRoles.Administrator => _localizer["管理員"].Value,
+            ApplicationRoles.Storekeeper => _localizer["庫管員"].Value,
+            ApplicationRoles.Requester => _localizer["請領人"].Value,
             _ => role,
         }).ToList();
 
-        return displayNames.Count == 0 ? "未指派角色" : string.Join("、", displayNames);
+        return displayNames.Count == 0 ? _localizer["未指派角色"] : string.Join(_localizer["清單分隔符"], displayNames);
     }
 
     private async Task PopulateDepartmentsAsync(RegisterViewModel model, CancellationToken cancellationToken)

@@ -1,21 +1,21 @@
 @using MedSupplyOps.Domain.Requisitions
-@using MedSupplyOps.Infrastructure.Time
+@using MedSupplyOps.Web.Localization
 @using MedSupplyOps.Web.Models.Requisitions
 @model RequisitionIndexViewModel
-@inject BusinessCalendar BusinessCalendar
+@inject DisplayTimeZone DisplayTimeZone
 @{
-    ViewData["Title"] = "請領單";
+    ViewData["Title"] = L["請領單"];
 }
 
 <div class="mso-page">
 <div class="mso-page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">請領單</h1>
+        <h1 class="h2 mb-1">@L["請領單"]</h1>
         <p class="text-muted mb-0">依狀態、科室與建立日期查詢請領單。</p>
     </div>
     @if (User.IsInRole("Requester") || User.IsInRole("Administrator"))
     {
-        <a class="btn btn-primary" asp-action="Create">建立請領單</a>
+        <a class="btn btn-primary" asp-action="Create">@L["建立請領單"]</a>
     }
 </div>
 
@@ -24,26 +24,26 @@
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
     <div class="row g-3 align-items-end">
         <div class="col-md-3">
-            <label class="form-label" for="status">狀態</label>
+            <label class="form-label" for="status">@L["狀態"]</label>
             <select class="form-select" id="status" name="status">
-                <option value="">全部</option>
+                <option value="">@L["全部"]</option>
                 @foreach (var value in Enum.GetValues<RequisitionStatus>())
                 {
                     if (Model.Status == value)
                     {
-                        <option value="@value" selected>@RequisitionStatusText.Get(value)</option>
+                        <option value="@value" selected>@L[RequisitionStatusText.Get(value)]</option>
                     }
                     else
                     {
-                        <option value="@value">@RequisitionStatusText.Get(value)</option>
+                        <option value="@value">@L[RequisitionStatusText.Get(value)]</option>
                     }
                 }
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label" for="departmentId">科室</label>
+            <label class="form-label" for="departmentId">@L["科室"]</label>
             <select class="form-select" id="departmentId" name="departmentId">
-                <option value="">全部</option>
+                <option value="">@L["全部"]</option>
                 @foreach (var department in Model.Departments)
                 {
                     if (Model.DepartmentId == department.Id)
@@ -66,8 +66,8 @@
             <input class="form-control" id="createdTo" name="createdTo" type="date" value="@Model.CreatedTo?.ToString("yyyy-MM-dd")" />
         </div>
         <div class="col-md-2 d-flex gap-2">
-            <button class="btn btn-outline-primary" type="submit">篩選</button>
-            <a class="btn btn-outline-secondary" asp-action="Index">清除</a>
+            <button class="btn btn-outline-primary" type="submit">@L["篩選"]</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">@L["清除"]</a>
         </div>
     </div>
 </form>
@@ -82,11 +82,11 @@
     <table class="table table-striped align-middle mb-0 mso-data-table">
         <thead>
             <tr>
-                <th scope="col">單號</th>
-                <th scope="col">科室</th>
-                <th scope="col">狀態</th>
-                <th scope="col">建立時間（UTC）</th>
-                <th scope="col" class="text-end">明細筆數</th>
+                <th scope="col">@L["單號"]</th>
+                <th scope="col">@L["科室"]</th>
+                <th scope="col">@L["狀態"]</th>
+                <th scope="col">@L["建立時間"]（@DisplayTimeZone.Id）</th>
+                <th scope="col" class="text-end">@L["明細筆數"]</th>
                 <th scope="col"><span class="visually-hidden">操作</span></th>
             </tr>
         </thead>
@@ -102,10 +102,10 @@
                     <tr>
                         <td><a asp-action="Details" asp-route-id="@requisition.Id">@requisition.RequisitionNo</a></td>
                         <td>@requisition.DepartmentName</td>
-                        <td><span class="badge @(requisition.Status == RequisitionStatus.Issued ? "mso-badge-ok" : requisition.Status == RequisitionStatus.Rejected ? "mso-badge-bad" : requisition.Status == RequisitionStatus.Draft || requisition.Status == RequisitionStatus.Closed ? "mso-badge-idle" : "mso-badge-warn")">@RequisitionStatusText.Get(requisition.Status)</span></td>
-                        <td>@BusinessCalendar.ToBusinessTime(requisition.CreatedAt).ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td><span class="badge @(requisition.Status == RequisitionStatus.Issued ? "mso-badge-ok" : requisition.Status == RequisitionStatus.Rejected ? "mso-badge-bad" : requisition.Status == RequisitionStatus.Draft || requisition.Status == RequisitionStatus.Closed ? "mso-badge-idle" : "mso-badge-warn")">@L[RequisitionStatusText.Get(requisition.Status)]</span></td>
+                        <td>@DisplayTimeZone.Format(requisition.CreatedAt)</td>
                         <td class="text-end">@requisition.LineCount</td>
-                        <td><a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@requisition.Id">詳情</a></td>
+                        <td><a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@requisition.Id">@L["詳情"]</a></td>
                     </tr>
                 }
             }

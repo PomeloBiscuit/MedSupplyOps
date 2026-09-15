@@ -1,6 +1,59 @@
 (() => {
   "use strict";
 
+  function createLatestRequestCoordinator() {
+    let requestSequence = 0;
+    const activeRequests = new WeakMap();
+
+    return {
+      begin(target) {
+        activeRequests.get(target)?.controller.abort();
+        const request = { sequence: ++requestSequence, controller: new AbortController() };
+        activeRequests.set(target, request);
+        return request;
+      },
+      cancel(target) {
+        activeRequests.get(target)?.controller.abort();
+        activeRequests.delete(target);
+      },
+      isCurrent(target, request) {
+        return activeRequests.get(target) === request && !request.controller.signal.aborted;
+      },
+    };
+  }
+
+  function format(templateText, ...values) {
+    return values.reduce((text, value, index) => text.replaceAll(`{${index}}`, value), templateText);
+  }
+
+  function createAvailabilityPresentation(available, quantity, expiry, texts) {
+    if (Number.isNaN(available)) {
+      return { kind: "unselected", text: texts.unselected, isInsufficient: false };
+    }
+
+    if (!Number.isNaN(quantity) && quantity > available) {
+      return {
+        kind: "insufficient",
+        text: format(texts.insufficient, quantity, available),
+        isInsufficient: true,
+      };
+    }
+
+    return {
+      kind: "available",
+      text: format(texts.available, available, expiry || texts.noLot),
+      isInsufficient: false,
+    };
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { createLatestRequestCoordinator, createAvailabilityPresentation };
+  }
+
+  if (typeof document === "undefined") {
+    return;
+  }
+
   const form = document.querySelector("#requisition-create-form");
   const lines = document.querySelector("#requisition-lines");
   const template = document.querySelector("#requisition-line-template");
@@ -13,6 +66,40 @@
 
   const asOf = form.querySelector("input[name='AsOf']").value;
   const apiTemplate = form.dataset.apiTemplate;
+  const latestRequest = createLatestRequestCoordinator();
+
+  function renderAvailability(row) {
+    const output = row.querySelector(".availability-output");
+    const available = Number.parseInt(row.dataset.availableQuantity ?? "", 10);
+    const quantity = Number.parseInt(row.querySelector(".quantity-input").value, 10);
+    const presentation = createAvailabilityPresentation(
+      available,
+      quantity,
+      row.dataset.earliestExpiry,
+      {
+        unselected: form.dataset.textUnselected,
+        insufficient: form.dataset.textInsufficient,
+        available: form.dataset.textAvailable,
+        noLot: form.dataset.textNoLot,
+      });
+
+    output.classList.remove("text-muted", "text-success", "text-danger", "fw-semibold");
+    output.textContent = presentation.text;
+    if (presentation.kind === "unselected") {
+      output.classList.add("text-muted");
+      delete output.dataset.insufficient;
+      return;
+    }
+
+    if (presentation.isInsufficient) {
+      output.classList.add("text-danger", "fw-semibold");
+      output.dataset.insufficient = "true";
+      return;
+    }
+
+    output.classList.add("text-success");
+    delete output.dataset.insufficient;
+  }
 
   function showClientError(message) {
     validationMessage.textContent = message;
@@ -36,25 +123,51 @@
   }
 
   async function updateAvailability(select) {
-    const output = select.closest(".requisition-line").querySelector(".availability-output");
+    const row = select.closest(".requisition-line");
+    const output = row.querySelector(".availability-output");
     if (!select.value || select.value === "0") {
-      output.textContent = "尚未選擇品項。";
+      latestRequest.cancel(select);
+      delete row.dataset.availableQuantity;
+      delete row.dataset.earliestExpiry;
+      renderAvailability(row);
       return;
     }
 
-    output.textContent = "查詢中…";
-    const url = `${apiTemplate.replace("{itemId}", encodeURIComponent(select.value))}?asOf=${encodeURIComponent(asOf)}`;
+    const requestedItemId = select.value;
+    const request = latestRequest.begin(select);
+    delete row.dataset.availableQuantity;
+    delete row.dataset.earliestExpiry;
+    output.classList.remove("text-success", "text-danger", "fw-semibold");
+    output.classList.add("text-muted");
+    output.textContent = form.dataset.textLoading;
+    const url = `${apiTemplate.replace("{itemId}", encodeURIComponent(requestedItemId))}?asOf=${encodeURIComponent(asOf)}`;
     try {
-      const response = await fetch(url, { headers: { Accept: "application/json" } });
+      const response = await fetch(url, {
+        headers: { Accept: "application/json" },
+        signal: request.controller.signal,
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
       const availability = await response.json();
-      const expiry = availability.earliestUsableExpiry ?? "無可用批次";
-      output.textContent = `可用量 ${availability.availableQuantity}；最早效期 ${expiry}`;
-    } catch {
-      output.textContent = "可用量查詢失敗，請稍後重試。";
+      if (!latestRequest.isCurrent(select, request) || select.value !== requestedItemId) {
+        return;
+      }
+
+      row.dataset.availableQuantity = availability.availableQuantity.toString();
+      row.dataset.earliestExpiry = availability.earliestUsableExpiry ?? "";
+      renderAvailability(row);
+    } catch (error) {
+      if (error.name === "AbortError" || !latestRequest.isCurrent(select, request)) {
+        return;
+      }
+
+      delete row.dataset.availableQuantity;
+      delete row.dataset.earliestExpiry;
+      output.classList.remove("text-success", "text-danger", "fw-semibold");
+      output.classList.add("text-muted");
+      output.textContent = form.dataset.textQueryFailed;
     }
   }
 
@@ -81,12 +194,18 @@
     }
   });
 
+  lines.addEventListener("input", (event) => {
+    if (event.target.matches(".quantity-input")) {
+      renderAvailability(event.target.closest(".requisition-line"));
+    }
+  });
+
   form.addEventListener("submit", (event) => {
     clearClientError();
     const rows = [...lines.querySelectorAll(".requisition-line")];
     if (rows.length === 0) {
       event.preventDefault();
-      showClientError("請領單至少需要一筆明細。");
+      showClientError(form.dataset.textNoLines);
       return;
     }
 
@@ -95,7 +214,7 @@
       .filter((itemId) => itemId && itemId !== "0");
     if (new Set(selectedItemIds).size !== selectedItemIds.length) {
       event.preventDefault();
-      showClientError("同一張請領單不可重複加入相同品項。");
+      showClientError(form.dataset.textDuplicate);
     }
   });
 

@@ -19,8 +19,17 @@ public sealed class OperationsDashboardViewModel
 
     public int ExpiredInStockCount { get; init; }
 
+    public IReadOnlyList<ApprovedIssueQueueItemViewModel> ApprovedIssueQueue { get; init; } = [];
+
     public IReadOnlyList<AuditFeedItemViewModel> RecentAudit { get; init; } = [];
 }
+
+public sealed record ApprovedIssueQueueItemViewModel(
+    long Id,
+    string RequisitionNo,
+    string DepartmentName,
+    int LineCount,
+    DateTime ApprovedAtUtc);
 
 /// <summary>請領人（限自己科室）看到的儀表板。</summary>
 public sealed class RequesterDashboardViewModel

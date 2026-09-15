@@ -1,14 +1,14 @@
 @using System.Globalization
 @model MedSupplyOps.Web.Models.Inventory.InventoryIndexViewModel
 @{
-    ViewData["Title"] = "庫存查詢";
+    ViewData["Title"] = L["庫存查詢"];
     var dateFormat = CultureInfo.GetCultureInfo("zh-TW");
 }
 
 <div class="mso-page">
 <div class="mso-page-heading d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">庫存查詢</h1>
+        <h1 class="h2 mb-1">@L["庫存查詢"]</h1>
         <p class="text-muted mb-0">基準日：@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
     </div>
     <form method="get" class="d-flex align-items-end gap-2">
@@ -16,13 +16,13 @@
             <label class="form-label mb-1" for="asOf">查詢基準日</label>
             <input class="form-control" id="asOf" name="asOf" type="date" value="@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
         </div>
-        <button class="btn btn-outline-primary" type="submit">更新</button>
+        <button class="btn btn-outline-primary" type="submit">@L["更新"]</button>
     </form>
 </div>
 
 <section class="card mso-feature-card mb-4" aria-labelledby="availability-heading">
     <div class="card-body">
-        <h2 class="h5" id="availability-heading">即時可用量查詢</h2>
+        <h2 class="h5" id="availability-heading">@L["即時可用量查詢"]</h2>
         <p class="text-muted">選取品項後，會在不重新整理整頁的情況下讀取即時可用量與最早可用效期。</p>
         <div class="row g-3 align-items-end">
             <div class="col-md-6">
@@ -103,11 +103,11 @@
                                                 <td>
                                                     @if (lot.IsAvailable)
                                                     {
-                                                        <span class="badge mso-badge-ok">可用</span>
+                                                        <span class="badge mso-badge-ok">@L["可用"]</span>
                                                     }
                                                     else
                                                     {
-                                                        <span class="badge mso-badge-bad">不可用</span>
+                                                        <span class="badge mso-badge-bad">@L["不可用"]</span>
                                                         @if (isExpired)
                                                         {
                                                             <span class="ms-1">已過期</span>

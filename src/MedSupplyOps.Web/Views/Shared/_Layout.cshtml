@@ -15,7 +15,7 @@
         string.Equals(Context.Request.Cookies["mso-navigation-layout"], "sidebar", StringComparison.Ordinal);
 }
 <!DOCTYPE html>
-<html lang="zh-Hant" data-bs-theme="@bootstrapTheme" data-mso-theme="@themePreference" data-density="@densityPreference" data-mso-navigation="@(useSidebarNavigation ? "sidebar" : "top")" data-mso-sidebar-state="@sidebarState">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name" data-bs-theme="@bootstrapTheme" data-mso-theme="@themePreference" data-density="@densityPreference" data-mso-navigation="@(useSidebarNavigation ? "sidebar" : "top")" data-mso-sidebar-state="@sidebarState">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -43,7 +43,7 @@ else
         <nav class="navbar navbar-expand-lg navbar-dark mso-navbar">
             <div class="container-xxl mso-shell">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
-                <span class="mso-navbar-subtitle">醫材耗材請領與庫存管理</span>
+                <span class="mso-navbar-subtitle">@L["醫材耗材請領與庫存管理"]</span>
                 @if (User.Identity?.IsAuthenticated == true)
                 {
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
@@ -53,27 +53,27 @@ else
                     <div class="navbar-collapse collapse d-lg-flex justify-content-between">
                         <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">首頁</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">@L["首頁"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Inventory" asp-action="Index">庫存查詢</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Inventory" asp-action="Index">@L["庫存查詢"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Inventory" asp-action="Expiring">效期預警</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Inventory" asp-action="Expiring">@L["效期預警"]</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Requisitions" asp-action="Index">請領單</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Requisitions" asp-action="Index">@L["請領單"]</a>
                         </li>
                         @if (canManageItems)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Items" asp-action="Index">品項管理</a>
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Items" asp-action="Index">@L["品項管理"]</a>
                             </li>
                         }
                         @if (canReceiveStock)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Receiving" asp-action="Index">入庫</a>
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Receiving" asp-action="Index">@L["入庫"]</a>
                             </li>
                         }
                         </ul>
@@ -82,7 +82,7 @@ else
                                 <span class="mso-user-name">@User.Identity.Name</span>
                             </li>
                             <li class="nav-item dropdown">
-                                <button class="btn mso-settings-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="設定" title="設定">⚙</button>
+                                <button class="btn mso-settings-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="@L["設定"]" title="@L["設定"]">⚙</button>
                                 <div class="dropdown-menu dropdown-menu-end mso-preference-dropdown">
                                     <partial name="_PreferenceMenu" />
                                 </div>
@@ -106,7 +106,7 @@ else
     <div class="modal fade" id="mso-account-modal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" data-mso-account-modal-dialog>
             <div class="modal-content">
-                <div class="modal-body text-center text-muted py-5" role="status">載入中…</div>
+                <div class="modal-body text-center text-muted py-5" role="status">@L["載入中…"]</div>
             </div>
         </div>
     </div>
