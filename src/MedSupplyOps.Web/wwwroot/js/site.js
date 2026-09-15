@@ -15,9 +15,25 @@ function cycleMsoSidebar() {
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-bs-toggle='tooltip']").forEach((element) => new bootstrap.Tooltip(element));
   document.querySelectorAll("[data-mso-sidebar-toggle]").forEach((button) => button.addEventListener("click", cycleMsoSidebar));
-  document.querySelectorAll("[data-mso-navigation-toggle]").forEach((button) => button.addEventListener("click", () => {
-    setMsoPreference("mso-navigation-layout", "top");
+  document.querySelectorAll("[data-mso-preference]").forEach((input) => input.addEventListener("change", () => {
+    if (!input.checked) return;
+    setMsoPreference(input.dataset.msoPreference, input.value);
     window.location.reload();
+  }));
+  document.querySelectorAll("[data-mso-contrast]").forEach((input) => input.addEventListener("change", () => {
+    setMsoPreference("mso-theme", input.checked ? "contrast" : "light");
+    window.location.reload();
+  }));
+  document.querySelectorAll("[data-mso-demo-close]").forEach((button) => button.addEventListener("click", () => {
+    button.closest("[data-mso-demo-card]")?.setAttribute("hidden", "");
+  }));
+  document.querySelectorAll("[data-mso-fill-email]").forEach((button) => button.addEventListener("click", () => {
+    const email = document.getElementById("Email");
+    if (!(email instanceof HTMLInputElement)) return;
+    email.value = button.value;
+    email.dispatchEvent(new Event("input", { bubbles: true }));
+    email.dispatchEvent(new Event("change", { bubbles: true }));
+    email.focus();
   }));
 });
 

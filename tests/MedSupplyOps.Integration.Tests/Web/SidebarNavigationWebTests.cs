@@ -142,6 +142,105 @@ public sealed partial class SidebarNavigationWebTests
         _output.WriteLine($"T5 authenticated footer: {Fragment(authenticatedHtml, warning)}");
     }
 
+    [Fact]
+    public async Task Login_page_has_a_clean_navigation_and_email_only_demo_fill_controls()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var html = await GetHtmlAsync(client, "/Account/Login");
+
+        Assert.Contains("醫材耗材請領與庫存管理", html, StringComparison.Ordinal);
+        foreach (var functionName in new[] { "首頁", "庫存查詢", "效期預警", "請領單", "品項管理", "入庫" })
+        {
+            Assert.DoesNotContain(functionName, html, StringComparison.Ordinal);
+        }
+
+        Assert.Equal(3, Regex.Count(html, "data-mso-fill-email"));
+        Assert.Contains("value=\"requester@example.local\"", html, StringComparison.Ordinal);
+        Assert.Contains("value=\"keeper@example.local\"", html, StringComparison.Ordinal);
+        Assert.Contains("value=\"admin@example.local\"", html, StringComparison.Ordinal);
+        Assert.Equal(1, Regex.Count(html, "Demo#2026pass"));
+        Assert.DoesNotMatch("(?:value|data-[^=]*)=\"[^\"]*Demo#2026pass", html);
+        Assert.Contains("忘記密碼請聯絡系統管理員。", html, StringComparison.Ordinal);
+        _output.WriteLine($"T1 login header: {Fragment(html, "醫材耗材請領與庫存管理")}");
+        _output.WriteLine($"T1 demo card: {Fragment(html, "data-mso-fill-email")}");
+    }
+
+    [Theory]
+    [InlineData("light", "light")]
+    [InlineData("dark", "dark")]
+    [InlineData("contrast", "light")]
+    public async Task Theme_cookie_is_emitted_by_razor_on_the_first_response(string preference, string bootstrapTheme)
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", $"mso-theme={preference}");
+
+        var html = await GetHtmlAsync(client, "/Account/Login");
+
+        Assert.Contains($"data-bs-theme=\"{bootstrapTheme}\"", html, StringComparison.Ordinal);
+        Assert.Contains($"data-mso-theme=\"{preference}\"", html, StringComparison.Ordinal);
+        Assert.Contains("data-density=\"comfortable\"", html, StringComparison.Ordinal);
+        _output.WriteLine($"T3 {preference}: {Fragment(html, $"data-mso-theme=\"{preference}\"")}");
+    }
+
+    [Fact]
+    public async Task Dark_theme_renders_every_in_scope_page_without_a_server_error()
+    {
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.OpenAsync();
+        var requisitionNo = "U2-DARK-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
+        var departmentId = await connection.ExecuteScalarAsync<long>(
+            "SELECT department_id FROM departments WHERE department_code = 'DEP-ER' AND is_deleted = 0");
+        long requisitionId = 0;
+        try
+        {
+            await connection.ExecuteAsync(
+                "INSERT INTO requisitions (requisition_no, department_id, status, created_by) VALUES (:no, :departmentId, 'Draft', 'itest-u2')",
+                new { no = requisitionNo, departmentId });
+            requisitionId = await connection.ExecuteScalarAsync<long>(
+                "SELECT requisition_id FROM requisitions WHERE requisition_no = :no", new { no = requisitionNo });
+
+            using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.AdministratorEmail);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", "mso-theme=dark");
+            var pages = new[]
+            {
+                "/",
+                "/Inventory",
+                "/Inventory/Expiring",
+                "/Items",
+                "/Items/Create",
+                "/Receiving",
+                "/Requisitions",
+                "/Requisitions/Create",
+                $"/Requisitions/Details/{requisitionId}",
+                "/Home/Error",
+                "/Account/Login",
+                "/Account/Register",
+                "/Account/AccessDenied",
+            };
+
+            foreach (var path in pages)
+            {
+                var response = await client.GetAsync(path);
+                Assert.True(response.StatusCode == HttpStatusCode.OK, $"{path}: expected 200 but received {(int)response.StatusCode}.");
+                var html = await response.Content.ReadAsStringAsync();
+                Assert.Contains("data-bs-theme=\"dark\"", html, StringComparison.Ordinal);
+                Assert.Contains("data-mso-theme=\"dark\"", html, StringComparison.Ordinal);
+                Assert.DoesNotContain("An unhandled exception", html, StringComparison.Ordinal);
+            }
+
+            _output.WriteLine($"T5 dark pages: {string.Join(", ", pages)}（13/13 HTTP 200）");
+        }
+        finally
+        {
+            if (requisitionId != 0)
+            {
+                await connection.ExecuteAsync("DELETE FROM requisitions WHERE requisition_id = :requisitionId", new { requisitionId });
+                await connection.ExecuteAsync("COMMIT");
+            }
+        }
+    }
+
     private HttpClient CreateSidebarClient(string state)
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

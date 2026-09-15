@@ -483,6 +483,173 @@ a:hover {
   max-width: none;
 }
 
+/* 登入示範帳號改為可關閉的提示卡，帳號列與填入動作保持可掃讀。 */
+.mso-demo-account-card { margin: 0 0 1.5rem; padding: 1rem; background: var(--mso-surface-muted); border: 1px solid var(--mso-border); border-radius: var(--mso-radius-lg); }
+
+/* 提示卡內每個角色帳號維持獨立列，避免長 email 推擠填入按鈕。 */
+.mso-demo-account-list { display: grid; gap: .5rem; }
+.mso-demo-account-row { display: flex; align-items: center; gap: .75rem; padding: .5rem .625rem; background: var(--mso-surface); border: 1px solid var(--mso-border); border-radius: var(--mso-radius-md); }
+.mso-demo-account-row > span { display: grid; min-width: 0; flex: 1; }
+.mso-demo-account-row strong { color: var(--mso-text-muted); font-size: .8125rem; }
+.mso-demo-account-row code { overflow: hidden; color: var(--mso-text); text-overflow: ellipsis; white-space: nowrap; }
+.mso-demo-account-password { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--mso-border); color: var(--mso-text-muted); font-size: .8125rem; }
+
+/* 未登入導覽只保留產品與副標；登入後才顯示角色導覽。 */
+.mso-navbar-subtitle { padding-left: 1.25rem; border-left: 1px solid rgb(255 255 255 / 22%); color: rgb(255 255 255 / 70%); font-size: 13px; }
+
+/* 齒輪以獨立且足夠大的命中區呈現，與深色導覽列保有可見邊界。 */
+.mso-settings-toggle { display: grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 1px solid rgb(255 255 255 / 28%); border-radius: var(--mso-radius-md); color: #fff; font-size: 17px; line-height: 1; }
+.mso-settings-toggle:hover, .mso-settings-toggle:focus { color: #fff; background: rgb(255 255 255 / 12%); }
+
+/* 設定下拉選單保留畫板指定的 end 對齊、足夠寬度與可捲動內文。 */
+.mso-preference-dropdown, .mso-user-dropdown { width: min(22rem, calc(100vw - 2rem)); max-height: min(80vh, 42rem); overflow-y: auto; padding: .5rem 0; border-color: var(--mso-border-strong); border-radius: var(--mso-radius-lg); box-shadow: 0 12px 30px rgb(16 23 31 / 18%); }
+.mso-preference-section { padding: .75rem 1rem; }
+.mso-preference-label { margin-bottom: .5rem; color: var(--mso-text-muted); font-size: .75rem; font-weight: 700; letter-spacing: .04em; }
+.mso-preference-button-group { display: flex; width: 100%; }
+.mso-preference-button-group .btn { flex: 1; padding-right: .375rem; padding-left: .375rem; font-size: .8125rem; }
+.mso-preference-button-group .btn-check:checked + .btn { color: var(--mso-text-strong); background: var(--mso-surface); border-color: var(--mso-border-strong); box-shadow: 0 1px 2px rgb(16 23 31 / 12%); }
+.mso-preference-switch { display: flex; align-items: center; justify-content: space-between; margin: .75rem 0 0; padding-top: .75rem; border-top: 1px solid var(--mso-border); }
+.mso-preference-switch .form-check-input { float: none; margin: 0 0 0 .75rem; order: 2; }
+.mso-preference-menu .dropdown-item { white-space: normal; }
+.mso-preference-menu .dropdown-item:disabled { color: var(--mso-text-muted); opacity: .78; }
+.mso-language-current { display: flex; justify-content: space-between; color: var(--mso-primary) !important; background: var(--mso-surface-muted); font-weight: 600; }
+
+/* 緊湊密度只縮減表格資料列與表頭內距，不改動欄位、排序或任何業務行為。 */
+html[data-density="compact"] .mso-data-table thead th,
+html[data-density="compact"] .dashboard-table thead th { padding-top: .5rem; padding-bottom: .5rem; }
+html[data-density="compact"] .mso-data-table tbody td,
+html[data-density="compact"] .dashboard-audit-item { padding-top: .5rem; padding-bottom: .5rem; }
+
+/* 暗色模式覆寫專案與 Bootstrap 色票，讓既有 card、table、form 與 alert 同時切換。 */
+html[data-mso-theme="dark"] {
+  color-scheme: dark;
+  --mso-navy: #16202b;
+  --mso-primary: #84bff0;
+  --mso-primary-hover: #b5daf7;
+  --mso-text: #c2ccd7;
+  --mso-text-strong: #f2f6fa;
+  --mso-text-muted: #9aa7b5;
+  --mso-page: #0f151c;
+  --mso-surface: #16202b;
+  --mso-surface-muted: #202b38;
+  --mso-surface-subtle: #202b38;
+  --mso-border: #263140;
+  --mso-border-strong: #2f3b4a;
+  --mso-success: #84d9a8;
+  --mso-success-bg: #13301f;
+  --mso-success-border: #1f4a32;
+  --mso-warning: #e8c268;
+  --mso-warning-bg: #33280d;
+  --mso-warning-border: #665219;
+  --mso-danger: #f1a09a;
+  --mso-danger-bg: #3a1614;
+  --mso-danger-border: #6b2925;
+  --bs-body-color: #c2ccd7;
+  --bs-body-bg: #0f151c;
+  --bs-emphasis-color: #f2f6fa;
+  --bs-secondary-color: #9aa7b5;
+  --bs-secondary-bg: #202b38;
+  --bs-tertiary-bg: #16202b;
+  --bs-border-color: #263140;
+  --bs-link-color: #84bff0;
+  --bs-link-hover-color: #b5daf7;
+  --bs-card-bg: #16202b;
+  --bs-card-border-color: #263140;
+  --bs-table-color: #c2ccd7;
+  --bs-table-bg: #16202b;
+  --bs-table-striped-bg: #202b38;
+  --bs-table-striped-color: #c2ccd7;
+  --bs-table-border-color: #263140;
+  --bs-form-control-color: #f2f6fa;
+  --bs-form-control-bg: #16202b;
+  --bs-form-control-border-color: #2f3b4a;
+  --bs-form-select-color: #f2f6fa;
+  --bs-form-select-bg: #16202b;
+  --bs-form-select-border-color: #2f3b4a;
+}
+
+/* 跟隨系統的暗色支線純由 CSS media query 套變數，不需 JS 判斷而不會換頁閃爍。 */
+@media (prefers-color-scheme: dark) {
+  html[data-mso-theme="system"] {
+    color-scheme: dark;
+    --mso-navy: #16202b; --mso-primary: #84bff0; --mso-primary-hover: #b5daf7; --mso-text: #c2ccd7; --mso-text-strong: #f2f6fa; --mso-text-muted: #9aa7b5;
+    --mso-page: #0f151c; --mso-surface: #16202b; --mso-surface-muted: #202b38; --mso-surface-subtle: #202b38; --mso-border: #263140; --mso-border-strong: #2f3b4a;
+    --mso-success: #84d9a8; --mso-success-bg: #13301f; --mso-success-border: #1f4a32; --mso-warning: #e8c268; --mso-warning-bg: #33280d; --mso-warning-border: #665219; --mso-danger: #f1a09a; --mso-danger-bg: #3a1614; --mso-danger-border: #6b2925;
+    --bs-body-color: #c2ccd7; --bs-body-bg: #0f151c; --bs-emphasis-color: #f2f6fa; --bs-secondary-color: #9aa7b5; --bs-secondary-bg: #202b38; --bs-tertiary-bg: #16202b; --bs-border-color: #263140; --bs-link-color: #84bff0; --bs-link-hover-color: #b5daf7; --bs-card-bg: #16202b; --bs-card-border-color: #263140; --bs-table-color: #c2ccd7; --bs-table-bg: #16202b; --bs-table-striped-bg: #202b38; --bs-table-striped-color: #c2ccd7; --bs-table-border-color: #263140; --bs-form-control-color: #f2f6fa; --bs-form-control-bg: #16202b; --bs-form-control-border-color: #2f3b4a; --bs-form-select-color: #f2f6fa; --bs-form-select-bg: #16202b; --bs-form-select-border-color: #2f3b4a;
+  }
+}
+
+/* 暗色與跟隨系統的共用細節：原本寫死的淡色表頭與輸出框需同步回到深色表面。 */
+html[data-mso-theme="dark"] .dashboard-table thead th,
+html[data-mso-theme="dark"] .mso-data-table thead th,
+html[data-mso-theme="dark"] .card-header,
+html[data-mso-theme="dark"] .mso-footer,
+html[data-mso-theme="dark"] .dropdown-menu,
+html[data-mso-theme="dark"] .offcanvas,
+html[data-mso-theme="dark"] .form-control,
+html[data-mso-theme="dark"] .form-select { color: var(--mso-text); background-color: var(--mso-surface); }
+html[data-mso-theme="dark"] .dashboard-audit-item,
+html[data-mso-theme="dark"] .mso-detail-list dt,
+html[data-mso-theme="dark"] .mso-detail-list dd { border-color: var(--mso-border); }
+html[data-mso-theme="dark"] .btn-outline-secondary { --bs-btn-color: var(--mso-text); --bs-btn-border-color: var(--mso-border-strong); --bs-btn-hover-bg: var(--mso-surface-muted); --bs-btn-hover-border-color: var(--mso-border-strong); --bs-btn-active-bg: var(--mso-surface-muted); --bs-btn-active-border-color: var(--mso-border-strong); }
+html[data-mso-theme="dark"] .dashboard-kpi-dot-warning { background: var(--mso-warning); }
+html[data-mso-theme="dark"] .dashboard-kpi-dot-success { background: var(--mso-success); }
+html[data-mso-theme="dark"] .dashboard-kpi-dot-danger { background: var(--mso-danger); }
+html[data-mso-theme="dark"] .dashboard-kpi-dot-muted { background: var(--mso-text-muted); }
+html[data-mso-theme="dark"] .alert-success { --bs-alert-color: var(--mso-success); --bs-alert-bg: var(--mso-success-bg); --bs-alert-border-color: var(--mso-success-border); }
+html[data-mso-theme="dark"] .alert-warning { --bs-alert-color: var(--mso-warning); --bs-alert-bg: var(--mso-warning-bg); --bs-alert-border-color: var(--mso-warning-border); }
+html[data-mso-theme="dark"] .alert-danger { --bs-alert-color: var(--mso-danger); --bs-alert-bg: var(--mso-danger-bg); --bs-alert-border-color: var(--mso-danger-border); }
+html[data-mso-theme="dark"] .text-success { color: var(--mso-success) !important; }
+html[data-mso-theme="dark"] .text-warning { color: var(--mso-warning) !important; }
+html[data-mso-theme="dark"] .text-danger { color: var(--mso-danger) !important; }
+
+/* 跟隨系統進入暗色時也覆蓋既有硬編碼的表頭、語意點與 Bootstrap alert。 */
+@media (prefers-color-scheme: dark) {
+  html[data-mso-theme="system"] .dashboard-table thead th,
+  html[data-mso-theme="system"] .mso-data-table thead th,
+  html[data-mso-theme="system"] .card-header,
+  html[data-mso-theme="system"] .mso-footer,
+  html[data-mso-theme="system"] .dropdown-menu,
+  html[data-mso-theme="system"] .offcanvas,
+  html[data-mso-theme="system"] .form-control,
+  html[data-mso-theme="system"] .form-select { color: var(--mso-text); background-color: var(--mso-surface); }
+  html[data-mso-theme="system"] .dashboard-audit-item,
+  html[data-mso-theme="system"] .mso-detail-list dt,
+  html[data-mso-theme="system"] .mso-detail-list dd { border-color: var(--mso-border); }
+  html[data-mso-theme="system"] .btn-outline-secondary { --bs-btn-color: var(--mso-text); --bs-btn-border-color: var(--mso-border-strong); --bs-btn-hover-bg: var(--mso-surface-muted); --bs-btn-hover-border-color: var(--mso-border-strong); --bs-btn-active-bg: var(--mso-surface-muted); --bs-btn-active-border-color: var(--mso-border-strong); }
+  html[data-mso-theme="system"] .dashboard-kpi-dot-warning { background: var(--mso-warning); }
+  html[data-mso-theme="system"] .dashboard-kpi-dot-success { background: var(--mso-success); }
+  html[data-mso-theme="system"] .dashboard-kpi-dot-danger { background: var(--mso-danger); }
+  html[data-mso-theme="system"] .dashboard-kpi-dot-muted { background: var(--mso-text-muted); }
+  html[data-mso-theme="system"] .alert-success { --bs-alert-color: var(--mso-success); --bs-alert-bg: var(--mso-success-bg); --bs-alert-border-color: var(--mso-success-border); }
+  html[data-mso-theme="system"] .alert-warning { --bs-alert-color: var(--mso-warning); --bs-alert-bg: var(--mso-warning-bg); --bs-alert-border-color: var(--mso-warning-border); }
+  html[data-mso-theme="system"] .alert-danger { --bs-alert-color: var(--mso-danger); --bs-alert-bg: var(--mso-danger-bg); --bs-alert-border-color: var(--mso-danger-border); }
+  html[data-mso-theme="system"] .text-success { color: var(--mso-success) !important; }
+  html[data-mso-theme="system"] .text-warning { color: var(--mso-warning) !important; }
+  html[data-mso-theme="system"] .text-danger { color: var(--mso-danger) !important; }
+}
+
+/* 高對比採明亮底與近黑文字，所有互動與語意色至少達 AAA 7:1。 */
+html[data-mso-theme="contrast"] {
+  color-scheme: light;
+  --mso-navy: #000000; --mso-primary: #003d8f; --mso-primary-hover: #002b66; --mso-text: #111111; --mso-text-strong: #000000; --mso-text-muted: #303030;
+  --mso-page: #ffffff; --mso-surface: #ffffff; --mso-surface-muted: #f2f2f2; --mso-surface-subtle: #e5e5e5; --mso-border: #4a4a4a; --mso-border-strong: #1a1a1a;
+  --mso-success: #005a27; --mso-success-bg: #ffffff; --mso-success-border: #005a27; --mso-warning: #624d00; --mso-warning-bg: #ffffff; --mso-warning-border: #624d00; --mso-danger: #a20000; --mso-danger-bg: #ffffff; --mso-danger-border: #a20000;
+  --bs-body-color: #111111; --bs-body-bg: #ffffff; --bs-emphasis-color: #000000; --bs-secondary-color: #303030; --bs-secondary-bg: #f2f2f2; --bs-tertiary-bg: #e5e5e5; --bs-border-color: #4a4a4a; --bs-link-color: #003d8f; --bs-link-hover-color: #002b66;
+}
+
+/* 高對比不以低透明度或淡灰邊界傳達狀態，避免強光下遺失結構。 */
+html[data-mso-theme="contrast"] .card,
+html[data-mso-theme="contrast"] .mso-table-card,
+html[data-mso-theme="contrast"] .mso-filter-card .card { box-shadow: none; border-width: 2px; }
+html[data-mso-theme="contrast"] :focus-visible { outline-color: #003d8f; outline-width: 4px; }
+html[data-mso-theme="contrast"] .btn-outline-secondary { --bs-btn-color: #111111; --bs-btn-border-color: #1a1a1a; --bs-btn-hover-bg: #111111; --bs-btn-hover-border-color: #111111; --bs-btn-active-bg: #111111; --bs-btn-active-border-color: #111111; }
+html[data-mso-theme="contrast"] .btn-success { --bs-btn-bg: #005a27; --bs-btn-border-color: #005a27; --bs-btn-hover-bg: #00451e; --bs-btn-hover-border-color: #00451e; --bs-btn-active-bg: #00451e; --bs-btn-active-border-color: #00451e; }
+html[data-mso-theme="contrast"] .btn-danger { --bs-btn-bg: #a20000; --bs-btn-border-color: #a20000; --bs-btn-hover-bg: #7f0000; --bs-btn-hover-border-color: #7f0000; --bs-btn-active-bg: #7f0000; --bs-btn-active-border-color: #7f0000; }
+html[data-mso-theme="contrast"] .text-success { color: #005a27 !important; }
+html[data-mso-theme="contrast"] .text-warning { color: #624d00 !important; }
+html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
+
 /* 平板容許寬表格水平捲動，並固定表頭與識別欄的可讀最低寬度。 */
 @media (max-width: 991.98px) {
   .mso-table-scroll {

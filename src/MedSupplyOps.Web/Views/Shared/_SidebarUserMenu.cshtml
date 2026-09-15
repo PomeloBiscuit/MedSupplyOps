@@ -10,17 +10,14 @@
         <div class="mso-user-dropdown-heading"><span class="mso-user-initial">@Model.Initial</span><span><strong>@Model.DisplayName</strong><small>@Model.RoleName</small></span></div>
         @if (Model.HasRole)
         {
-            <button class="dropdown-item" type="button" data-mso-navigation-toggle>切換導覽版面</button>
-            <button class="dropdown-item" type="button" disabled>個人資料</button>
-            <button class="dropdown-item" type="button" disabled>變更密碼</button>
-            <button class="dropdown-item" type="button" disabled>版面風格</button>
-            <button class="dropdown-item" type="button" disabled>語言</button>
-            <button class="dropdown-item" type="button" disabled>時區</button>
-            <div class="dropdown-divider"></div>
+            <partial name="_PreferenceMenu" />
         }
-        <form asp-controller="Account" asp-action="Logout" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="dropdown-item mso-logout">登出</button>
-        </form>
+        else
+        {
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="dropdown-item mso-logout">登出</button>
+            </form>
+        }
     </div>
 </div>
