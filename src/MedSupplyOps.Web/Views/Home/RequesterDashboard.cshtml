@@ -1,19 +1,19 @@
 @using System.Globalization
 @using MedSupplyOps.Domain.Requisitions
-@using MedSupplyOps.Infrastructure.Time
+@using MedSupplyOps.Web.Localization
 @using MedSupplyOps.Web.Models.Home
 @using MedSupplyOps.Web.Models.Requisitions
 @model RequesterDashboardViewModel
-@inject BusinessCalendar BusinessCalendar
+@inject DisplayTimeZone DisplayTimeZone
 @{
-    ViewData["Title"] = "首頁";
+    ViewData["Title"] = L["首頁"];
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <h1 class="mb-0 fs-3 fw-semibold">我的儀表板</h1>
+    <h1 class="mb-0 fs-3 fw-semibold">@L["我的儀表板"]</h1>
     @if (Model.CanCreateRequisition)
     {
-        <a class="btn btn-primary" asp-controller="Requisitions" asp-action="Create">建立請領單</a>
+        <a class="btn btn-primary" asp-controller="Requisitions" asp-action="Create">@L["建立請領單"]</a>
     }
 </div>
 
@@ -24,7 +24,7 @@
                 <div class="card-body p-3 p-md-4">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="dashboard-kpi-dot dashboard-kpi-dot-warning"></span>
-                    <span class="fw-semibold">審核中</span>
+                    <span class="fw-semibold">@L["審核中"]</span>
                 </div>
                 <div class="d-flex align-items-baseline gap-2">
                     <span class="dashboard-kpi-number" data-testid="pending-approval-count">@Model.PendingApprovalCount</span>
@@ -40,7 +40,7 @@
                 <div class="card-body p-3 p-md-4">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="dashboard-kpi-dot dashboard-kpi-dot-success"></span>
-                    <span class="fw-semibold">待發料</span>
+                    <span class="fw-semibold">@L["待發料"]</span>
                 </div>
                 <div class="d-flex align-items-baseline gap-2">
                     <span class="dashboard-kpi-number" data-testid="approved-awaiting-issue-count">@Model.ApprovedAwaitingIssueCount</span>
@@ -55,7 +55,7 @@
             <div class="card-body p-3 p-md-4">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="dashboard-kpi-dot dashboard-kpi-dot-muted"></span>
-                    <span class="fw-semibold">本月已發料</span>
+                    <span class="fw-semibold">@L["本月已發料"]</span>
                 </div>
                 <div class="d-flex align-items-baseline gap-2">
                     <span class="dashboard-kpi-number" data-testid="issued-this-month-count">@Model.IssuedThisMonthCount</span>
@@ -67,21 +67,21 @@
 </div>
 
 <div class="card">
-    <div class="card-header">我科室最近的請領單</div>
+    <div class="card-header">@L["我科室最近的請領單"]</div>
     <div class="table-responsive">
         <table class="table table-striped align-middle mb-0 dashboard-table" data-testid="recent-requisitions-table">
             <thead>
                 <tr>
-                    <th scope="col">單號</th>
-                    <th scope="col">建立日期</th>
-                    <th scope="col" class="text-end">品項數</th>
-                    <th scope="col">狀態</th>
+                    <th scope="col">@L["單號"]</th>
+                    <th scope="col">@L["建立日期"]（@DisplayTimeZone.Id）</th>
+                    <th scope="col" class="text-end">@L["品項數"]</th>
+                    <th scope="col">@L["狀態"]</th>
                 </tr>
             </thead>
             <tbody>
                 @if (Model.RecentRequisitions.Count == 0)
                 {
-                    <tr><td colspan="4" class="text-center text-muted py-4">目前沒有請領單。</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-4">@L["目前沒有請領單。"]</td></tr>
                 }
                 else
                 {
@@ -89,10 +89,10 @@
                     {
                         <tr>
                             <td><a asp-controller="Requisitions" asp-action="Details" asp-route-id="@requisition.Id">@requisition.RequisitionNo</a></td>
-                            <td>@BusinessCalendar.ToBusinessTime(requisition.CreatedAt).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</td>
+                            <td>@DisplayTimeZone.Format(requisition.CreatedAt, "yyyy-MM-dd")</td>
                             <td class="text-end dashboard-number-cell">@requisition.LineCount</td>
                             <td>
-                                <span class="badge @RequisitionStatusText.GetBadgeClass(requisition.Status)">@RequisitionStatusText.Get(requisition.Status)</span>
+                                <span class="badge @RequisitionStatusText.GetBadgeClass(requisition.Status)">@L[RequisitionStatusText.Get(requisition.Status)]</span>
                                 @if (requisition.Status == RequisitionStatus.Rejected && !string.IsNullOrWhiteSpace(requisition.RejectionReason))
                                 {
                                     <div class="text-muted small mt-1" data-testid="rejection-reason">駁回原因：@requisition.RejectionReason</div>

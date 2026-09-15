@@ -11,10 +11,10 @@
     var toggleIcon = isCompact ? "expand" : "collapse";
     var navItems = new[]
     {
-        new { Name = "首頁", Controller = "Home", Action = "Index", Icon = "home", Badge = (int?)null },
-        new { Name = "庫存查詢", Controller = "Inventory", Action = "Index", Icon = "inventory", Badge = (int?)null },
-        new { Name = "效期預警", Controller = "Inventory", Action = "Expiring", Icon = "expiry", Badge = Model.ExpiringLotCount > 0 ? (int?)Model.ExpiringLotCount : null },
-        new { Name = "請領單", Controller = "Requisitions", Action = "Index", Icon = "requisition", Badge = Model.PendingRequisitionCount > 0 ? (int?)Model.PendingRequisitionCount : null },
+        new { Name = L["首頁"].Value, Controller = "Home", Action = "Index", Icon = "home", Badge = (int?)null },
+        new { Name = L["庫存查詢"].Value, Controller = "Inventory", Action = "Index", Icon = "inventory", Badge = (int?)null },
+        new { Name = L["效期預警"].Value, Controller = "Inventory", Action = "Expiring", Icon = "expiry", Badge = Model.ExpiringLotCount > 0 ? (int?)Model.ExpiringLotCount : null },
+        new { Name = L["請領單"].Value, Controller = "Requisitions", Action = "Index", Icon = "requisition", Badge = Model.PendingRequisitionCount > 0 ? (int?)Model.PendingRequisitionCount : null },
     };
 }
 
@@ -23,7 +23,7 @@
     <header class="mso-compact-header">
         <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="開啟導覽">
             <partial name="_NavigationIcon" model='"menu"' />
-            <span>導覽</span>
+            <span>@L["導覽"]</span>
         </button>
         <a class="mso-compact-brand" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
         <partial name="_SidebarUserMenu" model="Model" />
@@ -36,8 +36,8 @@
         <div class="offcanvas-body d-flex flex-column">
             @if (Model.HasRole)
             {
-                <nav aria-label="主要導覽">
-                    <div class="mso-sidebar-group-title">作業</div>
+                <nav aria-label="@L["主要導覽"]">
+                    <div class="mso-sidebar-group-title">@L["作業"]</div>
                     <div class="mso-sidebar-links">
                         @foreach (var item in navItems)
                         {
@@ -54,12 +54,12 @@
                         @if (isAdministrator)
                         {
                             var isCurrent = controller == "Items" && action == "Index";
-                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"items"' /><span>品項管理</span></a>
+                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"items"' /><span>@L["品項管理"]</span></a>
                         }
                         @if (canReceiveStock)
                         {
                             var isCurrent = controller == "Receiving" && action == "Index";
-                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"receive"' /><span>入庫</span></a>
+                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"receive"' /><span>@L["入庫"]</span></a>
                         }
                     </div>
                 </nav>
@@ -79,10 +79,10 @@ else
         </div>
         @if (Model.HasRole)
         {
-            <nav aria-label="主要導覽">
+            <nav aria-label="@L["主要導覽"]">
                 @if (!isCompact)
                 {
-                    <div class="mso-sidebar-group-title">作業</div>
+                    <div class="mso-sidebar-group-title">@L["作業"]</div>
                 }
                 <div class="mso-sidebar-links">
                     @foreach (var item in navItems)
@@ -100,12 +100,12 @@ else
                     @if (isAdministrator)
                     {
                         var isCurrent = controller == "Items" && action == "Index";
-                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? "品項管理" : null)"><partial name="_NavigationIcon" model='"items"' />@if (!isCompact) { <span>品項管理</span> }</a>
+                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? L["品項管理"].Value : null)"><partial name="_NavigationIcon" model='"items"' />@if (!isCompact) { <span>@L["品項管理"]</span> }</a>
                     }
                     @if (canReceiveStock)
                     {
                         var isCurrent = controller == "Receiving" && action == "Index";
-                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? "入庫" : null)"><partial name="_NavigationIcon" model='"receive"' />@if (!isCompact) { <span>入庫</span> }</a>
+                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? L["入庫"].Value : null)"><partial name="_NavigationIcon" model='"receive"' />@if (!isCompact) { <span>@L["入庫"]</span> }</a>
                     }
                 </div>
             </nav>

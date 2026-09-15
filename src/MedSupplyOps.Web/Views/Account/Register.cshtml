@@ -1,14 +1,14 @@
 @using MedSupplyOps.Web.Models.Account
 @model RegisterViewModel
 @{
-    ViewData["Title"] = "註冊";
+    ViewData["Title"] = L["註冊"];
 }
 
 <div class="mso-auth-page">
 <section class="card mso-auth-card" aria-labelledby="register-heading">
     <div class="mso-auth-brand">MedSupplyOps</div>
 <div class="mb-4">
-    <h1 class="h2 mb-1" id="register-heading">註冊</h1>
+    <h1 class="h2 mb-1" id="register-heading">@L["註冊"]</h1>
     <p class="text-muted mb-0">新帳號會以請領人身分加入所選科室。</p>
 </div>
 
@@ -53,8 +53,8 @@
     </div>
 
     <div class="d-flex gap-2">
-        <button class="btn btn-primary" type="submit">註冊</button>
-        <a class="btn btn-outline-secondary" asp-action="Login">已經有帳號？登入</a>
+        <button class="btn btn-primary" type="submit">@L["註冊"]</button>
+        <a class="btn btn-outline-secondary" asp-action="Login">@L["已經有帳號？登入"]</a>
     </div>
 </form>
 </section>

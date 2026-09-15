@@ -1,11 +1,11 @@
 @model MedSupplyOps.Web.Models.Receiving.ReceivingViewModel
 @{
-    ViewData["Title"] = "入庫";
+    ViewData["Title"] = L["入庫"];
 }
 
 <div class="mso-page mso-form-page">
 <div class="mso-page-heading mb-4">
-    <h1 class="h2 mb-1">入庫</h1>
+    <h1 class="h2 mb-1">@L["入庫"]</h1>
     <p class="text-muted mb-0">批號與儲位會自動去除首尾空白並轉成大寫。</p>
 </div>
 
@@ -54,7 +54,7 @@
     </div>
 
     <div class="mt-4">
-        <button class="btn btn-primary" type="submit">確認入庫</button>
+        <button class="btn btn-primary" type="submit">@L["確認入庫"]</button>
     </div>
 </form>
 </div>

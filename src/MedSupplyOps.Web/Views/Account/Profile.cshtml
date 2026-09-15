@@ -5,7 +5,7 @@
 }
 <div class="modal-content mso-account-dialog" data-mso-account-dialog-kind="profile">
     <div class="modal-header">
-        <h2 class="modal-title fs-5">個人資料</h2>
+        <h2 class="modal-title fs-5">@L["個人資料"]</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
     </div>
     <div class="modal-body">
@@ -17,14 +17,14 @@
             </div>
         </div>
         <dl class="mso-profile-fields">
-            <div><dt>姓名</dt><dd>@Model.DisplayName</dd></div>
-            <div><dt>Email（帳號）</dt><dd class="font-monospace">@Model.Email</dd></div>
-            <div><dt>角色</dt><dd>@Model.RoleName</dd></div>
-            <div><dt>所屬科室</dt><dd>@Model.DepartmentName</dd></div>
+            <div><dt>@L["姓名"]</dt><dd>@Model.DisplayName</dd></div>
+            <div><dt>@L["Email（帳號）"]</dt><dd class="font-monospace">@Model.Email</dd></div>
+            <div><dt>@L["角色"]</dt><dd>@Model.RoleName</dd></div>
+            <div><dt>@L["所屬科室"]</dt><dd>@Model.DepartmentName</dd></div>
         </dl>
         <p class="mso-profile-note mb-0">個人資料為唯讀；如需修改請聯絡系統管理員。</p>
     </div>
     <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@L["關閉"]</button>
     </div>
 </div>

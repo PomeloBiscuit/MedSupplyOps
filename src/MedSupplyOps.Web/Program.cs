@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence;
@@ -8,8 +9,10 @@ using MedSupplyOps.Web;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Fhir;
 using MedSupplyOps.Web.Identity;
+using MedSupplyOps.Web.Localization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,19 +52,38 @@ builder.Services
         // 參考型別自動補英文 Required。尤其 Edit 的 allow-list POST 故意不綁定唯讀欄位，
         // 隱含 Required 會把這種合法請求誤判成無效。
         options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
-        var messages = options.ModelBindingMessageProvider;
-        messages.SetAttemptedValueIsInvalidAccessor((value, fieldName) => $"「{value}」不是有效的 {fieldName}。");
-        messages.SetMissingBindRequiredValueAccessor(fieldName => $"{fieldName} 為必填。");
-        messages.SetMissingKeyOrValueAccessor(() => "此欄位為必填。");
-        messages.SetMissingRequestBodyRequiredValueAccessor(() => "要求本文不可為空白。");
-        messages.SetNonPropertyAttemptedValueIsInvalidAccessor(value => $"「{value}」不是有效的值。");
-        messages.SetNonPropertyUnknownValueIsInvalidAccessor(() => "提供的值無效。");
-        messages.SetUnknownValueIsInvalidAccessor(fieldName => $"提供的值對 {fieldName} 無效。");
-        messages.SetValueIsInvalidAccessor(value => $"「{value}」不是有效的值。");
-        messages.SetValueMustBeANumberAccessor(fieldName => $"{fieldName} 必須是數字。");
-        messages.SetValueMustNotBeNullAccessor(fieldName => $"{fieldName} 為必填。");
     })
+    .AddViewLocalization()
+    .AddDataAnnotationsLocalization(options =>
+        options.DataAnnotationLocalizerProvider = (_, factory) => factory.Create(typeof(SharedResource)))
     .AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
+
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.AddOptions<Microsoft.AspNetCore.Mvc.MvcOptions>()
+    .Configure<Microsoft.Extensions.Localization.IStringLocalizer<SharedResource>>((options, localizer) =>
+    {
+        // 這些委派在每次要求的文化已決定後才執行，因此同一組 model binding
+        // 訊息會跟著文化 cookie 切換；zh-Hant 的 key 本身仍是既有中文訊息。
+        var messages = options.ModelBindingMessageProvider;
+        messages.SetAttemptedValueIsInvalidAccessor((value, fieldName) => localizer["「{0}」不是有效的 {1}。", value, fieldName]);
+        messages.SetMissingBindRequiredValueAccessor(fieldName => localizer["{0} 為必填。", fieldName]);
+        messages.SetMissingKeyOrValueAccessor(() => localizer["此欄位為必填。"]);
+        messages.SetMissingRequestBodyRequiredValueAccessor(() => localizer["要求本文不可為空白。"]);
+        messages.SetNonPropertyAttemptedValueIsInvalidAccessor(value => localizer["「{0}」不是有效的值。", value]);
+        messages.SetNonPropertyUnknownValueIsInvalidAccessor(() => localizer["提供的值無效。"]);
+        messages.SetUnknownValueIsInvalidAccessor(fieldName => localizer["提供的值對 {0} 無效。", fieldName]);
+        messages.SetValueIsInvalidAccessor(value => localizer["「{0}」不是有效的值。", value]);
+        messages.SetValueMustBeANumberAccessor(fieldName => localizer["{0} 必須是數字。", fieldName]);
+        messages.SetValueMustNotBeNullAccessor(fieldName => localizer["{0} 為必填。", fieldName]);
+    });
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[] { new CultureInfo("zh-Hant"), new CultureInfo("en") };
+    options.DefaultRequestCulture = new RequestCulture("zh-Hant");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+    options.RequestCultureProviders = [new CookieRequestCultureProvider()];
+});
 
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder()
@@ -140,6 +162,7 @@ if (string.IsNullOrWhiteSpace(medSupplyConnection))
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+builder.Services.AddScoped<DisplayTimeZone>();
 
 builder.Services.AddDbContext<MedSupplyOpsDbContext>(options =>
     options.UseOracle(medSupplyConnection));
@@ -268,6 +291,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRequestLocalization();
 app.UseRouting();
 
 app.UseAuthentication();

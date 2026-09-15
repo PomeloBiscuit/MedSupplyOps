@@ -1,7 +1,7 @@
 @using MedSupplyOps.Web.Models.Requisitions
-@using MedSupplyOps.Infrastructure.Time
+@using MedSupplyOps.Web.Localization
 @model RequisitionDetailsViewModel
-@inject BusinessCalendar BusinessCalendar
+@inject DisplayTimeZone DisplayTimeZone
 @{
     ViewData["Title"] = $"請領單 {Model.RequisitionNo}";
 }
@@ -19,20 +19,20 @@
 <div class="mso-page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">@Model.RequisitionNo</h1>
-        <p class="text-muted mb-0">目前狀態：<span class="badge @(Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Issued ? "mso-badge-ok" : Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Rejected ? "mso-badge-bad" : Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Draft || Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Closed ? "mso-badge-idle" : "mso-badge-warn")">@RequisitionStatusText.Get(Model.Status)</span></p>
+        <p class="text-muted mb-0">@L["目前狀態："]<span class="badge @(Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Issued ? "mso-badge-ok" : Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Rejected ? "mso-badge-bad" : Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Draft || Model.Status == MedSupplyOps.Domain.Requisitions.RequisitionStatus.Closed ? "mso-badge-idle" : "mso-badge-warn")">@L[RequisitionStatusText.Get(Model.Status)]</span></p>
     </div>
-    <a class="btn btn-outline-secondary" asp-action="Index">返回列表</a>
+    <a class="btn btn-outline-secondary" asp-action="Index">@L["返回列表"]</a>
 </div>
 
 <dl class="row card card-body mx-0 mb-4 mso-detail-list">
     <dt class="col-sm-3">科室</dt>
     <dd class="col-sm-9">@Model.DepartmentName</dd>
     <dt class="col-sm-3">建立時間</dt>
-    <dd class="col-sm-9">@BusinessCalendar.ToBusinessTime(Model.CreatedAt).ToString("yyyy-MM-dd HH:mm:ss")</dd>
+    <dd class="col-sm-9">@DisplayTimeZone.Format(Model.CreatedAt)（@DisplayTimeZone.Id）</dd>
     <dt class="col-sm-3">送審時間</dt>
-    <dd class="col-sm-9">@(Model.SubmittedAt is DateTime submittedAt ? BusinessCalendar.ToBusinessTime(submittedAt).ToString("yyyy-MM-dd HH:mm:ss") : "—")</dd>
+    <dd class="col-sm-9">@(Model.SubmittedAt is DateTime submittedAt ? DisplayTimeZone.Format(submittedAt) : "—")</dd>
     <dt class="col-sm-3">核准時間</dt>
-    <dd class="col-sm-9">@(Model.ApprovedAt is DateTime approvedAt ? BusinessCalendar.ToBusinessTime(approvedAt).ToString("yyyy-MM-dd HH:mm:ss") : "—")</dd>
+    <dd class="col-sm-9">@(Model.ApprovedAt is DateTime approvedAt ? DisplayTimeZone.Format(approvedAt) : "—")</dd>
     @if (!string.IsNullOrWhiteSpace(Model.RejectionReason))
     {
         <dt class="col-sm-3">駁回原因</dt>
@@ -103,11 +103,11 @@
 
 @if (Model.CanIssue && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {
-    <section class="card card-body mb-4" aria-labelledby="issue-heading">
+    <section class="card card-body mb-4" aria-labelledby="issue-heading" id="issue-actions">
         <h2 class="h5" id="issue-heading">發料動作</h2>
         <form asp-action="Issue" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
-            <button class="btn btn-primary" type="submit">發料</button>
+            <button class="btn btn-primary" type="submit">@L["發料"]</button>
         </form>
     </section>
 }
@@ -118,7 +118,7 @@
         <h2 class="h5" id="retry-issue-heading">重新嘗試發料</h2>
         <form asp-action="Issue" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
-            <button class="btn btn-outline-primary" type="submit">重試發料</button>
+            <button class="btn btn-outline-primary" type="submit">@L["重試發料"]</button>
         </form>
     </section>
 }
@@ -131,7 +131,7 @@
             <form asp-action="Approve" asp-route-id="@Model.Id" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
-                <button class="btn btn-success" type="submit">核准</button>
+                <button class="btn btn-success" type="submit">@L["核准"]</button>
             </form>
             <form asp-action="Reject" asp-route-id="@Model.Id" method="post" class="row g-2 align-items-end">
                 @Html.AntiForgeryToken()
@@ -141,7 +141,7 @@
                     <textarea class="form-control" id="rejectionReason" name="rejectionReason" maxlength="500" required></textarea>
                 </div>
                 <div class="col-md-4">
-                    <button class="btn btn-danger" type="submit">駁回</button>
+                    <button class="btn btn-danger" type="submit">@L["駁回"]</button>
                 </div>
             </form>
         </div>

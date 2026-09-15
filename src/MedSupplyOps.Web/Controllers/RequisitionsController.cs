@@ -11,6 +11,7 @@ using MedSupplyOps.Web.Models.Requisitions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace MedSupplyOps.Web.Controllers;
 
@@ -23,6 +24,7 @@ public sealed class RequisitionsController : Controller
     private readonly ICurrentUser _currentUser;
     private readonly DepartmentScopeResolver _departmentScopeResolver;
     private readonly BusinessCalendar _businessCalendar;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
     public RequisitionsController(
         MedSupplyOpsDbContext dbContext,
@@ -30,7 +32,8 @@ public sealed class RequisitionsController : Controller
         StockIssueService stockIssueService,
         ICurrentUser currentUser,
         DepartmentScopeResolver departmentScopeResolver,
-        BusinessCalendar businessCalendar)
+        BusinessCalendar businessCalendar,
+        IStringLocalizer<SharedResource> localizer)
     {
         _dbContext = dbContext;
         _inventoryQueries = inventoryQueries;
@@ -38,6 +41,7 @@ public sealed class RequisitionsController : Controller
         _currentUser = currentUser;
         _departmentScopeResolver = departmentScopeResolver;
         _businessCalendar = businessCalendar;
+        _localizer = localizer;
     }
 
     [HttpGet]
@@ -51,7 +55,7 @@ public sealed class RequisitionsController : Controller
     {
         if (createdFrom.HasValue && createdTo.HasValue && createdFrom > createdTo)
         {
-            ModelState.AddModelError(nameof(createdTo), "建立日期的結束日不得早於開始日。");
+            ModelState.AddModelError(nameof(createdTo), _localizer["建立日期的結束日不得早於開始日。"]);
         }
 
         var departmentScope = await _departmentScopeResolver.ResolveAsync(User, _currentUser.Actor);
@@ -149,7 +153,7 @@ public sealed class RequisitionsController : Controller
 
         if (model.AsOf == default)
         {
-            ModelState.AddModelError(nameof(model.AsOf), "查詢基準日不正確，請重新載入頁面。");
+            ModelState.AddModelError(nameof(model.AsOf), _localizer["查詢基準日不正確，請重新載入頁面。"]);
         }
 
         if (!ModelState.IsValid)
@@ -164,7 +168,7 @@ public sealed class RequisitionsController : Controller
                 cancellationToken);
         if (!departmentExists)
         {
-            ModelState.AddModelError(nameof(model.DepartmentId), "選擇的科室不存在或已停用。");
+            ModelState.AddModelError(nameof(model.DepartmentId), _localizer["選擇的科室不存在或已停用。"]);
         }
 
         var requestedItemIds = model.Lines.Select(line => line.ItemId).Distinct().ToList();
@@ -172,7 +176,7 @@ public sealed class RequisitionsController : Controller
             .CountAsync(item => requestedItemIds.Contains(item.Id) && !item.IsDeleted, cancellationToken);
         if (validItemCount != requestedItemIds.Count)
         {
-            ModelState.AddModelError(nameof(model.Lines), "明細包含不存在或已停用的品項。");
+            ModelState.AddModelError(nameof(model.Lines), _localizer["明細包含不存在或已停用的品項。"]);
         }
 
         await PopulateCreateOptionsAsync(model, departmentScope, cancellationToken);
@@ -226,12 +230,12 @@ public sealed class RequisitionsController : Controller
         }
         catch (DbUpdateException exception) when (ContainsConstraint(exception, "UQ_REQ_LINES_ITEM"))
         {
-            ModelState.AddModelError(nameof(model.Lines), "同一張請領單不可重複加入相同品項，請刪除重複明細。");
+            ModelState.AddModelError(nameof(model.Lines), _localizer["同一張請領單不可重複加入相同品項，請刪除重複明細。"]);
             return View(model);
         }
         catch (DbUpdateException exception) when (ContainsConstraint(exception, "UQ_REQUISITIONS_NO"))
         {
-            ModelState.AddModelError(string.Empty, "單號產生衝突，請重新送出。");
+            ModelState.AddModelError(string.Empty, _localizer["單號產生衝突，請重新送出。"]);
             return View(model);
         }
 
