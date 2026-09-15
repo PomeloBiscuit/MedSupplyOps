@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedSupplyOps — 醫材耗材請領與庫存管理系統</title>
+<meta name="description" content="C# / ASP.NET Core MVC / Oracle。這份作品想回答的不是「用了哪些技術」，而是「你怎麼知道它是對的」。">
+<style>
+:root{
+  --ink:#10171f; --text:#2b3440; --muted:#5b6775; --line:#e2e7ec; --line-strong:#cfd6de;
+  --surface:#f4f6f8; --surface-2:#eef1f4; --bg:#ffffff;
+  --primary:#1b5e9c; --primary-dark:#123f6b;
+  --danger:#8f1d17; --warn:#7a5200; --ok:#1f6b45;
+  --radius:10px; --radius-sm:7px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none}
+a:hover{color:var(--primary-dark);text-decoration:underline}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface);padding:.12em .4em;border-radius:4px;color:var(--ink)}
+pre{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--ink);color:#e6edf3;padding:16px 18px;border-radius:var(--radius-sm);overflow-x:auto}
+pre code{background:none;color:inherit;padding:0}
+h2{font-size:26px;line-height:1.35;margin:0 0 6px;color:var(--ink);letter-spacing:-.01em}
+h3{font-size:17px;margin:28px 0 8px;color:var(--ink)}
+p{margin:0 0 14px}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px}
+nav.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:18px;height:56px;overflow-x:auto}
+nav.top strong{font-size:15px;color:var(--ink);white-space:nowrap}
+nav.top a{font-size:13px;color:var(--muted);white-space:nowrap}
+nav.top a:hover{color:var(--primary)}
+section{padding:54px 0;border-bottom:1px solid var(--line)}
+section.hero{padding:64px 0 48px}
+.lede{font-size:17px;color:var(--muted);margin:10px 0 0}
+.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:26px 0 0}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.fact b{display:block;font-size:28px;line-height:1.2;color:var(--ink);font-variant-numeric:tabular-nums}
+.fact span{font-size:12.5px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface);color:var(--ink);font-weight:600;font-size:13px;white-space:nowrap}
+.note{background:var(--surface);border-left:3px solid var(--primary);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:14px 16px;margin:16px 0;font-size:14.5px}
+.note.warn{border-left-color:var(--warn)}
+.quote{font-size:18px;line-height:1.6;color:var(--ink);border-left:3px solid var(--ink);padding-left:16px;margin:20px 0;font-weight:600}
+.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin:16px 0;text-align:center;overflow-x:auto}
+.btn{display:inline-block;background:var(--primary);color:#fff;padding:10px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:600}
+.btn:hover{background:var(--primary-dark);color:#fff;text-decoration:none}
+.btn.ghost{background:none;color:var(--primary);border:1px solid var(--line-strong)}
+.btn.ghost:hover{background:var(--surface);color:var(--primary-dark)}
+.tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.tag.partial{background:#fdf6e3;color:var(--warn);border-color:#e8d9a8}
+footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
+@media (max-width:700px){
+  body{font-size:14.5px} h2{font-size:22px} section{padding:40px 0}
+  th,td{padding:8px 9px;font-size:13.5px}
+}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <strong>MedSupplyOps</strong>
+  <a href="#verify">怎麼知道它是對的</a>
+  <a href="#probes">鑑別力探針</a>
+  <a href="#architecture">系統架構</a>
+  <a href="#data">資料庫</a>
+  <a href="#flow">核心流程</a>
+  <a href="#performance">效能</a>
+  <a href="#ops">可維運性</a>
+  <a href="#scope">範圍</a>
+</div></nav>
+
+<section class="hero"><div class="wrap">
+  <p class="kicker">C# · ASP.NET Core MVC · Oracle · Docker</p>
+  <h2 style="font-size:34px">醫材耗材的請領與庫存管理系統</h2>
+  <p class="lede">
+    虛構醫院的內部系統：護理站送出請領單，中央庫房審核、依效期先到期先出（FEFO）配批發料，
+    全程寫入只增不改不刪的稽核軌跡。
+  </p>
+  <p class="lede" style="margin-top:14px">
+    這份作品想回答的不是「用了哪些技術」，而是 —— <strong style="color:var(--ink)">你怎麼知道它是對的？</strong>
+  </p>
+  <div class="facts">
+    <div class="fact"><b>158</b><span>條測試，整合測試全部跑真實 Oracle</span></div>
+    <div class="fact"><b>12+5</b><span>支鑑別力探針（程式碼／資料庫層）</span></div>
+    <div class="fact"><b>6</b><span>道關卡，每次提交全跑</span></div>
+  </div>
+  <p style="margin-top:26px">
+    <a class="btn" href="https://github.com/PomeloBiscuit/MedSupplyOps">在 GitHub 看原始碼</a>
+    <a class="btn ghost" href="#verify">先看驗證方法</a>
+  </p>
+</div></section>
+
+<section id="verify"><div class="wrap">
+  <p class="kicker">01 — 為什麼重點不在功能數量</p>
+  <h2>這個系統裡最危險的錯誤，全部都不會當機</h2>
+  <p>它們不報錯、畫面完全正常，而且「跑起來看看」一個都抓不到：</p>
+  <table>
+    <thead><tr><th>如果這裡寫錯</th><th>使用者會看到什麼</th></tr></thead>
+    <tbody>
+      <tr><td>效期發料的順序反了</td><td>數量正確、庫存扣得剛好、頁面毫無異狀 —— 只是發出去的是快過期的那批</td></tr>
+      <tr><td>過期判定差一天（<code>&lt;</code> 寫成 <code>&lt;=</code>）</td><td>每批醫材少用一天。沒有任何人會回報</td></tr>
+      <tr><td>兩人同時領最後一箱</td><td>兩張單都成功、庫存變成 -5</td></tr>
+      <tr><td>請領單的非法狀態轉換被靜默忽略</td><td>使用者按了核准、沒有錯誤訊息、單子還停在原狀態</td></tr>
+      <tr><td>ER 圖與實際 schema 脫節</td><td>圖畫得漂漂亮亮，只是它已經是錯的</td></tr>
+    </tbody>
+  </table>
+  <p>所以這個專案的重點是：<strong>為每一條這樣的規則，設計一個能區分對錯的驗證</strong>。</p>
+  <h3>六道關卡，每次提交都全跑</h3>
+  <pre><code>dotnet build   MedSupplyOps.slnx     # 編譯 + 分析器（警告即錯誤）
+dotnet test    MedSupplyOps.slnx     # 158 條測試
+dotnet format  --verify-no-changes   # 格式與命名
+scripts/mutation-probe.ps1           # ★ 鑑別力探針：證明測試真的測得到
+scripts/generate-er-diagram.ps1 -Check   # ★ ER 圖漂移檢查
+scripts/check-db-clean.ps1           # ★ 測試不得在資料庫留下殘留</code></pre>
+  <p>前三道是常見的，<strong>後三道才是這個專案的重點</strong>。</p>
+</div></section>
+
+<section id="probes"><div class="wrap">
+  <p class="kicker">02 — 鑑別力探針</p>
+  <h2>證明測試真的測得到</h2>
+  <p class="quote">不能區分「修前」與「修後」的驗證，等於沒有驗證。</p>
+  <p>
+    測試全綠只代表「測試沒有失敗」，不代表「測試測得到那件事」。
+    所以有一支腳本會自動把實作<strong>故意改壞 12 次</strong>，每次確認對應的測試變紅，再還原並複驗回到基線：
+  </p>
+  <table>
+    <thead><tr><th>探針</th><th>對應規則</th><th>變紅</th></tr></thead>
+    <tbody>
+      <tr><td>P1 FEFO 排序反轉（改成先發最晚到期）</td><td>先到期先出</td><td>2 條</td></tr>
+      <tr><td>P2 過期判定 <code>&lt;</code> 改成 <code>&lt;=</code></td><td>效期當天仍可用</td><td>2 條</td></tr>
+      <tr><td>P3 移除同效期的批號決勝鍵</td><td>跨環境配批一致</td><td>1 條</td></tr>
+      <tr><td>P4 允許部分發料</td><td>不足即整筆失敗</td><td>4 條</td></tr>
+      <tr><td>P5 狀態機偷開一條非法轉換</td><td>非法轉換須被拒絕</td><td>2 條</td></tr>
+      <tr><td>P6 駁回不再要求填原因</td><td>駁回須填原因</td><td>1 條</td></tr>
+      <tr><td>P7 拿掉發料的 <code>SELECT … FOR UPDATE</code></td><td>並發不得超發</td><td>3 條</td></tr>
+      <tr><td>P8 拿掉查詢服務的 DI 註冊</td><td>正式組裝必須完整</td><td>6 條</td></tr>
+      <tr><td>P9 整張單發料改成「跳過失敗的明細繼續」</td><td>整張單原子發料</td><td>5 條</td></tr>
+      <tr><td>P10 入庫拿掉品項列的鎖</td><td>同品項的新批號入庫必須序列化</td><td>2 條</td></tr>
+      <tr><td>P11 入庫的過期判定差一天</td><td>效期當天仍可入庫</td><td>1 條</td></tr>
+      <tr><td>P12 首頁「沒有角色」的範圍改回「不受限」</td><td>沒有角色的帳號不得看到全院資料</td><td>1 條</td></tr>
+    </tbody>
+  </table>
+  <p>
+    另有 5 支<strong>資料庫層</strong>探針，直接寫入壞資料確認被限制條件擋下：負數庫存、不存在的狀態值、
+    已駁回但無原因、料號重複 —— 以及<strong>軟刪除後沿用同一料號必須放行</strong>。
+    最後一支特別重要：前四支只證明「該擋的有擋」，只有它能證明「不該擋的沒有誤擋」。
+  </p>
+  <div class="note">
+    <strong>探針抓到過的真問題。</strong>
+    專案裡有一條叫「決定性測試」的測試，探針把它要驗的排序鍵整條拿掉之後，48 條測試依然全綠 ——
+    因為測試資料剛好讓兩種排序鍵給出相同答案。那條測試從頭到尾沒有在測它宣稱要測的東西，
+    而且<strong>光讀測試碼是看不出來的</strong>。
+  </div>
+</div></section>
+
+<section id="architecture"><div class="wrap">
+  <p class="kicker">03 — 系統架構</p>
+  <h2>三層，寫入與讀取分路</h2>
+  <div class="mermaid">
+flowchart TB
+    subgraph web["MedSupplyOps.Web（MVC + Web API + FHIR）"]
+        C["Controllers / Razor Views"]
+        A["授權：預設拒絕 + Policy"]
+    end
+    subgraph infra["MedSupplyOps.Infrastructure"]
+        Q["Queries（Dapper 手寫 Oracle SQL）"]
+        S["Services：發料 / 入庫 + 並發控制"]
+        P["Persistence（EF Core）寫入路徑"]
+    end
+    subgraph domain["MedSupplyOps.Domain（零套件依賴）"]
+        F["FefoAllocator（純函式）"]
+        M["RequisitionStateMachine"]
+    end
+    DB[("Oracle 26ai Free：手寫 DDL + CHECK 約束")]
+    C --> A
+    A --> Q
+    A --> S
+    S --> F
+    S --> P
+    P --> DB
+    Q --> DB
+    style domain fill:#e8f4ea,stroke:#2d6a4f
+    style DB fill:#fdf0d5,stroke:#bc6c25
+  </div>
+  <table>
+    <thead><tr><th>決定</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>Domain 層<strong>零套件依賴</strong>（連 EF Core 都不引用）</td>
+          <td>不是架構潔癖：它讓 FEFO 與庫存規則能在沒有資料庫的情況下被測試，也證明領域規則沒有偷偷依賴持久化細節</td></tr>
+      <tr><td><strong>寫入用 EF Core、讀取用手寫 Oracle SQL</strong></td>
+          <td>全交給 ORM 的話，SQL 是誰產生的、為什麼那樣產生、怎麼調，作者一句都答不出來</td></tr>
+      <tr><td>授權<strong>預設拒絕</strong>（fallback policy）+ 公開端點白名單</td>
+          <td>預設公開的話，漏標一個端點永遠不會被發現 —— 而且只有沒登入的人才會發現</td></tr>
+      <tr><td><code>TreatWarningsAsErrors</code></td>
+          <td>C# 沒有獨立的型別檢查步驟，把分析器警告升級成錯誤，才有第三道真的會擋人的關卡</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section id="data"><div class="wrap">
+  <p class="kicker">04 — 資料庫</p>
+  <h2>概念模型與實際結構</h2>
+  <h3>概念模型（Chen 記法）</h3>
+  <p>先講業務怎麼看這件事：品項有很多<strong>批次</strong>（各自有批號與效期），科室提出<strong>請領單</strong>，
+     每張單包含多筆明細，發料時每一筆明細會被<strong>配發</strong>到一個或多個批次。</p>
+  <div class="mermaid">
+flowchart LR
+    ITEM["品項"] --- R1{"存放"}
+    R1 --- LOT["批次"]
+    LOT -.- LA(("批號"))
+    LOT -.- LB(("效期"))
+    LOT -.- LC(("數量"))
+    DEPT["科室"] --- R2{"提出"}
+    R2 --- REQ["請領單"]
+    REQ --- R3{"包含"}
+    R3 --- LINE["請領明細"]
+    LINE --- R4{"配發"}
+    R4 --- ALLOC["發料配批"]
+    ALLOC --- R5{"取自"}
+    R5 --- LOT
+    ITEM -.- IA(("料號"))
+    ITEM -.- IB(("安全存量"))
+    REQ -.- RA(("單號"))
+    REQ -.- RB(("狀態"))
+  </div>
+  <div class="note warn">
+    <strong>這張圖是人工維護的概念圖。</strong>
+    Chen 記法（實體方框、關係菱形、屬性橢圓）表達的是「業務怎麼想」，不是資料表長什麼樣。
+    <strong>實際結構以下面那張自動產生的 ER 圖為準</strong> —— 兩者衝突時，相信自動產生的那張。
+  </div>
+
+  <h3>實際結構（從 Oracle 資料字典自動產生）</h3>
+  <p>
+    下面這張 ER 圖<strong>不是手繪的</strong>：它由腳本從 Oracle 的資料字典查出來產生，
+    並提供 <code>-Check</code> 模式 —— schema 改了而圖沒重產，關卡就失敗。
+    一張匯出的 schema 圖是最典型的「錯了但看起來正常」：資料庫加了欄位、圖沒更新，圖依然畫得漂亮。
+  </p>
+  <div class="mermaid" id="er-diagram">flowchart LR
+    LOADING["載入 ER 圖中…"]</div>
+  <p style="font-size:13.5px;color:var(--muted)">
+    共 14 張表（7 張業務表 + 7 張身分表）。圖太寬時可以左右捲動，或
+    <a href="https://github.com/PomeloBiscuit/MedSupplyOps/blob/main/docs/diagrams/schema.mmd">直接在 GitHub 上看原始檔</a>。
+  </p>
+
+  <h3>三個 Oracle 專屬的決定</h3>
+  <table>
+    <tbody>
+      <tr><td><strong>字串一律 <code>VARCHAR2(n CHAR)</code></strong></td>
+          <td>AL32UTF8 下一個中文字佔 3 bytes，預設的 BYTE 語意會讓 <code>VARCHAR2(50)</code> 只裝得下 16 個中文字，
+              長科室名直接爆 <code>ORA-12899</code> —— 而開發者看到欄位長度 50、輸入 20 個字，會完全想不通</td></tr>
+      <tr><td><strong>軟刪除用函數索引</strong></td>
+          <td>只對未刪除的資料強制唯一。直接對料號建 UNIQUE 的話，軟刪除後就永遠無法沿用同一個料號，而且不會有任何訊息解釋原因</td></tr>
+      <tr><td><strong>全 schema 零 <code>ON DELETE CASCADE</code></strong></td>
+          <td>刪一個科室若連帶刪光它的請領單與發料紀錄，在醫療場域等同於銷毀稽核軌跡。所有刪除一律為軟刪除</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section id="flow"><div class="wrap">
+  <p class="kicker">05 — 核心流程</p>
+  <h2>發料：FEFO 配批與並發控制</h2>
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant K as 庫管員
+    participant W as Web（預設拒絕）
+    participant S as StockIssueService
+    participant D as Oracle
+    K->>W: 對已核准的請領單按「發料」
+    W->>S: IssueRequisitionAsync（單一交易）
+    S->>D: SELECT ... FOR UPDATE WAIT 5（依 item_id 遞增取鎖）
+    Note over S,D: 取鎖順序固定，避免死結
+    S->>S: FefoAllocator：先到期先出，同效期以批號決勝
+    alt 任一明細數量不足
+        S->>D: ROLLBACK
+        S-->>W: 整張單失敗（不做部分發料）
+    else 全部足夠
+        S->>D: UPDATE 批次數量 + INSERT 配批 + INSERT 稽核
+        S->>D: COMMIT
+        S-->>W: 成功，回傳實際配到的批次
+    end
+  </div>
+  <table>
+    <tbody>
+      <tr><td><strong>為什麼用悲觀鎖不用樂觀鎖</strong></td>
+          <td>發料是短交易、高衝突，結果對使用者就是「能不能領到」。樂觀鎖讓第二個人做完所有事才被告知「請重試」；
+              悲觀鎖讓他在讀取階段等待，等到之後看到的是扣減後的<strong>真實庫存</strong>，於是他得到的是「庫存不足，目前可用 1」這種有意義的訊息</td></tr>
+      <tr><td><strong>等鎖逾時 ≠ 庫存不足</strong></td>
+          <td>逾時代表庫存可能夠、只是拿不到鎖，呼叫端該重試。混為一談會讓使用者看到一個<strong>假的缺貨訊息</strong>。
+              逾時時可用量回傳 <code>-1</code> 而不是 <code>0</code>：我們根本沒讀到資料，回 0 會讓呼叫端以為「查過了就是沒貨」</td></tr>
+      <tr><td><strong>資料庫的 <code>CHECK (quantity &gt;= 0)</code> 是最後防線</strong></td>
+          <td>P7 探針拿掉應用層的鎖之後，資料<strong>依然沒有變成負數</strong> —— 第二次 UPDATE 撞上 CHECK 而失敗。
+              應用層負責「給出正確且友善的結果」，資料庫層負責「保證資料永遠不會錯」</td></tr>
+    </tbody>
+  </table>
+  <h3>請領單狀態機</h3>
+  <p>六個狀態、五條合法轉換。<strong>不允許的轉換必須被拒絕並回傳明確錯誤，不可靜默忽略</strong> —— 探針 P5 就是在驗這件事。</p>
+  <div class="mermaid">
+stateDiagram-v2
+    [*] --> 草稿
+    草稿 --> 待審核 : 送出
+    待審核 --> 已核准 : 核准
+    待審核 --> 已駁回 : 駁回（必須填原因）
+    已核准 --> 已發料 : 發料（FEFO 配批）
+    已發料 --> 已結案 : 結案
+    已駁回 --> [*]
+    已結案 --> [*]
+  </div>
+</div></section>
+
+<section id="performance"><div class="wrap">
+  <p class="kicker">06 — 效能</p>
+  <h2>用邏輯讀取次數，不用執行時間</h2>
+  <p>
+    時間量測的母體是「你的查詢 ＋ 作業系統排程 ＋ GC ＋ 其他行程」，你只想量第一項。
+    所以量的是 <code>DBMS_XPLAN</code> 的 <strong>Buffers（logical reads）</strong>，並要求
+    <strong>A-Rows 前後相同</strong> —— 回傳列數變了就不是最佳化，是把查詢改成別的東西。
+  </p>
+  <table>
+    <thead><tr><th>查詢</th><th>索引前</th><th>索引後</th><th>A-Rows</th></tr></thead>
+    <tbody>
+      <tr><td>FEFO 可用批次查詢</td><td>1004 buffers（全表掃描）</td><td>111 buffers（索引範圍掃描）</td><td>101 → 101</td></tr>
+      <tr><td>首頁稽核列表（20 萬筆稽核）</td><td>2006 buffers</td><td>54 buffers（−97%）</td><td>5 → 5</td></tr>
+      <tr><td>已過期仍在庫計數（2 萬筆批次）</td><td colspan="2">19 buffers，已走既有索引 —— <strong>判定不需要加索引</strong></td><td>1 → 1</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    最後一列是刻意留著的：<strong>「不需要加索引」也是一種結論</strong>。
+    為了讓數字好看而加一支沒必要的索引，跟把查詢改小來換數字一樣不誠實。
+  </div>
+</div></section>
+
+<section id="ops"><div class="wrap">
+  <p class="kicker">07 — 可維運性</p>
+  <h2>安全網自己也要被驗證</h2>
+  <table>
+    <thead><tr><th>項目</th><th>做過什麼</th></tr></thead>
+    <tbody>
+      <tr><td><strong>備份與還原演練</strong></td>
+          <td>兩層備份（Data Pump 邏輯備份 + volume 冷備份）。演練時發現：備份腳本會留下兩個大小合理的檔案，
+              而那不是備份 —— 容器沒有乾淨關機就被 SIGKILL。改成「乾淨關機的標記 + 結束碼不是 137」才准打包，
+              失敗一律寫 <code>UNTRUSTED.txt</code>。還原也修掉一個假失敗（成敗判斷改為讀容器內的 log 檔）。
+              最後實際做了一次覆蓋式還原：<strong>還原前寫入的標記資料消失、四張表列數回到基準</strong></td></tr>
+      <tr><td><strong>冷啟重演</strong></td>
+          <td>從乾淨 clone、全新資料庫 volume，照 README 的指令重跑一次六道關卡。
+              抓到過一條只在全新資料庫才會失敗的測試 —— 它在累積過的環境裡永遠是綠的</td></tr>
+      <tr><td><strong>需求追溯關卡</strong></td>
+          <td>每個需求編號在追溯表裡恰好一列；「已實作」列的測試方法、探針編號、檔案路徑必須真的存在；
+              <strong>只做了一半的不准標成「已實作」</strong>。它隨測試一起跑，不是一個會被遺忘的額外步驟</td></tr>
+      <tr><td><strong>測試不得留下殘留</strong></td>
+          <td>整合測試共用同一個 Oracle 容器。殘留資料不會被任何斷言發現（每條測試的斷言都限定在自己的範圍內），
+              所以另有一道關卡：跑完測試，資料庫必須回到只剩種子資料的狀態</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section id="scope"><div class="wrap">
+  <p class="kicker">08 — 範圍</p>
+  <h2>刻意不做的事</h2>
+  <p>範圍界線與理由都寫在需求規格裡：不做病歷、醫囑、掛號與健保申報，
+     也不做對外採購與驗收、多院區調撥、前端 SPA 與高可用叢集。</p>
+  <div class="note">
+    這是刻意的：這個系統<strong>完全不處理病人資料</strong>。
+    沒有臨床領域知識就不假裝有 —— 做一個誠實的庫存系統，勝過做一個看起來完整但模型錯誤的「醫院系統」。
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <p><a class="btn" href="https://github.com/PomeloBiscuit/MedSupplyOps">GitHub：原始碼與完整文件</a></p>
+  <p style="margin-top:18px">需要 .NET SDK 10 與 Docker Desktop，不需要安裝 Oracle：</p>
+  <pre><code>cp .env.example .env        # 填入資料庫密碼
+docker compose up -d        # 起 Oracle 26ai Free，自動建 schema 與種子資料
+dotnet test MedSupplyOps.slnx</code></pre>
+  <p style="margin-top:20px;font-size:13px">
+    本系統為作品集用途，機構、科室與資料全為虛構。
+  </p>
+</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (typeof mermaid === 'undefined') {
+    // 載不到就把圖的原始碼直接顯示出來，不要留一塊空白假裝沒事。
+    document.querySelectorAll('.mermaid').forEach(function (el) {
+      var pre = document.createElement('pre');
+      pre.textContent = el.textContent.trim();
+      el.replaceWith(pre);
+    });
+    return;
+  }
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: getComputedStyle(document.body).fontFamily,
+      primaryColor: '#f4f6f8', primaryTextColor: '#10171f', primaryBorderColor: '#5b6775',
+      lineColor: '#5b6775', secondaryColor: '#eef1f4', tertiaryColor: '#ffffff'
+    }
+  });
+
+  // ER 圖從自動產生的 .mmd 讀進來：頁面永遠顯示現行版本，不會有另一份會過期的複本。
+  var FENCE = String.fromCharCode(96, 96, 96);
+  fetch('diagrams/schema.mmd')
+    .then(function (r) { if (!r.ok) { throw new Error(String(r.status)); } return r.text(); })
+    .then(function (text) {
+      var body = text.replace(/<!--[\s\S]*?-->/g, '').split(FENCE + 'mermaid').join('').split(FENCE).join('').trim();
+      document.getElementById('er-diagram').textContent = body;
+    })
+    .catch(function () {
+      document.getElementById('er-diagram').innerHTML =
+        '<p style="margin:0;color:#5b6775">ER 圖需要從 <code>docs/diagrams/schema.mmd</code> 載入（用瀏覽器直接開本機檔案時會被擋下）。' +
+        '<a href="https://github.com/PomeloBiscuit/MedSupplyOps/blob/main/docs/diagrams/schema.mmd">在 GitHub 上看</a></p>';
+    })
+    .finally(function () { mermaid.run({ querySelector: '.mermaid' }); });
+})();
+</script>
+</body>
+</html>
