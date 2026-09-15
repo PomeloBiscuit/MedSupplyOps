@@ -57,6 +57,90 @@ public sealed partial class SidebarNavigationWebTests
         _output.WriteLine($"T1 {state}: {Fragment(html, requiredClass)}");
     }
 
+    /// <summary>
+    /// 完全收合時，細列（.mso-compact-header）必須是整頁寬的獨立頂列，
+    /// 不可以還是橫向 flex 列（.mso-app-shell）裡擠在左邊的子項。
+    /// 做法是在完全收合時多掛一個 .mso-app-shell-hidden，讓 CSS 把 shell 從
+    /// <c>flex-direction: row</c>（預設）改成 <c>column</c>——細列與主內容因此各自撐滿整頁寬、
+    /// 上下堆疊，而不是左右並排。這裡釘住「細列緊接在帶有該 class 的 shell 開始標籤之後」，
+    /// 證明它仍是 shell 的直接子項、只是版面方向被改成縱向。
+    /// </summary>
+    [Fact]
+    public async Task Hidden_sidebar_state_stacks_the_compact_header_as_a_full_width_top_row()
+    {
+        using var client = CreateSidebarClient("hidden");
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+
+        var html = await GetHtmlAsync(client, "/");
+
+        Assert.Matches(
+            new Regex("<div class=\"mso-app-shell mso-app-shell-hidden\">\\s*<header class=\"mso-compact-header\""),
+            html);
+
+        var cssPath = FindRepositoryFile("src/MedSupplyOps.Web/wwwroot/css/site.css");
+        var css = await File.ReadAllTextAsync(cssPath);
+        Assert.Contains(".mso-app-shell-hidden { flex-direction: column; }", css, StringComparison.Ordinal);
+
+        _output.WriteLine($"T1 hidden shell: {Fragment(html, "mso-app-shell-hidden")}");
+    }
+
+    /// <summary>
+    /// 展開與半收折兩態不可以被 D1 的修正動到：shell 不掛 -hidden class，維持橫向 flex 列。
+    /// </summary>
+    [Theory]
+    [InlineData("expanded")]
+    [InlineData("compact")]
+    public async Task Expanded_and_compact_sidebar_states_keep_the_row_shell_unmodified(string state)
+    {
+        using var client = CreateSidebarClient(state);
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+
+        var html = await GetHtmlAsync(client, "/");
+
+        Assert.DoesNotContain("mso-app-shell-hidden", html, StringComparison.Ordinal);
+        Assert.Matches(new Regex("<div class=\"mso-app-shell\\s*\">"), html);
+    }
+
+    /// <summary>
+    /// 頂列副標只在登入頁（未登入）出現；登入後不論角色、不論導覽版面都不顯示。
+    /// <see cref="Login_page_has_a_clean_navigation_and_email_only_demo_fill_controls"/> 已經釘住登入頁「有」副標的一半；
+    /// 這裡補「登入後三種角色、兩種導覽版面都沒有」的另一半。
+    /// </summary>
+    [Theory]
+    [InlineData("top")]
+    [InlineData("sidebar")]
+    public async Task Navbar_subtitle_is_absent_after_login_for_every_role_and_navigation_layout(string navigationLayout)
+    {
+        foreach (var email in new[] { TestIdentitySeeder.RequesterEmail, TestIdentitySeeder.StorekeeperEmail, TestIdentitySeeder.AdministratorEmail })
+        {
+            using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            if (navigationLayout == "sidebar")
+            {
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", "mso-navigation-layout=sidebar; mso-sidebar-state=expanded");
+            }
+
+            await WebAuthTestHelpers.LoginAsync(client, email);
+            var html = await GetHtmlAsync(client, "/");
+
+            Assert.DoesNotContain("mso-navbar-subtitle", html, StringComparison.Ordinal);
+            _output.WriteLine($"T2 {navigationLayout}/{email}: navbar 無副標（{Fragment(html, "navbar-brand")}）");
+        }
+    }
+
+    private static string FindRepositoryFile(string relativePath)
+    {
+        for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
+        {
+            var candidate = Path.Combine(current.FullName, relativePath);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException($"找不到 {relativePath}。");
+    }
+
     [Fact]
     public async Task Navigation_badges_respect_department_scope_and_no_role_has_no_function_items()
     {

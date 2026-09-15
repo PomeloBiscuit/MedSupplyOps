@@ -9,11 +9,11 @@
 <div class="mso-page-heading d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">@L["庫存查詢"]</h1>
-        <p class="text-muted mb-0">基準日：@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
+        <p class="text-muted mb-0">@L["基準日："]@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
     </div>
     <form method="get" class="d-flex align-items-end gap-2">
         <div>
-            <label class="form-label mb-1" for="asOf">查詢基準日</label>
+            <label class="form-label mb-1" for="asOf">@L["查詢基準日"]</label>
             <input class="form-control" id="asOf" name="asOf" type="date" value="@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
         </div>
         <button class="btn btn-outline-primary" type="submit">@L["更新"]</button>
@@ -23,12 +23,12 @@
 <section class="card mso-feature-card mb-4" aria-labelledby="availability-heading">
     <div class="card-body">
         <h2 class="h5" id="availability-heading">@L["即時可用量查詢"]</h2>
-        <p class="text-muted">選取品項後，會在不重新整理整頁的情況下讀取即時可用量與最早可用效期。</p>
+        <p class="text-muted">@L["選取品項後，會在不重新整理整頁的情況下讀取即時可用量與最早可用效期。"]</p>
         <div class="row g-3 align-items-end">
             <div class="col-md-6">
-                <label class="form-label" for="availability-item">品項</label>
+                <label class="form-label" for="availability-item">@L["品項"]</label>
                 <select class="form-select" id="availability-item" data-api-template="@Url.Content("~/api/items/{itemId}/availability")">
-                    <option value="">請選擇品項</option>
+                    <option value="">@L["請選擇品項"]</option>
                     @foreach (var item in Model.Items)
                     {
                         <option value="@item.Summary.ItemId">@item.Summary.ItemCode — @item.Summary.ItemName</option>
@@ -37,7 +37,7 @@
             </div>
             <input id="inventory-as-of" type="hidden" value="@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
             <div class="col-md-6">
-                <output class="d-block border rounded p-3 bg-light" id="availability-result" aria-live="polite">尚未選擇品項。</output>
+                <output class="d-block border rounded p-3 bg-light" id="availability-result" aria-live="polite">@L["尚未選擇品項。"]</output>
             </div>
         </div>
     </div>
@@ -45,25 +45,25 @@
 
 <section class="card mso-table-card" aria-labelledby="inventory-list-heading">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <h2 class="h5 mb-0" id="inventory-list-heading">庫存總覽</h2>
-        <span class="text-muted small">可展開查看各批次明細</span>
+        <h2 class="h5 mb-0" id="inventory-list-heading">@L["庫存總覽"]</h2>
+        <span class="text-muted small">@L["可展開查看各批次明細"]</span>
     </div>
 <div class="table-responsive mso-table-scroll">
     <table class="table align-middle mb-0 mso-data-table">
         <thead>
             <tr>
-                <th scope="col">料號</th>
-                <th scope="col">品名</th>
-                <th scope="col">規格</th>
-                <th scope="col">單位</th>
-                <th scope="col" class="text-end">可用量</th>
-                <th scope="col" class="text-end">安全存量</th>
+                <th scope="col">@L["料號"]</th>
+                <th scope="col">@L["品名"]</th>
+                <th scope="col">@L["規格"]</th>
+                <th scope="col">@L["單位"]</th>
+                <th scope="col" class="text-end">@L["可用量"]</th>
+                <th scope="col" class="text-end">@L["安全存量"]</th>
             </tr>
         </thead>
         <tbody>
             @if (Model.Items.Count == 0)
             {
-                <tr><td colspan="6" class="mso-empty-state text-center">目前沒有可顯示的庫存品項。</td></tr>
+                <tr><td colspan="6" class="mso-empty-state text-center">@L["目前沒有可顯示的庫存品項。"]</td></tr>
             }
             @foreach (var item in Model.Items)
             {
@@ -78,16 +78,16 @@
                 <tr>
                     <td colspan="6" class="pt-0">
                         <details>
-                            <summary class="btn btn-sm btn-outline-secondary">展開批次明細（@item.Lots.Count 批）</summary>
+                            <summary class="btn btn-sm btn-outline-secondary">@L["展開批次明細（{0} 批）", item.Lots.Count]</summary>
                             <div class="table-responsive mso-table-scroll mt-2">
                                 <table class="table table-sm mb-0 mso-data-table">
                                     <thead>
                                         <tr>
-                                            <th scope="col">批號</th>
-                                            <th scope="col">效期</th>
-                                            <th scope="col" class="text-end">數量</th>
-                                            <th scope="col">儲位</th>
-                                            <th scope="col">狀態</th>
+                                            <th scope="col">@L["批號"]</th>
+                                            <th scope="col">@L["效期"]</th>
+                                            <th scope="col" class="text-end">@L["數量"]</th>
+                                            <th scope="col">@L["儲位"]</th>
+                                            <th scope="col">@L["狀態"]</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -110,11 +110,11 @@
                                                         <span class="badge mso-badge-bad">@L["不可用"]</span>
                                                         @if (isExpired)
                                                         {
-                                                            <span class="ms-1">已過期</span>
+                                                            <span class="ms-1">@L["已過期"]</span>
                                                         }
                                                         @if (isZeroQuantity)
                                                         {
-                                                            <span class="ms-1">零量</span>
+                                                            <span class="ms-1">@L["零量"]</span>
                                                         }
                                                     }
                                                 </td>

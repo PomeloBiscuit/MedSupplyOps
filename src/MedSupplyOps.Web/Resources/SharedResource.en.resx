@@ -181,4 +181,92 @@
   <data name="提供的值無效。" xml:space="preserve"><value>The supplied value is invalid.</value></data>
   <data name="提供的值對 {0} 無效。" xml:space="preserve"><value>The supplied value is invalid for {0}.</value></data>
   <data name="{0} 必須是數字。" xml:space="preserve"><value>{0} must be a number.</value></data>
+  <data name="切換導覽" xml:space="preserve"><value>Toggle navigation</value></data>
+  <data name="開啟使用者選單" xml:space="preserve"><value>Open user menu</value></data>
+  <data name="開啟導覽" xml:space="preserve"><value>Open navigation</value></data>
+  <data name="展開側欄" xml:space="preserve"><value>Expand sidebar</value></data>
+  <data name="收合側欄" xml:space="preserve"><value>Collapse sidebar</value></data>
+  <data name="東京" xml:space="preserve"><value>Tokyo</value></data>
+  <data name="上海" xml:space="preserve"><value>Shanghai</value></data>
+  <data name="新加坡" xml:space="preserve"><value>Singapore</value></data>
+  <data name="首爾" xml:space="preserve"><value>Seoul</value></data>
+  <data name="倫敦" xml:space="preserve"><value>London</value></data>
+  <data name="紐約" xml:space="preserve"><value>New York</value></data>
+  <data name="洛杉磯" xml:space="preserve"><value>Los Angeles</value></data>
+  <data name="基準日：" xml:space="preserve"><value>As of: </value></data>
+  <data name="查詢基準日" xml:space="preserve"><value>As-of date</value></data>
+  <data name="選取品項後，會在不重新整理整頁的情況下讀取即時可用量與最早可用效期。" xml:space="preserve"><value>After selecting an item, live availability and the earliest expiry load without reloading the page.</value></data>
+  <data name="庫存總覽" xml:space="preserve"><value>Inventory overview</value></data>
+  <data name="可展開查看各批次明細" xml:space="preserve"><value>Expand to view lot-level detail</value></data>
+  <data name="料號" xml:space="preserve"><value>Item code</value></data>
+  <data name="品名" xml:space="preserve"><value>Name</value></data>
+  <data name="規格" xml:space="preserve"><value>Specification</value></data>
+  <data name="單位" xml:space="preserve"><value>Unit</value></data>
+  <data name="可用量" xml:space="preserve"><value>Available qty</value></data>
+  <data name="安全存量" xml:space="preserve"><value>Safety stock</value></data>
+  <data name="目前沒有可顯示的庫存品項。" xml:space="preserve"><value>No inventory items to display.</value></data>
+  <data name="展開批次明細（{0} 批）" xml:space="preserve"><value>Expand lot detail ({0} lots)</value></data>
+  <data name="批號" xml:space="preserve"><value>Lot no.</value></data>
+  <data name="效期" xml:space="preserve"><value>Expiry date</value></data>
+  <data name="儲位" xml:space="preserve"><value>Storage location</value></data>
+  <data name="已過期" xml:space="preserve"><value>Expired</value></data>
+  <data name="零量" xml:space="preserve"><value>Zero quantity</value></data>
+  <data name="N 天內到期" xml:space="preserve"><value>Expiring within N days</value></data>
+  <data name="近效期批次" xml:space="preserve"><value>Near-expiry lots</value></data>
+  <data name="{0} 天內" xml:space="preserve"><value>Within {0} days</value></data>
+  <data name="此條件下沒有仍有數量的近效期批次。" xml:space="preserve"><value>No near-expiry lots with remaining quantity match these filters.</value></data>
+  <data name="依狀態、科室與建立日期查詢請領單。" xml:space="preserve"><value>Search requisitions by status, department, and creation date.</value></data>
+  <data name="建立日起" xml:space="preserve"><value>Created from</value></data>
+  <data name="建立日迄" xml:space="preserve"><value>Created to</value></data>
+  <data name="請領單列表" xml:space="preserve"><value>Requisition list</value></data>
+  <data name="依目前篩選條件顯示" xml:space="preserve"><value>Showing results for the current filters</value></data>
+  <data name="沒有符合條件的請領單。" xml:space="preserve"><value>No requisitions match the current filters.</value></data>
+  <data name="送審時間" xml:space="preserve"><value>Submitted at</value></data>
+  <data name="駁回原因" xml:space="preserve"><value>Rejection reason</value></data>
+  <data name="駁回原因：" xml:space="preserve"><value>Rejection reason: </value></data>
+  <data name="行號" xml:space="preserve"><value>Line no.</value></data>
+  <data name="品項代碼" xml:space="preserve"><value>Item code</value></data>
+  <data name="請領數量" xml:space="preserve"><value>Requested qty</value></data>
+  <data name="發料配批明細" xml:space="preserve"><value>Issue allocation detail</value></data>
+  <data name="明細行" xml:space="preserve"><value>Line</value></data>
+  <data name="發料數量" xml:space="preserve"><value>Issued qty</value></data>
+  <data name="發料動作" xml:space="preserve"><value>Issue action</value></data>
+  <data name="審核動作" xml:space="preserve"><value>Review action</value></data>
+  <data name="維護可供請領與入庫使用的品項主檔。" xml:space="preserve"><value>Maintain the item master used for requisitions and receiving.</value></data>
+  <data name="品項主檔" xml:space="preserve"><value>Item master</value></data>
+  <data name="料號建立後不可修改" xml:space="preserve"><value>Item code cannot be changed after creation</value></data>
+  <data name="名稱" xml:space="preserve"><value>Name</value></data>
+  <data name="目前沒有可管理的品項。" xml:space="preserve"><value>No items to manage.</value></data>
+  <data name="更新品項名稱、規格與安全存量。" xml:space="preserve"><value>Update the item's name, specification, and safety stock.</value></data>
+  <data name="料號建立後不可修改。" xml:space="preserve"><value>Item code cannot be changed after creation.</value></data>
+  <data name="計量單位建立後不可修改；建錯時請停用並建立新品項。" xml:space="preserve"><value>Unit of measure cannot be changed after creation; if entered incorrectly, disable this item and create a new one.</value></data>
+  <data name="建立可供請領與入庫使用的品項主檔。" xml:space="preserve"><value>Create an item master entry for requisitions and receiving.</value></data>
+  <data name="計量單位" xml:space="preserve"><value>Unit of measure</value></data>
+  <data name="批號與儲位會自動去除首尾空白並轉成大寫。" xml:space="preserve"><value>Lot number and storage location are automatically trimmed and converted to uppercase.</value></data>
+  <data name="帳號尚未設定角色或科室，請聯絡管理員。" xml:space="preserve"><value>This account has no assigned role or department yet. Contact an administrator.</value></data>
+  <data name="院內帳號登入後依角色顯示對應的工作儀表板。" xml:space="preserve"><value>Sign in with your internal account to see the dashboard for your role.</value></data>
+  <data name="示範帳號" xml:space="preserve"><value>Demo accounts</value></data>
+  <data name="關閉示範帳號提示" xml:space="preserve"><value>Dismiss demo account hint</value></data>
+  <data name="填入" xml:space="preserve"><value>Fill in</value></data>
+  <data name="密碼皆為" xml:space="preserve"><value>The password for all demo accounts is</value></data>
+  <data name="，僅於 Demo 環境提供（見 README）。" xml:space="preserve"><value> (demo environment only — see README).</value></data>
+  <data name="忘記密碼請聯絡系統管理員。" xml:space="preserve"><value>Forgot your password? Contact an administrator.</value></data>
+  <data name="料號為必填。" xml:space="preserve"><value>Item code is required.</value></data>
+  <data name="料號只能包含大寫英文字母、數字與連字號，且不可超過 32 個字。" xml:space="preserve"><value>Item code may contain only uppercase letters, digits, and hyphens, up to 32 characters.</value></data>
+  <data name="名稱為必填。" xml:space="preserve"><value>Name is required.</value></data>
+  <data name="名稱不可超過 200 個字。" xml:space="preserve"><value>Name cannot exceed 200 characters.</value></data>
+  <data name="規格不可超過 400 個字。" xml:space="preserve"><value>Specification cannot exceed 400 characters.</value></data>
+  <data name="計量單位為必填。" xml:space="preserve"><value>Unit of measure is required.</value></data>
+  <data name="計量單位不可超過 20 個字。" xml:space="preserve"><value>Unit of measure cannot exceed 20 characters.</value></data>
+  <data name="安全存量為必填。" xml:space="preserve"><value>Safety stock is required.</value></data>
+  <data name="安全存量必須是 0 到 1,000,000 的整數。" xml:space="preserve"><value>Safety stock must be a whole number from 0 to 1,000,000.</value></data>
+  <data name="批號為必填。" xml:space="preserve"><value>Lot number is required.</value></data>
+  <data name="批號不可超過 64 個字。" xml:space="preserve"><value>Lot number cannot exceed 64 characters.</value></data>
+  <data name="效期為必填。" xml:space="preserve"><value>Expiry date is required.</value></data>
+  <data name="數量必須是 1 到 100,000 的整數。" xml:space="preserve"><value>Quantity must be a whole number from 1 to 100,000.</value></data>
+  <data name="儲位為必填。" xml:space="preserve"><value>Storage location is required.</value></data>
+  <data name="儲位不可超過 64 個字。" xml:space="preserve"><value>Storage location cannot exceed 64 characters.</value></data>
+  <data name="停用品項" xml:space="preserve"><value>Disable item</value></data>
+  <data name="核准請領單" xml:space="preserve"><value>Approve</value></data>
+  <data name="駁回請領單" xml:space="preserve"><value>Reject</value></data>
 </root>

@@ -688,6 +688,9 @@ html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
 /* 左側版面讓導覽與內容共用全高，展開、圖示列與隱藏態不需由 JavaScript 改 DOM。 */
 .mso-app-shell { display: flex; min-height: 100vh; background: var(--mso-surface-subtle); }
 
+/* 完全收合態的導覽細列不是側欄，改成直向堆疊；細列與內容各自撐滿整頁寬。 */
+.mso-app-shell-hidden { flex-direction: column; }
+
 /* 側欄固定使用設計稿的深藍識別色，並在內容過長時維持自己的捲動區。 */
 .mso-sidebar { display: flex; flex: 0 0 248px; flex-direction: column; min-height: 100vh; background: var(--mso-navy); color: #fff; }
 

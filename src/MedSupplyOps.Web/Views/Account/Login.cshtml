@@ -8,20 +8,20 @@
 <section class="card mso-auth-card" aria-labelledby="login-heading">
     <div class="mb-4">
     <h1 class="h2 mb-1" id="login-heading">@L["登入"]</h1>
-    <p class="text-muted mb-0">院內帳號登入後依角色顯示對應的工作儀表板。</p>
+    <p class="text-muted mb-0">@L["院內帳號登入後依角色顯示對應的工作儀表板。"]</p>
 </div>
 
-<aside class="mso-demo-account-card" data-mso-demo-card aria-label="示範帳號">
+<aside class="mso-demo-account-card" data-mso-demo-card aria-label="@L["示範帳號"]">
     <div class="d-flex align-items-center justify-content-between gap-3 mb-2">
-        <strong>示範帳號</strong>
-        <button class="btn-close" type="button" data-mso-demo-close aria-label="關閉示範帳號提示"></button>
+        <strong>@L["示範帳號"]</strong>
+        <button class="btn-close" type="button" data-mso-demo-close aria-label="@L["關閉示範帳號提示"]"></button>
     </div>
     <div class="mso-demo-account-list">
-        <div class="mso-demo-account-row"><span><strong>請領人</strong><code>requester@example.local</code></span><button class="btn btn-sm btn-outline-primary" type="button" value="requester@example.local" data-mso-fill-email>填入</button></div>
-        <div class="mso-demo-account-row"><span><strong>庫管員</strong><code>keeper@example.local</code></span><button class="btn btn-sm btn-outline-primary" type="button" value="keeper@example.local" data-mso-fill-email>填入</button></div>
-        <div class="mso-demo-account-row"><span><strong>管理員</strong><code>admin@example.local</code></span><button class="btn btn-sm btn-outline-primary" type="button" value="admin@example.local" data-mso-fill-email>填入</button></div>
+        <div class="mso-demo-account-row"><span><strong>@L["請領人"]</strong><code>requester@example.local</code></span><button class="btn btn-sm btn-outline-primary" type="button" value="requester@example.local" data-mso-fill-email>@L["填入"]</button></div>
+        <div class="mso-demo-account-row"><span><strong>@L["庫管員"]</strong><code>keeper@example.local</code></span><button class="btn btn-sm btn-outline-primary" type="button" value="keeper@example.local" data-mso-fill-email>@L["填入"]</button></div>
+        <div class="mso-demo-account-row"><span><strong>@L["管理員"]</strong><code>admin@example.local</code></span><button class="btn btn-sm btn-outline-primary" type="button" value="admin@example.local" data-mso-fill-email>@L["填入"]</button></div>
     </div>
-    <p class="mso-demo-account-password mb-0">密碼皆為 <code>Demo#2026pass</code>，僅於 Demo 環境提供（見 README）。</p>
+    <p class="mso-demo-account-password mb-0">@L["密碼皆為"] <code>Demo#2026pass</code>@L["，僅於 Demo 環境提供（見 README）。"]</p>
 </aside>
 
 <form asp-action="Login" method="post" class="col-md-6">
@@ -50,7 +50,7 @@
         <button class="btn btn-primary" type="submit">@L["登入"]</button>
         <a class="btn btn-outline-secondary" asp-action="Register">@L["還沒有帳號？註冊"]</a>
     </div>
-    <p class="text-muted small mt-3 mb-0">忘記密碼請聯絡系統管理員。</p>
+    <p class="text-muted small mt-3 mb-0">@L["忘記密碼請聯絡系統管理員。"]</p>
 </form>
 </section>
 </div>

@@ -1,13 +1,13 @@
 @using MedSupplyOps.Web.ViewComponents
 @model SidebarNavigationViewModel
 <div class="dropdown mso-user-menu">
-    <button class="btn mso-user-menu-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="開啟使用者選單">
+    <button class="btn mso-user-menu-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="@L["開啟使用者選單"]">
         <span class="mso-user-initial">@Model.Initial</span>
         <span class="mso-user-summary"><span>@Model.DisplayName</span><small>@Model.Email</small></span>
         <span class="mso-user-chevron" aria-hidden="true">▾</span>
     </button>
     <div class="dropdown-menu dropdown-menu-end mso-user-dropdown">
-        <div class="mso-user-dropdown-heading"><span class="mso-user-initial">@Model.Initial</span><span><strong>@Model.DisplayName</strong><small>@Model.RoleName</small></span></div>
+        <div class="mso-user-dropdown-heading"><span class="mso-user-initial">@Model.Initial</span><span><strong>@Model.DisplayName</strong><small>@L[Model.RoleName]</small></span></div>
         @if (Model.HasRole)
         {
             <partial name="_PreferenceMenu" />

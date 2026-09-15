@@ -11,7 +11,7 @@
 <div class="mso-page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <h1 class="h2 mb-1">@L["請領單"]</h1>
-        <p class="text-muted mb-0">依狀態、科室與建立日期查詢請領單。</p>
+        <p class="text-muted mb-0">@L["依狀態、科室與建立日期查詢請領單。"]</p>
     </div>
     @if (User.IsInRole("Requester") || User.IsInRole("Administrator"))
     {
@@ -58,11 +58,11 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label" for="createdFrom">建立日起</label>
+            <label class="form-label" for="createdFrom">@L["建立日起"]</label>
             <input class="form-control" id="createdFrom" name="createdFrom" type="date" value="@Model.CreatedFrom?.ToString("yyyy-MM-dd")" />
         </div>
         <div class="col-md-2">
-            <label class="form-label" for="createdTo">建立日迄</label>
+            <label class="form-label" for="createdTo">@L["建立日迄"]</label>
             <input class="form-control" id="createdTo" name="createdTo" type="date" value="@Model.CreatedTo?.ToString("yyyy-MM-dd")" />
         </div>
         <div class="col-md-2 d-flex gap-2">
@@ -75,8 +75,8 @@
 
 <section class="card mso-table-card" aria-labelledby="requisition-list-heading">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <h2 class="h5 mb-0" id="requisition-list-heading">請領單列表</h2>
-        <span class="text-muted small">依目前篩選條件顯示</span>
+        <h2 class="h5 mb-0" id="requisition-list-heading">@L["請領單列表"]</h2>
+        <span class="text-muted small">@L["依目前篩選條件顯示"]</span>
     </div>
 <div class="table-responsive mso-table-scroll">
     <table class="table table-striped align-middle mb-0 mso-data-table">
@@ -87,13 +87,13 @@
                 <th scope="col">@L["狀態"]</th>
                 <th scope="col">@L["建立時間"]（@DisplayTimeZone.Id）</th>
                 <th scope="col" class="text-end">@L["明細筆數"]</th>
-                <th scope="col"><span class="visually-hidden">操作</span></th>
+                <th scope="col"><span class="visually-hidden">@L["操作"]</span></th>
             </tr>
         </thead>
         <tbody>
             @if (Model.Requisitions.Count == 0)
             {
-                <tr><td colspan="6" class="mso-empty-state text-center">沒有符合條件的請領單。</td></tr>
+                <tr><td colspan="6" class="mso-empty-state text-center">@L["沒有符合條件的請領單。"]</td></tr>
             }
             else
             {

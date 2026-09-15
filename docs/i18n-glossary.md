@@ -18,3 +18,9 @@
 | 顯示時區 | display time zone | 只影響時間呈現，不影響業務日曆 |
 
 資料一律以 UTC 儲存。FEFO 的「今天」與請領單號日期固定由 `Asia/Taipei` 的 `BusinessCalendar` 決定，不隨顯示時區改變。
+
+顯示時區清單（`DisplayTimeZone.SupportedIds`，啟動時逐一以 `TimeZoneInfo.FindSystemTimeZoneById` 驗證）：
+`Asia/Taipei`、`UTC`、`Asia/Tokyo`（東京 / Tokyo）、`Asia/Shanghai`（上海 / Shanghai）、
+`Asia/Singapore`（新加坡 / Singapore）、`Asia/Seoul`（首爾 / Seoul）、`Europe/London`（倫敦 / London）、
+`America/New_York`（紐約 / New York）、`America/Los_Angeles`（洛杉磯 / Los Angeles）。
+有夏令時間的時區（倫敦、紐約、洛杉磯）選單不標固定 UTC 偏移，避免標示半年後就是錯的。

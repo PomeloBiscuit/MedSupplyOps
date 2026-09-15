@@ -3,7 +3,7 @@
 @model RequisitionDetailsViewModel
 @inject DisplayTimeZone DisplayTimeZone
 @{
-    ViewData["Title"] = $"請領單 {Model.RequisitionNo}";
+    ViewData["Title"] = $"{L["請領單"]} {Model.RequisitionNo}";
 }
 
 @if (TempData["SuccessMessage"] is string successMessage)
@@ -25,31 +25,31 @@
 </div>
 
 <dl class="row card card-body mx-0 mb-4 mso-detail-list">
-    <dt class="col-sm-3">科室</dt>
+    <dt class="col-sm-3">@L["科室"]</dt>
     <dd class="col-sm-9">@Model.DepartmentName</dd>
-    <dt class="col-sm-3">建立時間</dt>
+    <dt class="col-sm-3">@L["建立時間"]</dt>
     <dd class="col-sm-9">@DisplayTimeZone.Format(Model.CreatedAt)（@DisplayTimeZone.Id）</dd>
-    <dt class="col-sm-3">送審時間</dt>
+    <dt class="col-sm-3">@L["送審時間"]</dt>
     <dd class="col-sm-9">@(Model.SubmittedAt is DateTime submittedAt ? DisplayTimeZone.Format(submittedAt) : "—")</dd>
-    <dt class="col-sm-3">核准時間</dt>
+    <dt class="col-sm-3">@L["核准時間"]</dt>
     <dd class="col-sm-9">@(Model.ApprovedAt is DateTime approvedAt ? DisplayTimeZone.Format(approvedAt) : "—")</dd>
     @if (!string.IsNullOrWhiteSpace(Model.RejectionReason))
     {
-        <dt class="col-sm-3">駁回原因</dt>
+        <dt class="col-sm-3">@L["駁回原因"]</dt>
         <dd class="col-sm-9 mso-long-text">@Model.RejectionReason</dd>
     }
 </dl>
 
 <section class="card mso-table-card mb-4" aria-labelledby="requisition-lines-heading">
-    <div class="card-header"><h2 class="h5 mb-0" id="requisition-lines-heading">請領明細</h2></div>
+    <div class="card-header"><h2 class="h5 mb-0" id="requisition-lines-heading">@L["請領明細"]</h2></div>
 <div class="table-responsive mso-table-scroll">
     <table class="table table-striped align-middle mb-0 mso-data-table">
         <thead>
             <tr>
-                <th scope="col">行號</th>
-                <th scope="col">品項代碼</th>
-                <th scope="col">品項</th>
-                <th scope="col" class="text-end">請領數量</th>
+                <th scope="col">@L["行號"]</th>
+                <th scope="col">@L["品項代碼"]</th>
+                <th scope="col">@L["品項"]</th>
+                <th scope="col" class="text-end">@L["請領數量"]</th>
             </tr>
         </thead>
         <tbody>
@@ -70,16 +70,16 @@
 @if (Model.IssueAllocations.Count > 0)
 {
     <section class="card mso-table-card mb-4" aria-labelledby="issue-allocation-heading">
-        <div class="card-header"><h2 class="h5 mb-0" id="issue-allocation-heading">發料配批明細</h2></div>
+        <div class="card-header"><h2 class="h5 mb-0" id="issue-allocation-heading">@L["發料配批明細"]</h2></div>
         <div class="table-responsive mso-table-scroll">
             <table class="table table-striped align-middle mb-0 mso-data-table">
                 <thead>
                     <tr>
-                        <th scope="col">明細行</th>
-                        <th scope="col">品項</th>
-                        <th scope="col">批號</th>
-                        <th scope="col">效期</th>
-                        <th scope="col" class="text-end">發料數量</th>
+                        <th scope="col">@L["明細行"]</th>
+                        <th scope="col">@L["品項"]</th>
+                        <th scope="col">@L["批號"]</th>
+                        <th scope="col">@L["效期"]</th>
+                        <th scope="col" class="text-end">@L["發料數量"]</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -104,7 +104,7 @@
 @if (Model.CanIssue && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {
     <section class="card card-body mb-4" aria-labelledby="issue-heading" id="issue-actions">
-        <h2 class="h5" id="issue-heading">發料動作</h2>
+        <h2 class="h5" id="issue-heading">@L["發料動作"]</h2>
         <form asp-action="Issue" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             <button class="btn btn-primary" type="submit">@L["發料"]</button>
@@ -115,7 +115,7 @@
 @if (Model.CanRetryIssue && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {
     <section class="card card-body mb-4" aria-labelledby="retry-issue-heading">
-        <h2 class="h5" id="retry-issue-heading">重新嘗試發料</h2>
+        <h2 class="h5" id="retry-issue-heading">@L["重新嘗試發料"]</h2>
         <form asp-action="Issue" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             <button class="btn btn-outline-primary" type="submit">@L["重試發料"]</button>
@@ -126,22 +126,22 @@
 @if (Model.CanReview && (User.IsInRole("Storekeeper") || User.IsInRole("Administrator")))
 {
     <section class="card card-body" aria-labelledby="review-heading">
-        <h2 class="h5" id="review-heading">審核動作</h2>
+        <h2 class="h5" id="review-heading">@L["審核動作"]</h2>
         <div class="d-flex flex-column gap-3">
             <form asp-action="Approve" asp-route-id="@Model.Id" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
-                <button class="btn btn-success" type="submit">@L["核准"]</button>
+                <button class="btn btn-success" type="submit">@L["核准請領單"]</button>
             </form>
             <form asp-action="Reject" asp-route-id="@Model.Id" method="post" class="row g-2 align-items-end">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
                 <div class="col-md-8">
-                    <label class="form-label" for="rejectionReason">駁回原因</label>
+                    <label class="form-label" for="rejectionReason">@L["駁回原因"]</label>
                     <textarea class="form-control" id="rejectionReason" name="rejectionReason" maxlength="500" required></textarea>
                 </div>
                 <div class="col-md-4">
-                    <button class="btn btn-danger" type="submit">@L["駁回"]</button>
+                    <button class="btn btn-danger" type="submit">@L["駁回請領單"]</button>
                 </div>
             </form>
         </div>
