@@ -1,0 +1,66 @@
+@{
+    var theme = Context.Request.Cookies["mso-theme"];
+    theme = theme is "light" or "dark" or "system" or "contrast" ? theme : "light";
+    var density = Context.Request.Cookies["mso-density"];
+    density = density is "comfortable" or "compact" ? density : "comfortable";
+    var navigation = Context.Request.Cookies["mso-navigation-layout"] == "sidebar" ? "sidebar" : "top";
+    var prefix = "mso-preference-" + Guid.NewGuid().ToString("N");
+}
+<div class="mso-preference-menu">
+    <button class="dropdown-item" type="button" disabled>個人資料</button>
+    <button class="dropdown-item" type="button" disabled>變更密碼</button>
+    <div class="dropdown-divider"></div>
+
+    <section class="mso-preference-section" aria-labelledby="@prefix-theme-label">
+        <div class="mso-preference-label" id="@prefix-theme-label">版面風格</div>
+        <div class="btn-group mso-preference-button-group" role="group" aria-label="版面風格">
+            <input class="btn-check" type="radio" name="@prefix-theme" id="@prefix-theme-light" value="light" data-mso-preference="mso-theme" @(theme == "light" ? "checked" : null) />
+            <label class="btn btn-outline-secondary" for="@prefix-theme-light">明亮</label>
+            <input class="btn-check" type="radio" name="@prefix-theme" id="@prefix-theme-dark" value="dark" data-mso-preference="mso-theme" @(theme == "dark" ? "checked" : null) />
+            <label class="btn btn-outline-secondary" for="@prefix-theme-dark">暗色</label>
+            <input class="btn-check" type="radio" name="@prefix-theme" id="@prefix-theme-system" value="system" data-mso-preference="mso-theme" @(theme == "system" ? "checked" : null) />
+            <label class="btn btn-outline-secondary" for="@prefix-theme-system">跟隨系統</label>
+        </div>
+        <div class="form-check form-switch mso-preference-switch">
+            <input class="form-check-input" type="checkbox" role="switch" id="@prefix-contrast" data-mso-contrast @(theme == "contrast" ? "checked" : null) />
+            <label class="form-check-label" for="@prefix-contrast">高對比（庫房強光下）</label>
+        </div>
+    </section>
+
+    <section class="mso-preference-section" aria-labelledby="@prefix-density-label">
+        <div class="mso-preference-label" id="@prefix-density-label">表格密度</div>
+        <div class="btn-group mso-preference-button-group" role="group" aria-label="表格密度">
+            <input class="btn-check" type="radio" name="@prefix-density" id="@prefix-density-comfortable" value="comfortable" data-mso-preference="mso-density" @(density == "comfortable" ? "checked" : null) />
+            <label class="btn btn-outline-secondary" for="@prefix-density-comfortable">寬鬆</label>
+            <input class="btn-check" type="radio" name="@prefix-density" id="@prefix-density-compact" value="compact" data-mso-preference="mso-density" @(density == "compact" ? "checked" : null) />
+            <label class="btn btn-outline-secondary" for="@prefix-density-compact">緊湊</label>
+        </div>
+    </section>
+
+    <section class="mso-preference-section" aria-labelledby="@prefix-navigation-label">
+        <div class="mso-preference-label" id="@prefix-navigation-label">導覽版面</div>
+        <div class="btn-group mso-preference-button-group" role="group" aria-label="導覽版面">
+            <input class="btn-check" type="radio" name="@prefix-navigation" id="@prefix-navigation-top" value="top" data-mso-preference="mso-navigation-layout" @(navigation == "top" ? "checked" : null) />
+            <label class="btn btn-outline-secondary" for="@prefix-navigation-top">上方導覽列</label>
+            <input class="btn-check" type="radio" name="@prefix-navigation" id="@prefix-navigation-sidebar" value="sidebar" data-mso-preference="mso-navigation-layout" @(navigation == "sidebar" ? "checked" : null) />
+            <label class="btn btn-outline-secondary" for="@prefix-navigation-sidebar">左側摺疊欄</label>
+        </div>
+    </section>
+
+    <div class="dropdown-divider"></div>
+    <section class="mso-preference-section" aria-labelledby="@prefix-language-label">
+        <div class="mso-preference-label" id="@prefix-language-label">語言 / Language</div>
+        <button class="dropdown-item disabled mso-language-current" type="button" disabled>繁體中文 <span aria-hidden="true">✓</span></button>
+        <button class="dropdown-item disabled" type="button" disabled>English</button>
+        <button class="dropdown-item disabled" type="button" disabled>日本語</button>
+    </section>
+    <section class="mso-preference-section">
+        <div class="mso-preference-label">時區</div>
+        <button class="dropdown-item disabled" type="button" disabled>UTC+08:00 台北</button>
+    </section>
+    <div class="dropdown-divider"></div>
+    <form asp-controller="Account" asp-action="Logout" method="post">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="dropdown-item mso-logout">登出</button>
+    </form>
+</div>

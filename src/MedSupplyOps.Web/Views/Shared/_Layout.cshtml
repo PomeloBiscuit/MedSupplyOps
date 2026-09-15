@@ -6,11 +6,16 @@
     var canReceiveStock = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.StockReceive)).Succeeded;
     var sidebarState = Context.Request.Cookies["mso-sidebar-state"];
     sidebarState = sidebarState is "expanded" or "compact" or "hidden" ? sidebarState : "expanded";
+    var themePreference = Context.Request.Cookies["mso-theme"];
+    themePreference = themePreference is "light" or "dark" or "system" or "contrast" ? themePreference : "light";
+    var bootstrapTheme = themePreference == "dark" ? "dark" : "light";
+    var densityPreference = Context.Request.Cookies["mso-density"];
+    densityPreference = densityPreference is "comfortable" or "compact" ? densityPreference : "comfortable";
     var useSidebarNavigation = User.Identity?.IsAuthenticated == true &&
         string.Equals(Context.Request.Cookies["mso-navigation-layout"], "sidebar", StringComparison.Ordinal);
 }
 <!DOCTYPE html>
-<html lang="zh-Hant" data-bs-theme="light" data-mso-navigation="@(useSidebarNavigation ? "sidebar" : "top")" data-mso-sidebar-state="@sidebarState">
+<html lang="zh-Hant" data-bs-theme="@bootstrapTheme" data-mso-theme="@themePreference" data-density="@densityPreference" data-mso-navigation="@(useSidebarNavigation ? "sidebar" : "top")" data-mso-sidebar-state="@sidebarState">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -38,12 +43,15 @@ else
         <nav class="navbar navbar-expand-lg navbar-dark mso-navbar">
             <div class="container-xxl mso-shell">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+                <span class="mso-navbar-subtitle">醫材耗材請領與庫存管理</span>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                            aria-expanded="false" aria-label="切換導覽">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="navbar-collapse collapse d-lg-flex justify-content-between">
+                        <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">首頁</a>
                         </li>
@@ -68,28 +76,20 @@ else
                                 <a class="nav-link text-dark" asp-area="" asp-controller="Receiving" asp-action="Index">入庫</a>
                             </li>
                         }
-                    </ul>
-                    <ul class="navbar-nav">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
+                        </ul>
+                        <ul class="navbar-nav align-items-lg-center">
                             <li class="nav-item d-flex align-items-center me-2">
                                 <span class="mso-user-name">@User.Identity.Name</span>
                             </li>
-                            <li class="nav-item">
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-link nav-link text-dark">登出</button>
-                                </form>
+                            <li class="nav-item dropdown">
+                                <button class="btn mso-settings-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="設定" title="設定">⚙</button>
+                                <div class="dropdown-menu dropdown-menu-end mso-preference-dropdown">
+                                    <partial name="_PreferenceMenu" />
+                                </div>
                             </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Account" asp-action="Login">登入</a>
-                            </li>
-                        }
-                    </ul>
-                </div>
+                        </ul>
+                    </div>
+                }
             </div>
         </nav>
     </header>
