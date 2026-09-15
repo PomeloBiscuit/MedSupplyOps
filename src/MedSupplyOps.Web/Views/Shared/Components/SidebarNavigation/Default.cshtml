@@ -1,0 +1,115 @@
+@using MedSupplyOps.Web.Authorization
+@using MedSupplyOps.Web.ViewComponents
+@model SidebarNavigationViewModel
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    var isAdministrator = User.IsInRole(ApplicationRoles.Administrator);
+    var canReceiveStock = User.IsInRole(ApplicationRoles.Storekeeper) || User.IsInRole(ApplicationRoles.Administrator);
+    var isCompact = Model.State == "compact";
+    var isHidden = Model.State == "hidden";
+    var toggleIcon = isCompact ? "expand" : "collapse";
+    var navItems = new[]
+    {
+        new { Name = "首頁", Controller = "Home", Action = "Index", Icon = "home", Badge = (int?)null },
+        new { Name = "庫存查詢", Controller = "Inventory", Action = "Index", Icon = "inventory", Badge = (int?)null },
+        new { Name = "效期預警", Controller = "Inventory", Action = "Expiring", Icon = "expiry", Badge = Model.ExpiringLotCount > 0 ? (int?)Model.ExpiringLotCount : null },
+        new { Name = "請領單", Controller = "Requisitions", Action = "Index", Icon = "requisition", Badge = Model.PendingRequisitionCount > 0 ? (int?)Model.PendingRequisitionCount : null },
+    };
+}
+
+@if (isHidden)
+{
+    <header class="mso-compact-header">
+        <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="開啟導覽">
+            <partial name="_NavigationIcon" model='"menu"' />
+            <span>導覽</span>
+        </button>
+        <a class="mso-compact-brand" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
+        <partial name="_SidebarUserMenu" model="Model" />
+    </header>
+    <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label">
+        <div class="offcanvas-header">
+            <span class="offcanvas-title" id="mso-navigation-offcanvas-label">MedSupplyOps</span>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="關閉"></button>
+        </div>
+        <div class="offcanvas-body d-flex flex-column">
+            @if (Model.HasRole)
+            {
+                <nav aria-label="主要導覽">
+                    <div class="mso-sidebar-group-title">作業</div>
+                    <div class="mso-sidebar-links">
+                        @foreach (var item in navItems)
+                        {
+                            var isCurrent = controller == item.Controller && action == item.Action;
+                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)">
+                                <partial name="_NavigationIcon" model="item.Icon" />
+                                <span>@item.Name</span>
+                                @if (item.Badge is not null)
+                                {
+                                    <span class="mso-nav-badge" data-testid="nav-@(item.Icon)-badge">@item.Badge</span>
+                                }
+                            </a>
+                        }
+                        @if (isAdministrator)
+                        {
+                            var isCurrent = controller == "Items" && action == "Index";
+                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"items"' /><span>品項管理</span></a>
+                        }
+                        @if (canReceiveStock)
+                        {
+                            var isCurrent = controller == "Receiving" && action == "Index";
+                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"receive"' /><span>入庫</span></a>
+                        }
+                    </div>
+                </nav>
+            }
+            <div class="mt-auto"><partial name="_SidebarUserMenu" model="Model" /></div>
+        </div>
+    </div>
+}
+else
+{
+    <aside class="mso-sidebar @(isCompact ? "mso-sidebar-compact" : "mso-sidebar-expanded")" data-sidebar-state="@Model.State" data-sidebar-width="@(isCompact ? "64" : "248")">
+        <div class="mso-sidebar-brand-row">
+            <a class="mso-sidebar-brand" asp-controller="Home" asp-action="Index">@(isCompact ? "MS" : "MedSupplyOps")</a>
+            <button class="btn mso-sidebar-toggle" type="button" data-mso-sidebar-toggle aria-expanded="@(isCompact ? "false" : "true")" aria-label="@(isCompact ? "展開側欄" : "收合側欄")" title="@(isCompact ? "展開側欄" : "收合側欄")">
+                <partial name="_NavigationIcon" model="toggleIcon" />
+            </button>
+        </div>
+        @if (Model.HasRole)
+        {
+            <nav aria-label="主要導覽">
+                @if (!isCompact)
+                {
+                    <div class="mso-sidebar-group-title">作業</div>
+                }
+                <div class="mso-sidebar-links">
+                    @foreach (var item in navItems)
+                    {
+                        var isCurrent = controller == item.Controller && action == item.Action;
+                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? item.Name : null)">
+                            <span class="mso-nav-icon-wrap"><partial name="_NavigationIcon" model="item.Icon" />@if (isCompact && item.Badge is not null) { <span class="mso-nav-badge" data-testid="nav-@(item.Icon)-badge">@item.Badge</span> }</span>
+                            @if (!isCompact)
+                            {
+                                <span>@item.Name</span>
+                                @if (item.Badge is not null) { <span class="mso-nav-badge" data-testid="nav-@(item.Icon)-badge">@item.Badge</span> }
+                            }
+                        </a>
+                    }
+                    @if (isAdministrator)
+                    {
+                        var isCurrent = controller == "Items" && action == "Index";
+                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? "品項管理" : null)"><partial name="_NavigationIcon" model='"items"' />@if (!isCompact) { <span>品項管理</span> }</a>
+                    }
+                    @if (canReceiveStock)
+                    {
+                        var isCurrent = controller == "Receiving" && action == "Index";
+                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? "入庫" : null)"><partial name="_NavigationIcon" model='"receive"' />@if (!isCompact) { <span>入庫</span> }</a>
+                    }
+                </div>
+            </nav>
+        }
+        <div class="mso-sidebar-user"><partial name="_SidebarUserMenu" model="Model" /></div>
+    </aside>
+}
