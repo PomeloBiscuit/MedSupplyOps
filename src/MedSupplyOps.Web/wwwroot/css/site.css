@@ -517,3 +517,150 @@ a:hover {
     width: 100%;
   }
 }
+
+/* 左側版面讓導覽與內容共用全高，展開、圖示列與隱藏態不需由 JavaScript 改 DOM。 */
+.mso-app-shell { display: flex; min-height: 100vh; background: var(--mso-surface-subtle); }
+
+/* 側欄固定使用設計稿的深藍識別色，並在內容過長時維持自己的捲動區。 */
+.mso-sidebar { display: flex; flex: 0 0 248px; flex-direction: column; min-height: 100vh; background: var(--mso-navy); color: #fff; }
+
+/* 半收折態依規格保留 64px 圖示列。 */
+.mso-sidebar-compact { flex-basis: 64px; align-items: center; padding: .875rem 0; }
+
+/* 品牌與收折控制置於欄頂，使用同一個按鈕讓鍵盤與滑鼠行為一致。 */
+.mso-sidebar-brand-row { display: flex; align-items: center; gap: .5rem; padding: 1rem .875rem .875rem; }
+
+/* 展開態品牌撐滿剩餘列寬，避免收折按鈕擠壓產品名稱。 */
+.mso-sidebar-brand { flex: 1; color: #fff; font-size: 1rem; font-weight: 700; text-decoration: none; }
+
+/* 圖示列的品牌以縮寫呈現，保留可辨識產品識別。 */
+.mso-sidebar-compact .mso-sidebar-brand { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border-radius: var(--mso-radius); background: rgb(255 255 255 / 16%); font-size: .8rem; }
+
+/* 收折按鈕採低對比邊框，hover 時仍保有明確焦點。 */
+.mso-sidebar-toggle { display: grid; width: 30px; height: 30px; padding: 0; place-items: center; border: 1px solid rgb(255 255 255 / 22%); border-radius: var(--mso-radius-sm); color: #fff; }
+
+/* 半收折按鈕維持圖示可點擊面積與品牌垂直排列。 */
+.mso-sidebar-compact .mso-sidebar-brand-row { flex-direction: column; padding: 0; }
+
+/* 作業分組標題以字距與透明白色建立層級，不與功能連結混淆。 */
+.mso-sidebar-group-title { padding: 0 .625rem .25rem; color: rgb(255 255 255 / 48%); font-size: .6875rem; font-weight: 700; letter-spacing: .06em; }
+
+/* 導覽連結以小間距堆疊，讓目前頁面底色清楚可見。 */
+.mso-sidebar-links { display: grid; gap: .125rem; padding: .25rem .625rem; }
+
+/* 每個導覽目標保留足夠的鍵盤焦點與滑鼠命中面積。 */
+.mso-sidebar-link { display: flex; position: relative; align-items: center; gap: .625rem; min-height: 40px; padding: .5rem .6875rem; border-radius: var(--mso-radius); color: rgb(255 255 255 / 78%); font-size: .875rem; text-decoration: none; }
+
+/* 目前頁面與 hover 採半透明白底，避免另建一套色票。 */
+.mso-sidebar-link:hover, .mso-sidebar-link:focus-visible, .mso-sidebar-link.is-current { background: rgb(255 255 255 / 14%); color: #fff; }
+
+/* 內嵌 SVG 使用固定尺寸，使文字與純圖示兩種狀態對齊。 */
+.mso-nav-svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+/* 待辦角標沿用既有警示語意色，展開態放在列尾。 */
+.mso-nav-badge { min-width: 1.25rem; margin-left: auto; padding: .0625rem .375rem; border-radius: 999px; background: var(--mso-warning-bg); color: var(--mso-warning); font-size: .6875rem; font-weight: 700; line-height: 1.45; text-align: center; }
+
+/* 圖示列以 40px 方形目標呈現，符合設計稿的 64px 欄寬。 */
+.mso-sidebar-compact .mso-sidebar-links { justify-items: center; padding: .25rem 0; }
+
+/* 圖示列隱藏名稱但保留 tooltip 的可及名稱。 */
+.mso-sidebar-compact .mso-sidebar-link { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+
+/* 收折態角標固定在圖示右上角，不佔用導覽列寬度。 */
+.mso-nav-icon-wrap { position: relative; display: inline-grid; place-items: center; }
+
+/* 收折態角標使用深色警示底以維持深藍側欄上的對比。 */
+.mso-sidebar-compact .mso-nav-badge { position: absolute; top: -8px; right: -12px; margin: 0; background: var(--mso-warning); color: #fff; }
+
+/* 使用者區固定在側欄底端，避免長導覽清單將登出選單推出畫面。 */
+.mso-sidebar-user { margin-top: auto; padding: .75rem .625rem .875rem; border-top: 1px solid rgb(255 255 255 / 12%); }
+
+/* 使用者觸發器顯示頭像、姓名與 email，並保留完整可點擊面積。 */
+.mso-user-menu-toggle { display: flex; width: 100%; align-items: center; gap: .5625rem; padding: .5rem .625rem; border: 0; border-radius: var(--mso-radius); background: rgb(255 255 255 / 12%); color: #fff; text-align: left; }
+
+/* 頭像字以既有深淺藍語彙表現，不依賴外部圖像。 */
+.mso-user-initial { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border-radius: var(--mso-radius); background: rgb(255 255 255 / 20%); font-size: .8125rem; font-weight: 700; }
+
+/* 使用者摘要的 email 截斷，防止長帳號破壞側欄寬度。 */
+.mso-user-summary { display: grid; min-width: 0; flex: 1; font-size: .8125rem; font-weight: 700; }
+
+/* email 降低視覺權重並保持單行截斷。 */
+.mso-user-summary small { overflow: hidden; color: rgb(255 255 255 / 64%); font-size: .6875rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 展開箭頭與使用者資訊對齊於觸發器末端。 */
+.mso-user-chevron { color: rgb(255 255 255 / 70%); font-size: .75rem; }
+
+/* 下拉選單用淺色面板清楚區隔停用設定與可用登出動作。 */
+.mso-user-dropdown { min-width: 14.25rem; padding: .375rem; border-color: var(--mso-border-strong); border-radius: var(--mso-radius); box-shadow: 0 .875rem 2.125rem rgb(16 23 31 / 24%); }
+
+/* 下拉選單首列重複人員識別，避免收折態只見頭像時失去上下文。 */
+.mso-user-dropdown-heading { display: flex; gap: .625rem; align-items: center; padding: .5rem .5625rem .75rem; border-bottom: 1px solid var(--mso-surface-subtle); color: var(--mso-text); }
+
+/* 下拉選單內的頭像改用既有淺藍面板，確保白底對比。 */
+.mso-user-dropdown-heading .mso-user-initial { background: var(--mso-info-bg); color: var(--mso-info); }
+
+/* 下拉選單姓名與角色用兩行資訊呈現。 */
+.mso-user-dropdown-heading strong, .mso-user-dropdown-heading small { display: block; }
+
+/* 角色文字使用既有 muted 色，和功能選單層級區隔。 */
+.mso-user-dropdown-heading small { color: var(--mso-text-muted); font-size: .75rem; }
+
+/* 已排程的第二批設定明確 disabled，避免提供假的連結。 */
+.mso-user-dropdown .dropdown-item:disabled { color: var(--mso-text-muted); opacity: .65; }
+
+/* 真正的登出維持危險語意色，讓唯一可用帳號動作容易辨識。 */
+.mso-logout { color: var(--mso-danger); }
+
+/* 圖示列只保留頭像觸發器，使用者細節由下拉選單提供。 */
+.mso-sidebar-compact .mso-sidebar-user { padding: .75rem 0 0; }
+
+/* 圖示列收起文字以維持 64px 欄寬。 */
+.mso-sidebar-compact .mso-user-summary, .mso-sidebar-compact .mso-user-chevron { display: none; }
+
+/* 內容區自動延伸並讓全站頁尾位於同一版面欄，而非側欄之下。 */
+.mso-app-content { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+
+/* 側欄版面主內容保留既有 container 最大寬，完全收折時可使用最大表格寬度。 */
+.mso-sidebar-layout .mso-main { width: min(100% - 3rem, 1320px); flex: 1; margin: 0 auto; padding-top: 1.5rem; padding-bottom: 2rem; }
+
+/* 完全收折態主內容移除欄寬限制，給盤點表格最大可用空間。 */
+.mso-sidebar-layout .mso-main-wide { width: min(100% - 2.25rem, 1600px); }
+
+/* 完全收折的細列提供 offcanvas 導覽與使用者選單。 */
+.mso-compact-header { display: flex; align-items: center; gap: .75rem; min-height: 52px; padding: 0 1.125rem; border-bottom: 1px solid var(--mso-border); background: var(--mso-surface); }
+
+/* 細列的導覽按鈕沿用既有按鈕圓角與表面色。 */
+.mso-navigation-trigger { display: inline-flex; align-items: center; gap: .4375rem; border-color: var(--mso-border-strong); color: var(--mso-text); }
+
+/* 細列品牌保留產品識別並將使用者選單推至右端。 */
+.mso-compact-brand { color: var(--mso-navy); font-size: .9375rem; font-weight: 700; text-decoration: none; }
+
+/* 細列使用者選單在白底使用淺色頭像與深色文字。 */
+.mso-compact-header .mso-user-menu { margin-left: auto; }
+
+/* 細列使用者觸發器縮成頭像，不重複擠壓標題列。 */
+.mso-compact-header .mso-user-menu-toggle { width: auto; padding: 0; background: transparent; color: var(--mso-text); }
+
+/* 細列的頭像遵循淺色語意面板。 */
+.mso-compact-header .mso-user-initial { background: var(--mso-info-bg); color: var(--mso-info); }
+
+/* 完全收折時使用 Bootstrap 原生 offcanvas，僅調整品牌色與寬度。 */
+.mso-navigation-offcanvas { width: min(248px, 82vw); background: var(--mso-navy); color: #fff; }
+
+/* offcanvas 的關閉按鈕改為白色，確保深底可見。 */
+.mso-navigation-offcanvas .btn-close { filter: invert(1); }
+
+/* offcanvas 下的連結、群組與使用者選單沿用左欄配置。 */
+.mso-navigation-offcanvas .mso-sidebar-group-title { padding-left: 0; }
+
+/* offcanvas 導覽連結填滿容器，保留展開態文字與角標。 */
+.mso-navigation-offcanvas .mso-sidebar-links { padding: .25rem 0; }
+
+/* offcanvas 使用者按鈕固定深底視覺，與左欄一致。 */
+.mso-navigation-offcanvas .mso-user-menu-toggle { background: rgb(255 255 255 / 12%); }
+
+/* 全站頁尾採兩行警語與置中對齊，登入頁及已登入頁共用。 */
+.mso-footer { margin-top: auto; padding: 1rem 0; border-top: 1px solid var(--mso-border); background: var(--mso-surface); color: var(--mso-text-muted); font-size: .75rem; line-height: 1.75; text-align: center; }
+
+/* 小螢幕時側欄仍保留可閱讀主內容，不額外引入另一套行動導覽。 */
+@media (max-width: 575.98px) { .mso-sidebar-layout .mso-main, .mso-sidebar-layout .mso-main-wide { width: min(100% - 1.5rem, 1600px); } }

@@ -4,9 +4,13 @@
 @{
     var canManageItems = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.ItemManage)).Succeeded;
     var canReceiveStock = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.StockReceive)).Succeeded;
+    var sidebarState = Context.Request.Cookies["mso-sidebar-state"];
+    sidebarState = sidebarState is "expanded" or "compact" or "hidden" ? sidebarState : "expanded";
+    var useSidebarNavigation = User.Identity?.IsAuthenticated == true &&
+        string.Equals(Context.Request.Cookies["mso-navigation-layout"], "sidebar", StringComparison.Ordinal);
 }
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-bs-theme="light" data-mso-navigation="@(useSidebarNavigation ? "sidebar" : "top")" data-mso-sidebar-state="@sidebarState">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +19,21 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@(useSidebarNavigation ? "mso-sidebar-layout" : "mso-top-navigation-layout")">
+@if (useSidebarNavigation)
+{
+    <div class="mso-app-shell">
+        @await Component.InvokeAsync("SidebarNavigation", new { state = sidebarState })
+        <div class="mso-app-content">
+            <main role="main" class="mso-main @(sidebarState == "hidden" ? "mso-main-wide" : null)">
+                @RenderBody()
+            </main>
+            <partial name="_GlobalFooter" />
+        </div>
+    </div>
+}
+else
+{
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark mso-navbar">
             <div class="container-xxl mso-shell">
@@ -81,11 +99,8 @@
         </main>
     </div>
 
-    <footer class="mso-footer">
-        <div class="container-xxl mso-shell">
-            &copy; 2026 - MedSupplyOps
-        </div>
-    </footer>
+    <partial name="_GlobalFooter" />
+}
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

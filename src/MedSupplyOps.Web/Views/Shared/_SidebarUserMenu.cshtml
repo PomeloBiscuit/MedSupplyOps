@@ -1,0 +1,26 @@
+@using MedSupplyOps.Web.ViewComponents
+@model SidebarNavigationViewModel
+<div class="dropdown mso-user-menu">
+    <button class="btn mso-user-menu-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="開啟使用者選單">
+        <span class="mso-user-initial">@Model.Initial</span>
+        <span class="mso-user-summary"><span>@Model.DisplayName</span><small>@Model.Email</small></span>
+        <span class="mso-user-chevron" aria-hidden="true">▾</span>
+    </button>
+    <div class="dropdown-menu dropdown-menu-end mso-user-dropdown">
+        <div class="mso-user-dropdown-heading"><span class="mso-user-initial">@Model.Initial</span><span><strong>@Model.DisplayName</strong><small>@Model.RoleName</small></span></div>
+        @if (Model.HasRole)
+        {
+            <button class="dropdown-item" type="button" data-mso-navigation-toggle>切換導覽版面</button>
+            <button class="dropdown-item" type="button" disabled>個人資料</button>
+            <button class="dropdown-item" type="button" disabled>變更密碼</button>
+            <button class="dropdown-item" type="button" disabled>版面風格</button>
+            <button class="dropdown-item" type="button" disabled>語言</button>
+            <button class="dropdown-item" type="button" disabled>時區</button>
+            <div class="dropdown-divider"></div>
+        }
+        <form asp-controller="Account" asp-action="Logout" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="dropdown-item mso-logout">登出</button>
+        </form>
+    </div>
+</div>
