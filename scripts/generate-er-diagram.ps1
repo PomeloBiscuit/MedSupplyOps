@@ -92,9 +92,20 @@ function Invoke-OracleDictionaryQuery {
     $sql = @'
 whenever sqlerror exit failure rollback
 set echo off feedback off heading off pagesize 0 linesize 32767 trimspool on tab off
+-- ★ 這一段不進圖，只為了「出聲」：列出被排除的 Oracle 暫存產物。
+--   回收桶（BIN$）與 DBMS_COMPRESSION 的暫存表（CMP<n>$）不是我們宣告的 schema，
+--   但也不能靜靜跳過 —— 靜靜跳過的話，將來真的多出一張表也會被一起吃掉。
+select 'X|' || table_name
+  from user_tables
+ where table_name like 'BIN$%'
+    or regexp_like(table_name, '^CMP[0-9]+\$')
+ order by table_name;
+
 select 'T|' || table_name
   from user_tables
  where table_name <> 'SCHEMA_VERSIONS'
+   and table_name not like 'BIN$%'
+   and not regexp_like(table_name, '^CMP[0-9]+\$')
  order by table_name;
 
 select 'C|' || c.table_name || '|' || c.column_name || '|' || c.data_type || '|' ||
@@ -102,6 +113,8 @@ select 'C|' || c.table_name || '|' || c.column_name || '|' || c.data_type || '|'
        nvl(to_char(c.data_precision), '') || '|' || nvl(to_char(c.data_scale), '')
   from user_tab_columns c
  where c.table_name <> 'SCHEMA_VERSIONS'
+   and c.table_name not like 'BIN$%'
+   and not regexp_like(c.table_name, '^CMP[0-9]+\$')
  order by c.table_name, c.column_id;
 
 select 'P|' || cc.table_name || '|' || cc.column_name
@@ -109,6 +122,8 @@ select 'P|' || cc.table_name || '|' || cc.column_name
   join user_cons_columns cc on cc.constraint_name = c.constraint_name
  where c.constraint_type = 'P'
    and c.table_name <> 'SCHEMA_VERSIONS'
+   and c.table_name not like 'BIN$%'
+   and not regexp_like(c.table_name, '^CMP[0-9]+\$')
  order by cc.table_name, c.constraint_name, cc.position;
 
 select 'F|' || cc.table_name || '|' || cc.column_name
@@ -116,6 +131,8 @@ select 'F|' || cc.table_name || '|' || cc.column_name
   join user_cons_columns cc on cc.constraint_name = c.constraint_name
  where c.constraint_type = 'R'
    and c.table_name <> 'SCHEMA_VERSIONS'
+   and c.table_name not like 'BIN$%'
+   and not regexp_like(c.table_name, '^CMP[0-9]+\$')
  order by cc.table_name, c.constraint_name, cc.position;
 
 select 'R|' || fk.constraint_name || '|' || fk.table_name || '|' || pk.table_name || '|' ||
@@ -132,7 +149,11 @@ select 'R|' || fk.constraint_name || '|' || fk.table_name || '|' || pk.table_nam
   join user_constraints pk on pk.constraint_name = fk.r_constraint_name
  where fk.constraint_type = 'R'
    and fk.table_name <> 'SCHEMA_VERSIONS'
+   and fk.table_name not like 'BIN$%'
+   and not regexp_like(fk.table_name, '^CMP[0-9]+\$')
    and pk.table_name <> 'SCHEMA_VERSIONS'
+   and pk.table_name not like 'BIN$%'
+   and not regexp_like(pk.table_name, '^CMP[0-9]+\$')
  order by fk.constraint_name;
 exit success
 '@
@@ -174,6 +195,8 @@ function New-MermaidDiagram {
     param([Parameter(Mandatory = $true)][string[]]$DictionaryRows)
 
     $tables = New-Object System.Collections.Generic.List[string]
+    # 被排除的 Oracle 暫存產物（回收桶、DBMS_COMPRESSION 暫存表）。不進圖，但要印出來。
+    $artifacts = New-Object System.Collections.Generic.List[string]
     $columns = @{}
     $primaryKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $foreignKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -182,6 +205,7 @@ function New-MermaidDiagram {
     foreach ($row in $DictionaryRows) {
         $parts = $row -split '\|', -1
         switch ($parts[0]) {
+            'X' { [void]$artifacts.Add($parts[1]) }
             'T' { $tables.Add($parts[1]) }
             'C' {
                 $key = $parts[1]
@@ -205,6 +229,11 @@ function New-MermaidDiagram {
             }
             default { throw "無法辨識資料字典輸出：$row" }
         }
+    }
+
+    if ($artifacts.Count -gt 0) {
+        Write-Host ('資料字典裡有 {0} 個 Oracle 暫存產物，已排除在 ER 圖之外：{1}' -f $artifacts.Count, ($artifacts -join ', ')) -ForegroundColor Yellow
+        Write-Host '（BIN$ 是回收桶、CMP<n>$ 是 DBMS_COMPRESSION 的暫存表，都由資料庫自己產生；冷啟的資料庫不會有它們。）' -ForegroundColor Yellow
     }
 
     $lines = New-Object System.Collections.Generic.List[string]
