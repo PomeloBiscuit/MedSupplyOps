@@ -7,8 +7,8 @@
     var prefix = "mso-preference-" + Guid.NewGuid().ToString("N");
 }
 <div class="mso-preference-menu">
-    <button class="dropdown-item" type="button" disabled>個人資料</button>
-    <button class="dropdown-item" type="button" disabled>變更密碼</button>
+    <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#mso-account-modal" data-mso-account-url="@Url.Action("Profile", "Account")">個人資料</button>
+    <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#mso-account-modal" data-mso-account-url="@Url.Action("ChangePassword", "Account")">變更密碼</button>
     <div class="dropdown-divider"></div>
 
     <section class="mso-preference-section" aria-labelledby="@prefix-theme-label">

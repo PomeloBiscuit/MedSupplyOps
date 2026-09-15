@@ -1,11 +1,13 @@
 using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Persistence;
+using MedSupplyOps.Infrastructure.Persistence.Models;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Account;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace MedSupplyOps.Web.Controllers;
 
@@ -19,15 +21,18 @@ public sealed class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly MedSupplyOpsDbContext _dbContext;
+    private readonly PasswordOptions _passwordOptions;
 
     public AccountController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
-        MedSupplyOpsDbContext dbContext)
+        MedSupplyOpsDbContext dbContext,
+        IOptions<IdentityOptions> identityOptions)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _dbContext = dbContext;
+        _passwordOptions = identityOptions.Value.Password;
     }
 
     [AcceptVerbs("GET", "HEAD")]
@@ -145,8 +150,131 @@ public sealed class AccountController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.Authenticated)]
+    public async Task<IActionResult> Profile(CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Challenge();
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var departmentName = user.DepartmentId is long departmentId
+            ? await _dbContext.Departments.AsNoTracking()
+                .Where(department => department.Id == departmentId && !department.IsDeleted)
+                .Select(department => department.Name)
+                .SingleOrDefaultAsync(cancellationToken) ?? "未指定"
+            : "未指定";
+        var displayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email ?? user.UserName ?? "使用者" : user.DisplayName;
+
+        return View(new ProfileViewModel(
+            displayName,
+            user.Email ?? user.UserName ?? string.Empty,
+            DisplayRoles(roles),
+            departmentName,
+            displayName[..1].ToUpperInvariant()));
+    }
+
+    [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.Authenticated)]
+    public IActionResult ChangePassword()
+        => View(CreateChangePasswordModel());
+
+    [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.Authenticated)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model, CancellationToken cancellationToken)
+    {
+        model.PasswordPolicy = PasswordPolicyViewModel.From(_passwordOptions);
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Challenge();
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+        if (!result.Succeeded)
+        {
+            AddChangePasswordErrors(result);
+            return View(model);
+        }
+
+        // ChangePasswordAsync 已由 Identity 驗證並更新雜湊；再明確輪替安全戳記，
+        // 然後只替目前工作階段重發 Cookie，使其他工作階段沿用的 Cookie 失效。
+        var stampResult = await _userManager.UpdateSecurityStampAsync(user);
+        if (!stampResult.Succeeded)
+        {
+            throw new InvalidOperationException("密碼已更新，但重新產生安全戳記失敗。");
+        }
+
+        await _signInManager.RefreshSignInAsync(user);
+
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            EntityType = "User",
+            EntityId = user.Id,
+            Action = "ChangePassword",
+            Actor = user.Email ?? user.UserName ?? user.Id,
+            OccurredAt = DateTime.UtcNow,
+            // 密碼與雜湊都不屬於可稽核內容；兩欄刻意保持 null。
+            OldValue = null,
+            NewValue = null,
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.Ordinal))
+        {
+            return Ok(new { succeeded = true, message = "密碼已更新；其他裝置的登入已失效。" });
+        }
+
+        TempData["Success"] = "密碼已更新；其他裝置的登入已失效。";
+        return RedirectToAction("Index", "Home");
+    }
+
+    [HttpGet]
     [AllowAnonymous]
     public IActionResult AccessDenied() => View();
+
+    private ChangePasswordViewModel CreateChangePasswordModel()
+        => new() { PasswordPolicy = PasswordPolicyViewModel.From(_passwordOptions) };
+
+    private void AddChangePasswordErrors(IdentityResult result)
+    {
+        foreach (var error in result.Errors)
+        {
+            var message = error.Code switch
+            {
+                "PasswordMismatch" => "目前密碼不正確，密碼未變更。",
+                "PasswordTooShort" => $"新密碼必須至少 {_passwordOptions.RequiredLength} 個字元。",
+                "PasswordRequiresUniqueChars" => $"新密碼必須至少包含 {_passwordOptions.RequiredUniqueChars} 個不同字元。",
+                "PasswordRequiresNonAlphanumeric" => "新密碼必須至少包含一個符號。",
+                "PasswordRequiresDigit" => "新密碼必須至少包含一個數字。",
+                "PasswordRequiresLower" => "新密碼必須至少包含一個小寫英文字母。",
+                "PasswordRequiresUpper" => "新密碼必須至少包含一個大寫英文字母。",
+                _ => "密碼無法更新，請確認輸入後再試。",
+            };
+            ModelState.AddModelError(string.Empty, message);
+        }
+    }
+
+    private static string DisplayRoles(IEnumerable<string> roles)
+    {
+        var displayNames = roles.Select(role => role switch
+        {
+            ApplicationRoles.Administrator => "管理員",
+            ApplicationRoles.Storekeeper => "庫管員",
+            ApplicationRoles.Requester => "請領人",
+            _ => role,
+        }).ToList();
+
+        return displayNames.Count == 0 ? "未指派角色" : string.Join("、", displayNames);
+    }
 
     private async Task PopulateDepartmentsAsync(RegisterViewModel model, CancellationToken cancellationToken)
     {

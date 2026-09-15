@@ -176,9 +176,28 @@ builder.Services
         options.Lockout.AllowedForNewUsers = true;
 
         options.User.RequireUniqueEmail = true;
+
+        // 密碼規則刻意明列在唯一的伺服器端設定來源。變更密碼與註冊都由 Identity
+        // 執行同一組驗證；畫面提示則從這份 PasswordOptions 產生，避免兩邊漂移。
+        options.Password.RequiredLength = 12;
+        options.Password.RequiredUniqueChars = 1;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
     })
     .AddEntityFrameworkStores<MedSupplyOpsIdentityDbContext>()
     .AddDefaultTokenProviders();
+
+// 密碼變更後，其他工作階段的舊安全戳記在下一個請求就必須被拒絕；
+// 變更密碼的目前工作階段會在更新安全戳記後重新簽入。
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.Zero;
+    // 安全憑證的時鐘不可跟著 BusinessCalendar 的測試／業務時鐘撥動；
+    // 否則業務日期往回測時會讓 Cookie 永遠達不到驗證間隔。
+    options.TimeProvider = TimeProvider.System;
+});
 
 builder.Services.AddScoped<DepartmentScopeResolver>();
 
@@ -187,6 +206,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Account/AccessDenied";
+    // 明確保留 Identity 的安全戳記驗證事件；ValidationInterval=Zero 使舊 Cookie
+    // 在密碼變更後的下一個請求就被拒絕。
+    options.Events.OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync;
     options.Events.OnRedirectToLogin = context =>
     {
         if (context.Request.Path.StartsWithSegments("/fhir"))
