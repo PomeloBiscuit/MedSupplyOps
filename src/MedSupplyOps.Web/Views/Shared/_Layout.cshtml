@@ -101,6 +101,16 @@ else
 
     <partial name="_GlobalFooter" />
 }
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="modal fade" id="mso-account-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" data-mso-account-modal-dialog>
+            <div class="modal-content">
+                <div class="modal-body text-center text-muted py-5" role="status">載入中…</div>
+            </div>
+        </div>
+    </div>
+}
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

@@ -831,3 +831,23 @@ html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
 
 /* 小螢幕時側欄仍保留可閱讀主內容，不額外引入另一套行動導覽。 */
 @media (max-width: 575.98px) { .mso-sidebar-layout .mso-main, .mso-sidebar-layout .mso-main-wide { width: min(100% - 1.5rem, 1600px); } }
+
+/* 帳號設定以共用 Bootstrap modal 呈現；內容由受授權端點載入，不把個資塞進 cookie。 */
+.mso-account-dialog { border: 0; border-radius: var(--mso-radius-lg); box-shadow: 0 18px 44px rgb(16 23 31 / 26%); }
+
+/* 個人資料維持唯讀卡片語意，姓名縮寫不依賴外部照片資源。 */
+.mso-profile-heading { display: flex; align-items: center; gap: .875rem; padding-bottom: 1rem; border-bottom: 1px solid var(--mso-border); }
+.mso-profile-heading > div { display: grid; gap: .125rem; }
+.mso-profile-heading span { color: var(--mso-text-muted); font-size: .8125rem; }
+.mso-profile-initial { display: grid; width: 56px; height: 56px; place-items: center; border-radius: var(--mso-radius-lg); background: var(--mso-info-bg); color: var(--mso-info) !important; font-size: 1.25rem !important; font-weight: 700; }
+.mso-profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1rem 0; }
+.mso-profile-fields div { min-width: 0; }
+.mso-profile-fields dt { margin-bottom: .375rem; color: var(--mso-text-muted); font-size: .75rem; }
+.mso-profile-fields dd { min-height: 42px; margin: 0; padding: .625rem .75rem; overflow-wrap: anywhere; border: 1px solid var(--mso-border); border-radius: var(--mso-radius-sm); background: var(--mso-surface-muted); }
+.mso-profile-note { padding: .75rem 1rem; border: 1px solid var(--mso-border); border-radius: var(--mso-radius); background: var(--mso-surface-muted); color: var(--mso-text-muted); font-size: .8125rem; }
+
+/* 規則文字直接對應 Identity PasswordOptions，輸入時只切換是否達成的視覺狀態。 */
+.mso-password-policy { display: grid; gap: .25rem; margin: .625rem 0 1rem; padding: .75rem; border: 1px solid var(--mso-border); border-radius: var(--mso-radius); background: var(--mso-surface-muted); color: var(--mso-text-muted); font-size: .8125rem; }
+.mso-password-policy .is-valid { color: var(--mso-success); }
+
+@media (max-width: 575.98px) { .mso-profile-fields { grid-template-columns: 1fr; } }
