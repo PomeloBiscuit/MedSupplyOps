@@ -129,6 +129,37 @@ a:hover {
   font-weight: 600;
 }
 
+/* Bootstrap 預設 outline 字色在工作區底色上不足 AA；所有表面改用專案的深色語意票。 */
+.btn-outline-primary {
+  --bs-btn-color: var(--mso-primary);
+  --bs-btn-border-color: var(--mso-primary);
+  --bs-btn-hover-bg: var(--mso-primary-hover);
+  --bs-btn-hover-border-color: var(--mso-primary-hover);
+  --bs-btn-active-bg: var(--mso-primary-hover);
+  --bs-btn-active-border-color: var(--mso-primary-hover);
+  --bs-btn-focus-shadow-rgb: 27, 94, 156;
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: #495057;
+  --bs-btn-border-color: #495057;
+  --bs-btn-hover-bg: #495057;
+  --bs-btn-hover-border-color: #495057;
+  --bs-btn-active-bg: #495057;
+  --bs-btn-active-border-color: #495057;
+  --bs-btn-focus-shadow-rgb: 73, 80, 87;
+}
+
+.btn-outline-danger {
+  --bs-btn-color: var(--mso-danger);
+  --bs-btn-border-color: var(--mso-danger);
+  --bs-btn-hover-bg: var(--mso-danger);
+  --bs-btn-hover-border-color: var(--mso-danger);
+  --bs-btn-active-bg: var(--mso-danger);
+  --bs-btn-active-border-color: var(--mso-danger);
+  --bs-btn-focus-shadow-rgb: 143, 29, 23;
+}
+
 /* Bootstrap card 的預設圓角、邊框與陰影不足以呈現畫板的表面層次。 */
 .card {
   --bs-card-border-color: var(--mso-border);
