@@ -294,6 +294,8 @@ public sealed partial class UserManagementWebTests
     {
         var suffix = Guid.NewGuid().ToString("N");
         var email = $"itest-x-lifecycle-{suffix}@example.local";
+        var createdEmployeeNo = "EMP-" + suffix[..12].ToUpperInvariant();
+        var updatedEmployeeNo = "EMP-" + suffix[12..24].ToUpperInvariant();
         var departmentId = await GetDepartmentIdAsync();
         string? userId = null;
 
@@ -306,6 +308,7 @@ public sealed partial class UserManagementWebTests
             {
                 ["Email"] = email,
                 ["DisplayName"] = "Lifecycle Storekeeper",
+                ["EmployeeNo"] = "  " + createdEmployeeNo + "  ",
                 ["Role"] = ApplicationRoles.Storekeeper,
                 ["InitialPassword"] = TestPassword,
             }));
@@ -323,18 +326,23 @@ public sealed partial class UserManagementWebTests
                 userId,
                 "Lifecycle Requester",
                 ApplicationRoles.Requester,
-                departmentId);
+                departmentId,
+                updatedEmployeeNo);
             Assert.Equal(HttpStatusCode.Redirect, edit.StatusCode);
             var state = await GetUserStateAsync(userId);
             Assert.Equal(ApplicationRoles.Requester, state.Role);
             Assert.Equal(departmentId, state.DepartmentId);
+            Assert.Equal(updatedEmployeeNo, state.EmployeeNo);
 
             var audits = await GetAuditsAsync(userId);
             var createAudit = Assert.Single(audits, audit => audit.Action == "Create");
             var updateAudit = Assert.Single(audits, audit => audit.Action == "Update");
             Assert.Contains("Storekeeper", createAudit.NewValue, StringComparison.Ordinal);
+            Assert.Contains(createdEmployeeNo, createAudit.NewValue, StringComparison.Ordinal);
             Assert.Contains("Storekeeper", updateAudit.OldValue, StringComparison.Ordinal);
+            Assert.Contains(createdEmployeeNo, updateAudit.OldValue, StringComparison.Ordinal);
             Assert.Contains("Requester", updateAudit.NewValue, StringComparison.Ordinal);
+            Assert.Contains(updatedEmployeeNo, updateAudit.NewValue, StringComparison.Ordinal);
             Assert.Contains(departmentId.ToString(System.Globalization.CultureInfo.InvariantCulture), updateAudit.NewValue, StringComparison.Ordinal);
             Assert.DoesNotContain(audits, audit => AuditContains(audit, TestPassword));
         }
@@ -347,6 +355,79 @@ public sealed partial class UserManagementWebTests
         }
     }
 
+    [Fact]
+    public async Task Employee_number_unique_index_allows_multiple_nulls_and_rejects_duplicate_values()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..12];
+        var employeeNo = "DB-" + suffix.ToUpperInvariant();
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        try
+        {
+            await InsertIdentityUserAsync(connection, transaction, $"null-a-{suffix}", employeeNo: null);
+            await InsertIdentityUserAsync(connection, transaction, $"null-b-{suffix}", employeeNo: null);
+            var nullCount = await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM identity_users WHERE id IN (:id1, :id2) AND employee_no IS NULL",
+                new { id1 = $"null-a-{suffix}", id2 = $"null-b-{suffix}" },
+                transaction);
+            Assert.Equal(2, nullCount);
+
+            await InsertIdentityUserAsync(connection, transaction, $"dup-a-{suffix}", employeeNo);
+            var exception = await Assert.ThrowsAsync<OracleException>(() =>
+                InsertIdentityUserAsync(connection, transaction, $"dup-b-{suffix}", employeeNo));
+            Assert.Equal(1, exception.Number);
+
+            _output.WriteLine($"Y-T2 NULL employee_no inserts: 2 rows succeeded (count={nullCount}).");
+            _output.WriteLine($"Y-T2 duplicate employee_no insert: ORA-{exception.Number:00000}，唯一索引拒絕第二筆。");
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Duplicate_employee_number_is_trimmed_and_shows_non_disclosing_error()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var existingEmail = $"itest-y-existing-{suffix}@example.local";
+        var attemptedEmail = $"itest-y-attempt-{suffix}@example.local";
+        var employeeNo = "UI-" + suffix[..12].ToUpperInvariant();
+        var existing = await CreateUserAsync(
+            existingEmail,
+            "Existing Employee",
+            ApplicationRoles.Storekeeper,
+            employeeNo: employeeNo);
+
+        try
+        {
+            using var administrator = CreateClient();
+            await WebAuthTestHelpers.LoginAsync(administrator, TestIdentitySeeder.AdministratorEmail);
+            var token = await GetTokenAsync(administrator, "/Users/Create");
+            var response = await administrator.PostAsync("/Users/Create", WithToken(token, new Dictionary<string, string>
+            {
+                ["Email"] = attemptedEmail,
+                ["DisplayName"] = "Attempted Employee",
+                ["EmployeeNo"] = "  " + employeeNo + "  ",
+                ["Role"] = ApplicationRoles.Storekeeper,
+                ["InitialPassword"] = TestPassword,
+            }));
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("員工編號重複。", html, StringComparison.Ordinal);
+            Assert.DoesNotContain(existingEmail, html, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(await FindUserIdAsync(attemptedEmail));
+            _output.WriteLine("Y-T2 duplicate employee number UI: 『員工編號重複。』；未揭露占用帳號。");
+        }
+        finally
+        {
+            await DeleteUserAsync(existing.Id);
+        }
+    }
+
     private HttpClient CreateClient()
         => _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
@@ -354,7 +435,8 @@ public sealed partial class UserManagementWebTests
         string email,
         string displayName,
         string role,
-        long? departmentId = null)
+        long? departmentId = null,
+        string? employeeNo = null)
     {
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -364,6 +446,7 @@ public sealed partial class UserManagementWebTests
             Email = email,
             EmailConfirmed = true,
             DisplayName = displayName,
+            EmployeeNo = employeeNo,
             DepartmentId = departmentId,
             LockoutEnabled = true,
         };
@@ -407,13 +490,18 @@ public sealed partial class UserManagementWebTests
         string userId,
         string displayName,
         string role,
-        long? departmentId)
+        long? departmentId,
+        string? employeeNo = null)
     {
         var values = new Dictionary<string, string>
         {
             ["DisplayName"] = displayName,
             ["Role"] = role,
         };
+        if (employeeNo is not null)
+        {
+            values["EmployeeNo"] = employeeNo;
+        }
         if (departmentId is not null)
         {
             values["DepartmentId"] = departmentId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -474,6 +562,7 @@ public sealed partial class UserManagementWebTests
         var row = await connection.QuerySingleAsync<UserStateDatabaseRow>(
             """
             SELECT u.department_id AS DepartmentId,
+                   u.employee_no AS EmployeeNo,
                    u.lockout_enabled AS LockoutEnabled,
                    u.lockout_end AS LockoutEnd,
                    r.name AS Role
@@ -485,7 +574,7 @@ public sealed partial class UserManagementWebTests
             new { userId });
         var enabled = row.LockoutEnabled == 0 || row.LockoutEnd is null || row.LockoutEnd.Value.Year < 9999;
         var departmentId = row.DepartmentId is decimal value ? decimal.ToInt64(value) : (long?)null;
-        return new UserStateRow(row.Role, departmentId, enabled);
+        return new UserStateRow(row.Role, departmentId, row.EmployeeNo, enabled);
     }
 
     private static async Task<List<AdministratorStatusRow>> GetAdministratorStatusesAsync()
@@ -596,6 +685,30 @@ public sealed partial class UserManagementWebTests
         await connection.ExecuteAsync("COMMIT");
     }
 
+    private static Task<int> InsertIdentityUserAsync(
+        OracleConnection connection,
+        System.Data.Common.DbTransaction transaction,
+        string id,
+        string? employeeNo)
+        => connection.ExecuteAsync(
+            """
+            INSERT INTO identity_users (
+                id, user_name, normalized_user_name, email, normalized_email, display_name, employee_no)
+            VALUES (
+                :id, :userName, :normalizedUserName, :email, :normalizedEmail, :displayName, :employeeNo)
+            """,
+            new
+            {
+                id,
+                userName = id + "@example.local",
+                normalizedUserName = (id + "@example.local").ToUpperInvariant(),
+                email = id + "@example.local",
+                normalizedEmail = (id + "@example.local").ToUpperInvariant(),
+                displayName = "Unique index probe",
+                employeeNo,
+            },
+            transaction);
+
     private static void EnsureSucceeded(IdentityResult result, string action)
     {
         if (!result.Succeeded)
@@ -623,6 +736,8 @@ public sealed partial class UserManagementWebTests
     {
         public decimal? DepartmentId { get; init; }
 
+        public string? EmployeeNo { get; init; }
+
         public short LockoutEnabled { get; init; }
 
         public DateTimeOffset? LockoutEnd { get; init; }
@@ -630,7 +745,7 @@ public sealed partial class UserManagementWebTests
         public string Role { get; init; } = string.Empty;
     }
 
-    private sealed record UserStateRow(string Role, long? DepartmentId, bool Enabled);
+    private sealed record UserStateRow(string Role, long? DepartmentId, string? EmployeeNo, bool Enabled);
 
     private sealed record UserAuditRow(
         string EntityType,

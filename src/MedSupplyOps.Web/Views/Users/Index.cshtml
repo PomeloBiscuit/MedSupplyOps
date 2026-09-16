@@ -59,6 +59,7 @@
                 <tr>
                     <th scope="col">@L["姓名"]</th>
                     <th scope="col">@L["Email"]</th>
+                    <th scope="col">@L["員工編號"]</th>
                     <th scope="col">@L["角色"]</th>
                     <th scope="col">@L["所屬科室"]</th>
                     <th scope="col">@L["啟用狀態"]</th>
@@ -68,13 +69,14 @@
             <tbody>
             @if (Model.Users.Count == 0)
             {
-                <tr><td colspan="6" class="mso-empty-state text-center">@L["沒有符合條件的使用者。"]</td></tr>
+                <tr><td colspan="7" class="mso-empty-state text-center">@L["沒有符合條件的使用者。"]</td></tr>
             }
             @foreach (var user in Model.Users)
             {
                 <tr>
                     <td class="text-break">@user.DisplayName</td>
                     <td class="text-break">@user.Email</td>
+                    <td class="text-break">@(user.EmployeeNo ?? "—")</td>
                     <td>@user.Role</td>
                     <td class="text-break">@user.DepartmentName</td>
                     <td>

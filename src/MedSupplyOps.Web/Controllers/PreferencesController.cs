@@ -16,6 +16,7 @@ public sealed class PreferencesController : Controller
     };
 
     [HttpPost]
+    [AllowAnonymous]
     [ValidateAntiForgeryToken]
     public IActionResult Culture(string culture, string? returnUrl)
     {
@@ -36,7 +37,7 @@ public sealed class PreferencesController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult TimeZone(string timeZone, string? returnUrl)
     {
-        if (!DisplayTimeZone.SupportedIds.Contains(timeZone, StringComparer.Ordinal))
+        if (!DisplayTimeZone.IsSupported(timeZone))
         {
             return BadRequest();
         }

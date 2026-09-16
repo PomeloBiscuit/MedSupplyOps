@@ -126,7 +126,14 @@ public sealed partial class PreferencesAndIssueQueueWebTests : IClassFixture<Req
         Assert.Contains("Create requisition", englishHtml, StringComparison.Ordinal);
         Assert.Contains("Submit requisition", englishHtml, StringComparison.Ordinal);
         Assert.Contains(itemName, englishHtml, StringComparison.Ordinal);
-        Assert.Contains("value=\"ja\" disabled", englishHtml, StringComparison.Ordinal);
+        // Y2：偏好選單的語言只剩繁體中文與 English 兩個可選項，佔位用的 disabled 日文選項已移除。
+        // 斷言「沒有任何 disabled 語言選項」而不是釘住 ja——這樣未來有人再加一個佔位選項，這條會紅。
+        var languageMenu = englishHtml[englishHtml.IndexOf("name=\"culture\"", StringComparison.Ordinal)..];
+        languageMenu = languageMenu[..languageMenu.IndexOf("</select>", StringComparison.Ordinal)];
+        Assert.DoesNotContain("disabled", languageMenu, StringComparison.Ordinal);
+        Assert.Contains("value=\"zh-Hant\"", languageMenu, StringComparison.Ordinal);
+        Assert.Contains("value=\"en\"", languageMenu, StringComparison.Ordinal);
+        Assert.Equal(2, languageMenu.Split("<option", StringSplitOptions.None).Length - 1);
         var passwordHtml = await GetHtmlAsync(client, "/Account/ChangePassword");
         Assert.Contains("Current password", passwordHtml, StringComparison.Ordinal);
         Assert.Contains("The new password must be at least 12 characters long.", passwordHtml, StringComparison.Ordinal);

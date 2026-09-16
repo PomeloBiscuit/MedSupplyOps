@@ -483,6 +483,11 @@ a:hover {
   max-width: none;
 }
 
+/* 語言切換放在登入卡片底部，尺寸刻意收斂，避免與主要登入動作競爭。 */
+.mso-auth-language { display: flex; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--mso-border); }
+.mso-auth-language form { width: auto; }
+.mso-auth-language .form-select { width: auto; min-width: 8.5rem; color: var(--mso-text-muted); }
+
 /* 登入示範帳號改為可關閉的提示卡，帳號列與填入動作保持可掃讀。 */
 .mso-demo-account-card { margin: 0 0 1.5rem; padding: 1rem; background: var(--mso-surface-muted); border: 1px solid var(--mso-border); border-radius: var(--mso-radius-lg); }
 

@@ -48,6 +48,7 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         "使用者管理", "維護帳號、角色、科室與啟用狀態。", "新增使用者", "使用者篩選",
         "全部角色", "啟用狀態", "全部狀態", "啟用中", "已停用", "套用篩選", "使用者清單",
         "沒有符合條件的使用者。", "重設密碼", "目前登入帳號不可停用",
+        "員工編號", "員工編號不可超過 32 個字。", "員工編號重複。",
         "建立帳號並指派角色；請領人必須選擇科室。", "請選擇角色", "初始密碼",
         "選擇請領人角色時，科室為必填。", "初始密碼只交給 Identity 處理，不會顯示既有密碼。",
         "編輯使用者", "更新姓名、角色與所屬科室。Email 建立後不可修改。", "Email 建立後不可修改。",
@@ -105,6 +106,41 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
 
         AssertNoLeakedChinese("/Account/Login", html);
         _output.WriteLine("T4 /Account/Login: 無未翻譯字串");
+    }
+
+    [Fact]
+    public async Task Anonymous_user_can_switch_login_page_to_English_and_stay_on_login_page()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetAsync("/Account/Login");
+        var token = ExtractToken(await login.Content.ReadAsStringAsync());
+
+        var response = await client.PostAsync("/Preferences/Culture", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["culture"] = "en",
+            ["returnUrl"] = "/Account/Login",
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/Login", response.Headers.Location?.OriginalString);
+        var setCookie = response.Headers.GetValues("Set-Cookie")
+            .FirstOrDefault(value => value.Contains(CookieRequestCultureProvider.DefaultCookieName, StringComparison.Ordinal));
+        Assert.NotNull(setCookie);
+
+        // PreferencesController 把文化 cookie 設成 Secure=true（刻意的產品行為，不可為了測試調降）。
+        // 這個測試的 HttpClient 走 http://localhost，.NET 的 CookieContainer 不會存回 Secure cookie，
+        // 所以後續 GET 收不到它、頁面會退回預設文化。瀏覽器對 http://localhost 有 Secure cookie 的例外，
+        // 實機操作不受影響；這裡手動把 Set-Cookie 的值帶進下一個請求的 Cookie 標頭來還原「瀏覽器會做的事」。
+        var cultureCookieValue = setCookie![..setCookie.IndexOf(';')];
+        var englishRequest = new HttpRequestMessage(HttpMethod.Get, response.Headers.Location);
+        englishRequest.Headers.TryAddWithoutValidation("Cookie", cultureCookieValue);
+        var englishLogin = await client.SendAsync(englishRequest);
+        var html = await englishLogin.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, englishLogin.StatusCode);
+        Assert.Contains("Sign in", html, StringComparison.Ordinal);
+        AssertNoLeakedChinese("/Account/Login after anonymous culture switch", html);
+        _output.WriteLine("Y-T1 anonymous POST /Preferences/Culture: HTTP 302 -> /Account/Login；後續 GET HTTP 200 且顯示 English。");
     }
 
     [Fact]

@@ -29,13 +29,41 @@ public sealed partial class DisplayTimeZoneWebTests : IClassFixture<RequisitionF
     [Fact]
     public void Supported_display_time_zone_ids_all_resolve_via_FindSystemTimeZoneById()
     {
+        Assert.True(DisplayTimeZone.SupportedIds.Count > 100, "顯示時區必須由系統資料動態提供全球清單。");
         foreach (var id in DisplayTimeZone.SupportedIds)
         {
             var resolved = TimeZoneInfo.FindSystemTimeZoneById(id);
             Assert.NotNull(resolved);
+            Assert.True(id == "UTC" || id.Contains('/'), $"{id} 不是 IANA ID。");
         }
 
-        _output.WriteLine("T3 supported ids: " + string.Join(", ", DisplayTimeZone.SupportedIds));
+        _output.WriteLine($"Y-T3 dynamically discovered IANA ids: {DisplayTimeZone.SupportedIds.Count}");
+    }
+
+    [Fact]
+    public void Daylight_saving_zone_has_different_winter_and_summer_offsets()
+    {
+        var london = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
+        var winter = london.GetUtcOffset(new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero));
+        var summer = london.GetUtcOffset(new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero));
+
+        Assert.NotEqual(winter, summer);
+        _output.WriteLine($"Y-T3 Europe/London winter offset={winter}, summer offset={summer}；選單只能顯示現在的偏移。");
+    }
+
+    [Fact]
+    public async Task Invalid_time_zone_cookie_falls_back_to_default_without_500()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", $"{DisplayTimeZone.CookieName}=Mars/Olympus");
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.AdministratorEmail);
+
+        var response = await client.GetAsync("/");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Matches("value=\"Asia/Taipei\"[^>]*selected", html);
+        _output.WriteLine("Y-T4 cookie Mars/Olympus -> HTTP 200；畫面選取 Asia/Taipei。");
     }
 
     [Fact]
@@ -66,9 +94,9 @@ public sealed partial class DisplayTimeZoneWebTests : IClassFixture<RequisitionF
         taipeiClient.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", "mso-display-time-zone=Asia/Taipei");
         await WebAuthTestHelpers.LoginAsync(taipeiClient, TestIdentitySeeder.AdministratorEmail);
 
-        using var newYorkClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        newYorkClient.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", "mso-display-time-zone=America/New_York");
-        await WebAuthTestHelpers.LoginAsync(newYorkClient, TestIdentitySeeder.AdministratorEmail);
+        using var losAngelesClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        losAngelesClient.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", "mso-display-time-zone=America/Los_Angeles");
+        await WebAuthTestHelpers.LoginAsync(losAngelesClient, TestIdentitySeeder.AdministratorEmail);
 
         var expectedTaipeiDate = TestBusinessCalendar.Today.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         long id = 0;
@@ -80,19 +108,22 @@ public sealed partial class DisplayTimeZoneWebTests : IClassFixture<RequisitionF
             Assert.StartsWith($"REQ-{expectedTaipeiDate}-", requisitionNo, StringComparison.Ordinal);
 
             var taipeiHtml = await GetHtmlAsync(taipeiClient, "/Requisitions");
-            var newYorkHtml = await GetHtmlAsync(newYorkClient, "/Requisitions");
+            var losAngelesHtml = await GetHtmlAsync(losAngelesClient, "/Requisitions");
+            var expiryHtml = await GetHtmlAsync(losAngelesClient, "/Inventory/Expiring");
 
             // 單號本身（含日期）在兩種顯示時區下必須完全一致：業務日期不跟著偏好走。
             Assert.Contains(requisitionNo, taipeiHtml, StringComparison.Ordinal);
-            Assert.Contains(requisitionNo, newYorkHtml, StringComparison.Ordinal);
+            Assert.Contains(requisitionNo, losAngelesHtml, StringComparison.Ordinal);
+            Assert.Contains(TestBusinessCalendar.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), expiryHtml, StringComparison.Ordinal);
 
             var taipeiTime = TimeCellRegex().Match(Fragment(taipeiHtml, requisitionNo)).Groups[1].Value;
-            var newYorkTime = TimeCellRegex().Match(Fragment(newYorkHtml, requisitionNo)).Groups[1].Value;
-            Assert.NotEqual(taipeiTime, newYorkTime);
+            var losAngelesTime = TimeCellRegex().Match(Fragment(losAngelesHtml, requisitionNo)).Groups[1].Value;
+            Assert.NotEqual(taipeiTime, losAngelesTime);
 
             _output.WriteLine($"T3 requisition no.（兩種顯示時區皆同）: {requisitionNo}");
             _output.WriteLine($"T3 Asia/Taipei 顯示時間: {taipeiTime}");
-            _output.WriteLine($"T3 America/New_York 顯示時間: {newYorkTime}");
+            _output.WriteLine($"Y-T5 America/Los_Angeles 顯示時間: {losAngelesTime}");
+            _output.WriteLine($"Y-T5 請領單號日期={expectedTaipeiDate}；效期預警基準日={TestBusinessCalendar.Today:yyyy-MM-dd}（皆固定台北業務日）。");
         }
         finally
         {

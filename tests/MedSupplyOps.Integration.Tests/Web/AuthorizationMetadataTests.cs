@@ -41,6 +41,7 @@ public sealed class AuthorizationMetadataTests
         "AccountController.Register",     // 同上
         "AccountController.AccessDenied", // 權限不足時的落地頁，登入與否都要看得到
         "FhirController.Metadata",        // FHIR 客戶端先讀能力宣告，再決定如何驗證與呼叫
+        "PreferencesController.Culture",  // 未登入使用者必須能在登入頁切換繁中／English
     };
 
     private readonly ApplicationStartupSmokeTests.ProductionLikeFactory _factory;

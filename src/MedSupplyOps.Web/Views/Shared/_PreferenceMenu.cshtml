@@ -59,7 +59,6 @@
             <select class="form-select form-select-sm" name="culture" aria-labelledby="@prefix-language-label" onchange="this.form.submit()">
                 <option value="zh-Hant" selected="@(CultureInfo.CurrentUICulture.Name == "zh-Hant")">繁體中文</option>
                 <option value="en" selected="@(CultureInfo.CurrentUICulture.Name == "en")">English</option>
-                <option value="ja" disabled>日本語（@L["尚未提供"]）</option>
             </select>
         </form>
     </section>
@@ -69,9 +68,14 @@
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@(Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString)" />
             <select class="form-select form-select-sm" name="timeZone" aria-labelledby="@prefix-time-zone-label" onchange="this.form.submit()">
-                @foreach (var timeZoneId in DisplayTimeZone.SupportedIds)
+                @foreach (var group in DisplayTimeZone.SupportedTimeZones.GroupBy(option => option.Region))
                 {
-                    <option value="@timeZoneId" selected="@(DisplayTimeZone.Id == timeZoneId)">@DisplayTimeZone.OffsetPrefix(timeZoneId)@L[DisplayTimeZone.CityKey(timeZoneId)]</option>
+                    <optgroup label="@group.Key">
+                    @foreach (var timeZone in group)
+                    {
+                        <option value="@timeZone.Id" selected="@(DisplayTimeZone.Id == timeZone.Id)">@DisplayTimeZone.OffsetPrefix(timeZone.Id)@timeZone.City</option>
+                    }
+                    </optgroup>
                 }
             </select>
         </form>

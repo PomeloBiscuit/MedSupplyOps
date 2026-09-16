@@ -11,44 +11,55 @@ public sealed class DisplayTimeZone
     public const string CookieName = "mso-display-time-zone";
     public const string DefaultId = "Asia/Taipei";
 
-    public static readonly IReadOnlyList<string> SupportedIds =
-    [
-        DefaultId,
-        "UTC",
-        "Asia/Tokyo",
-        "Asia/Shanghai",
-        "Asia/Singapore",
-        "Asia/Seoul",
-        "Europe/London",
-        "America/New_York",
-        "America/Los_Angeles",
-    ];
+    private static readonly Dictionary<string, TimeZoneInfo> TimeZonesById;
 
-    /// <summary>選單用的語系無關前綴（固定偏移的時區才標，避免夏令時間讓標示變成謊言）。</summary>
-    public static string OffsetPrefix(string id) => id switch
-    {
-        DefaultId => "UTC+08:00 ",
-        "Asia/Tokyo" => "UTC+09:00 ",
-        "Asia/Shanghai" => "UTC+08:00 ",
-        "Asia/Singapore" => "UTC+08:00 ",
-        "Asia/Seoul" => "UTC+09:00 ",
-        _ => string.Empty,
-    };
+    public static readonly IReadOnlyList<DisplayTimeZoneOption> SupportedTimeZones;
 
-    /// <summary>選單用的城市名稱，key 即為 @L[] 查表用的中文原文。</summary>
-    public static string CityKey(string id) => id switch
+    public static readonly IReadOnlyList<string> SupportedIds;
+
+    static DisplayTimeZone()
     {
-        DefaultId => "台北",
-        "UTC" => "UTC",
-        "Asia/Tokyo" => "東京",
-        "Asia/Shanghai" => "上海",
-        "Asia/Singapore" => "新加坡",
-        "Asia/Seoul" => "首爾",
-        "Europe/London" => "倫敦",
-        "America/New_York" => "紐約",
-        "America/Los_Angeles" => "洛杉磯",
-        _ => id,
-    };
+        var timeZones = new Dictionary<string, TimeZoneInfo>(StringComparer.Ordinal);
+        foreach (var systemTimeZone in TimeZoneInfo.GetSystemTimeZones())
+        {
+            var id = IanaId(systemTimeZone.Id);
+            if (id is not null)
+            {
+                timeZones.TryAdd(id, systemTimeZone);
+            }
+        }
+
+        // Windows 會列舉 Windows ID，因此上面會先轉成跨平台的 IANA ID；
+        // 這兩個值則明確保證預設值與 UTC 一定存在。
+        timeZones[DefaultId] = TimeZoneInfo.FindSystemTimeZoneById(DefaultId);
+        timeZones["UTC"] = TimeZoneInfo.Utc;
+
+        TimeZonesById = timeZones;
+        SupportedTimeZones = timeZones
+            .Select(pair => new DisplayTimeZoneOption(pair.Key, Region(pair.Key), City(pair.Key)))
+            .OrderBy(option => option.Region, StringComparer.Ordinal)
+            .ThenBy(option => option.City, StringComparer.Ordinal)
+            .ThenBy(option => option.Id, StringComparer.Ordinal)
+            .ToArray();
+        SupportedIds = SupportedTimeZones.Select(option => option.Id).ToArray();
+    }
+
+    /// <summary>
+    /// 選單顯示的是該時區「現在」的 UTC 偏移；有夏令時間的城市半年後可能顯示不同值，
+    /// 這是正確行為，不能改回固定對照表。
+    /// </summary>
+    public static string OffsetPrefix(string id)
+    {
+        if (!TimeZonesById.TryGetValue(id, out var timeZone))
+        {
+            return string.Empty;
+        }
+
+        var offset = timeZone.GetUtcOffset(DateTimeOffset.UtcNow);
+        var sign = offset < TimeSpan.Zero ? '-' : '+';
+        var absolute = offset.Duration();
+        return $"UTC{sign}{absolute.Hours:00}:{absolute.Minutes:00} ";
+    }
 
     private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -62,7 +73,7 @@ public sealed class DisplayTimeZone
         get
         {
             var value = _httpContextAccessor.HttpContext?.Request.Cookies[CookieName];
-            return value is not null && SupportedIds.Contains(value, StringComparer.Ordinal)
+            return value is not null && TimeZonesById.ContainsKey(value)
                 ? value
                 : DefaultId;
         }
@@ -71,9 +82,37 @@ public sealed class DisplayTimeZone
     public DateTime ConvertFromUtc(DateTime utc)
     {
         var normalizedUtc = DateTime.SpecifyKind(utc, DateTimeKind.Utc);
-        return TimeZoneInfo.ConvertTimeFromUtc(normalizedUtc, TimeZoneInfo.FindSystemTimeZoneById(Id));
+        return TimeZoneInfo.ConvertTimeFromUtc(normalizedUtc, TimeZonesById[Id]);
     }
 
     public string Format(DateTime utc, string format = "yyyy-MM-dd HH:mm:ss") =>
         ConvertFromUtc(utc).ToString(format, CultureInfo.InvariantCulture);
+
+    public static bool IsSupported(string id) => TimeZonesById.ContainsKey(id);
+
+    private static string? IanaId(string systemId)
+    {
+        if (systemId == "UTC" || systemId.Contains('/'))
+        {
+            return systemId;
+        }
+
+        return TimeZoneInfo.TryConvertWindowsIdToIanaId(systemId, out var ianaId) ? ianaId : null;
+    }
+
+    private static string Region(string id)
+    {
+        var separator = id.IndexOf('/');
+        return separator > 0 ? id[..separator] : "UTC";
+    }
+
+    private static string City(string id)
+    {
+        var separator = id.IndexOf('/');
+        return (separator >= 0 ? id[(separator + 1)..] : id)
+            .Replace('/', '·')
+            .Replace('_', ' ');
+    }
 }
+
+public sealed record DisplayTimeZoneOption(string Id, string Region, string City);
