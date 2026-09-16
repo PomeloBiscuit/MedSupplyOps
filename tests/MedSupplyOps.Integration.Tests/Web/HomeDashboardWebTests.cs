@@ -155,9 +155,12 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
                 new { code = expiringItemCode, name = "測試近效期品項 " + suffix });
             var expiringItemId = await connection.ExecuteScalarAsync<long>(
                 "SELECT item_id FROM items WHERE item_code = :code", new { code = expiringItemCode });
+            // ★ 效期要以**網站的**業務日期為基準，不可用資料庫的 SYSDATE：測試主機的時鐘被釘在
+            //   TestBusinessCalendar.DefaultInstant，卡片算的是那個「今天」。兩個時鐘混用，
+            //   這條斷言就只在兩者相差不到 30 天的那段真實日期裡是綠的，之後自己變紅。見 L-036。
             await connection.ExecuteAsync(
-                "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, TRUNC(SYSDATE) + 10, 5, 'ITEST-A01', 'itest')",
-                new { itemId = expiringItemId, lot = expiringLotNumber });
+                "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, :expiry, 5, 'ITEST-A01', 'itest')",
+                new { itemId = expiringItemId, lot = expiringLotNumber, expiry = HostDate(10) });
 
             await connection.ExecuteAsync(
                 "INSERT INTO items (item_code, item_name, unit_of_measure, safety_stock_qty, created_by) VALUES (:code, :name, '個', 10, 'itest')",
@@ -448,15 +451,12 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
 
         try
         {
-            await connection.ExecuteAsync(
-                "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, TRUNC(SYSDATE) - 5, 50, 'ITEST-A01', 'itest')",
-                new { itemId = activeId, lot = "L1" + suffix });
-            await connection.ExecuteAsync(
-                "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, TRUNC(SYSDATE) - 5, 0, 'ITEST-A01', 'itest')",
-                new { itemId = zeroQtyId, lot = "L2" + suffix });
-            await connection.ExecuteAsync(
-                "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, TRUNC(SYSDATE) - 5, 50, 'ITEST-A01', 'itest')",
-                new { itemId = deletedId, lot = "L3" + suffix });
+            // ★ 同上：過期日以網站的業務日期往前推，不用資料庫的 SYSDATE。見 L-036。
+            const string insertLotSql =
+                "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, :expiry, :quantity, 'ITEST-A01', 'itest')";
+            await connection.ExecuteAsync(insertLotSql, new { itemId = activeId, lot = "L1" + suffix, expiry = HostDate(-5), quantity = 50 });
+            await connection.ExecuteAsync(insertLotSql, new { itemId = zeroQtyId, lot = "L2" + suffix, expiry = HostDate(-5), quantity = 0 });
+            await connection.ExecuteAsync(insertLotSql, new { itemId = deletedId, lot = "L3" + suffix, expiry = HostDate(-5), quantity = 50 });
 
             var after = ExtractCount(await GetHtmlAsync(keeperClient, "/"), "expired-in-stock-count");
             Assert.Equal(before + 1, after);
@@ -511,6 +511,17 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
     /// 讀取頁面內容並解碼 HTML 實體。.NET 的預設 HtmlEncoder 只把 ASCII 視為安全字元，
     /// 中文字一律編碼成 &amp;#xXXXX; 數字實體——直接對原始回應內容比對中文字串必定比不到。
     /// </summary>
+    /// <summary>
+    /// 以**測試主機的**業務日期（<see cref="TestBusinessCalendar.Today"/>）為基準推算效期。
+    ///
+    /// ★ 不可以改用資料庫的 <c>TRUNC(SYSDATE)</c>：那是真實時鐘，而卡片的數字是網站用被釘住的
+    ///   測試時鐘算出來的「今天」去篩的。兩個時鐘各走各的，測試就會在某個真實日期自己變紅
+    ///   ——「已過期仍在庫」那條就是這樣在 2026-09-16 引爆的（那天起 SYSDATE-5 剛好等於釘住的今天，
+    ///   而條件是 expiry &lt; today，等於不算）。見 L-036。
+    /// </summary>
+    private static DateTime HostDate(int offsetDays)
+        => TestBusinessCalendar.Today.AddDays(offsetDays).ToDateTime(TimeOnly.MinValue);
+
     private static async Task<string> GetHtmlAsync(HttpClient client, string path)
         => WebUtility.HtmlDecode(await client.GetStringAsync(path));
 

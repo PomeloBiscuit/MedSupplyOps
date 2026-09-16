@@ -42,3 +42,6 @@ _private/
 
 # 維運備份含業務資料與 Identity 密碼雜湊，絕不可納入版本控制。
 backups/
+
+# Claude Code 的本機狀態：工作樹複本裡含 .env（資料庫密碼），絕不可進版本庫。
+.claude/
