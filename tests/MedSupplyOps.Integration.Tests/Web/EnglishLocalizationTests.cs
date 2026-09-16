@@ -26,6 +26,10 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
     /// <summary>至少涵蓋實機檢查點名的例子；發現新的漏翻可以直接加進來。</summary>
     public static readonly string[] BannedChineseUiStrings =
     [
+        // ★ 這三條是「整頁掃中日韓字元」抓到的，不是靠人工列清單想出來的。
+        //   頁尾那條每一頁都有，卻在清單式斷言下活了下來 —— 見 L-038。
+        "．版權所有", "個人資料為唯讀；如需修改請聯絡系統管理員。",
+        "更新後，目前裝置會重新簽入，其他裝置的既有登入會失效。",
         "庫存總覽", "料號", "品名", "規格", "單位", "可用量", "安全存量",
         "展開批次明細（", "請選擇品項", "尚未選擇品項。", "查詢基準日", "基準日：",
         "近效期批次", "批號", "效期", "儲位", "N 天內到期", "此條件下沒有仍有數量的近效期批次。",
@@ -63,6 +67,8 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         { "/", TestIdentitySeeder.AdministratorEmail }, // 營運儀表板
         { "/", TestIdentitySeeder.RequesterEmail }, // 我的儀表板
         { "/", TestIdentitySeeder.NoRoleEmail }, // 未指派角色
+        { "/Account/Profile", TestIdentitySeeder.RequesterEmail },
+        { "/Account/ChangePassword", TestIdentitySeeder.RequesterEmail },
     };
 
     [Theory]
