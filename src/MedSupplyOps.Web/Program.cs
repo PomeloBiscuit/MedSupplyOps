@@ -36,27 +36,17 @@ catch (InvalidTimeZoneException exception)
         exception);
 }
 
-// ★ 顯示時區清單（DisplayTimeZone.SupportedIds）只影響畫面呈現，不影響上面的業務時區，
-//   但清單裡任何一個 ID 打錯字都要在啟動時就現形，不可以放著讓使用者選到它才 500 ——
-//   安靜地退回主機時區的錯誤最難發現（踩坑紀錄 L-025）。
-foreach (var displayTimeZoneId in DisplayTimeZone.SupportedIds)
+// ★ 顯示時區清單由作業系統的 TimeZoneInfo 資料動態產生；逐一再解析數百個 ID
+//   只是在重驗作業系統自己的資料。啟動時只驗證我們自行指定的 DefaultId。
+try
 {
-    try
-    {
-        TimeZoneInfo.FindSystemTimeZoneById(displayTimeZoneId);
-    }
-    catch (TimeZoneNotFoundException exception)
-    {
-        throw new InvalidOperationException(
-            $"顯示時區清單包含找不到的時區 '{displayTimeZoneId}'，App 無法啟動。請確認 DisplayTimeZone.SupportedIds 中的每個 ID 都是有效的 IANA 時區。",
-            exception);
-    }
-    catch (InvalidTimeZoneException exception)
-    {
-        throw new InvalidOperationException(
-            $"顯示時區清單包含無效的時區資料 '{displayTimeZoneId}'，App 無法啟動。",
-            exception);
-    }
+    TimeZoneInfo.FindSystemTimeZoneById(DisplayTimeZone.DefaultId);
+}
+catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
+{
+    throw new InvalidOperationException(
+        $"找不到顯示時區預設值 '{DisplayTimeZone.DefaultId}'，App 無法啟動。",
+        exception);
 }
 
 // ★ 業務日曆必須從 DI 取時鐘，不可以直接寫 TimeProvider.System。

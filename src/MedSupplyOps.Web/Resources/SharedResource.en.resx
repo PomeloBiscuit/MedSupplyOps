@@ -30,7 +30,6 @@
   <data name="上方導覽列" xml:space="preserve"><value>Top navigation</value></data>
   <data name="左側摺疊欄" xml:space="preserve"><value>Collapsible sidebar</value></data>
   <data name="語言" xml:space="preserve"><value>Language</value></data>
-  <data name="尚未提供" xml:space="preserve"><value>not available</value></data>
   <data name="顯示時區" xml:space="preserve"><value>Display time zone</value></data>
   <data name="台北" xml:space="preserve"><value>Taipei</value></data>
   <data name="資料一律以 UTC 儲存；清單與稽核時間依此時區顯示。" xml:space="preserve"><value>Data is always stored in UTC; list and audit timestamps use this display time zone.</value></data>
@@ -284,6 +283,7 @@
   <data name="套用篩選" xml:space="preserve"><value>Apply filters</value></data>
   <data name="使用者清單" xml:space="preserve"><value>User list</value></data>
   <data name="Email" xml:space="preserve"><value>Email</value></data>
+  <data name="員工編號" xml:space="preserve"><value>Employee no.</value></data>
   <data name="沒有符合條件的使用者。" xml:space="preserve"><value>No users match the current filters.</value></data>
   <data name="重設密碼" xml:space="preserve"><value>Reset password</value></data>
   <data name="啟用" xml:space="preserve"><value>Enable</value></data>
@@ -306,6 +306,8 @@
   <data name="請輸入 Email。" xml:space="preserve"><value>Enter an email address.</value></data>
   <data name="Email 格式不正確。" xml:space="preserve"><value>Enter a valid email address.</value></data>
   <data name="Email 不可超過 256 個字。" xml:space="preserve"><value>Email cannot exceed 256 characters.</value></data>
+  <data name="員工編號不可超過 32 個字。" xml:space="preserve"><value>Employee number cannot exceed 32 characters.</value></data>
+  <data name="員工編號重複。" xml:space="preserve"><value>The employee number is already in use.</value></data>
   <data name="請選擇角色。" xml:space="preserve"><value>Select a role.</value></data>
   <data name="請輸入初始密碼。" xml:space="preserve"><value>Enter an initial password.</value></data>
   <data name="選擇的角色無效。" xml:space="preserve"><value>The selected role is invalid.</value></data>

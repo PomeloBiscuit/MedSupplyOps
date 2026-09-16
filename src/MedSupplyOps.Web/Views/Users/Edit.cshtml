@@ -25,6 +25,11 @@
                 <span asp-validation-for="DisplayName" class="text-danger"></span>
             </div>
             <div class="col-md-6">
+                <label asp-for="EmployeeNo" class="form-label"></label>
+                <input asp-for="EmployeeNo" class="form-control" maxlength="32" autocomplete="off" />
+                <span asp-validation-for="EmployeeNo" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
                 <label asp-for="Role" class="form-label"></label>
                 @if (Model.IsCurrentUser)
                 {

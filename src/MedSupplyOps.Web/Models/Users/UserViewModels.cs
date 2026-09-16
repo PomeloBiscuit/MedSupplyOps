@@ -24,6 +24,7 @@ public sealed record UserListRowViewModel(
     string Id,
     string DisplayName,
     string Email,
+    string? EmployeeNo,
     string Role,
     string DepartmentName,
     bool IsEnabled,
@@ -41,6 +42,10 @@ public sealed class CreateUserViewModel
     [StringLength(100, ErrorMessage = "姓名不可超過 100 個字。")]
     [Display(Name = "姓名")]
     public string DisplayName { get; set; } = string.Empty;
+
+    [StringLength(32, ErrorMessage = "員工編號不可超過 32 個字。")]
+    [Display(Name = "員工編號")]
+    public string? EmployeeNo { get; set; }
 
     [Required(ErrorMessage = "請選擇角色。")]
     [Display(Name = "角色")]
@@ -69,6 +74,10 @@ public sealed class EditUserViewModel
     [StringLength(100, ErrorMessage = "姓名不可超過 100 個字。")]
     [Display(Name = "姓名")]
     public string DisplayName { get; set; } = string.Empty;
+
+    [StringLength(32, ErrorMessage = "員工編號不可超過 32 個字。")]
+    [Display(Name = "員工編號")]
+    public string? EmployeeNo { get; set; }
 
     [Required(ErrorMessage = "請選擇角色。")]
     [Display(Name = "角色")]

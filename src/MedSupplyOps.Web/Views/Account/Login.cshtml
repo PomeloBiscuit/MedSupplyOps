@@ -1,3 +1,4 @@
+@using System.Globalization
 @using MedSupplyOps.Web.Models.Account
 @model LoginViewModel
 @{
@@ -52,6 +53,17 @@
     </div>
     <p class="text-muted small mt-3 mb-0">@L["忘記密碼請聯絡系統管理員。"]</p>
 </form>
+<div class="mso-auth-language">
+    <form asp-controller="Preferences" asp-action="Culture" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@(Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString)" />
+        <label class="visually-hidden" for="login-culture">@L["語言"]</label>
+        <select class="form-select form-select-sm" id="login-culture" name="culture" aria-label="@L["語言"]" onchange="this.form.submit()">
+            <option value="zh-Hant" selected="@(CultureInfo.CurrentUICulture.Name == "zh-Hant")">繁體中文</option>
+            <option value="en" selected="@(CultureInfo.CurrentUICulture.Name == "en")">English</option>
+        </select>
+    </form>
+</div>
 </section>
 </div>
 

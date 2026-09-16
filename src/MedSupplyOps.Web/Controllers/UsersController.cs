@@ -26,6 +26,7 @@ public sealed class UsersController : Controller
     private const int AdministratorLockWaitSeconds = 5;
     private const int OraLockWaitTimeout = 30006;
     private const int OraResourceBusy = 54;
+    private const int OraUniqueConstraint = 1;
     private const int GeneratedPasswordLength = 20;
     private const string ResetPasswordValueKey = "Users.ResetPassword.Value";
     private const string ResetPasswordNameKey = "Users.ResetPassword.Name";
@@ -109,6 +110,7 @@ public sealed class UsersController : Controller
                     user.Id,
                     DisplayName(user),
                     user.Email ?? user.UserName ?? string.Empty,
+                    user.EmployeeNo,
                     DisplayRoles(userRoles),
                     departmentName,
                     isEnabled,
@@ -150,7 +152,13 @@ public sealed class UsersController : Controller
     public async Task<IActionResult> Create(CreateUserViewModel model, CancellationToken cancellationToken)
     {
         Normalize(model);
-        RevalidateNormalizedFields(model, nameof(model.Email), nameof(model.DisplayName), nameof(model.Role));
+        RevalidateNormalizedFields(
+            model,
+            nameof(model.Email),
+            nameof(model.DisplayName),
+            nameof(model.EmployeeNo),
+            nameof(model.Role));
+        await ValidateEmployeeNoUniqueAsync(model.EmployeeNo, excludedUserId: null, cancellationToken);
         await ValidateRoleAndDepartmentAsync(model.Role, model.DepartmentId, nameof(model.DepartmentId), cancellationToken);
         if (!ModelState.IsValid)
         {
@@ -164,12 +172,25 @@ public sealed class UsersController : Controller
             Email = model.Email,
             EmailConfirmed = true,
             DisplayName = model.DisplayName,
+            EmployeeNo = model.EmployeeNo,
             DepartmentId = model.Role == ApplicationRoles.Requester ? model.DepartmentId : null,
             LockoutEnabled = true,
         };
 
         await using var transaction = await _identityDbContext.Database.BeginTransactionAsync(cancellationToken);
-        var createResult = await _userManager.CreateAsync(user, model.InitialPassword);
+        IdentityResult createResult;
+        try
+        {
+            createResult = await _userManager.CreateAsync(user, model.InitialPassword);
+        }
+        catch (Exception exception) when (IsEmployeeNoUniqueConstraintViolation(exception))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            ModelState.AddModelError(nameof(model.EmployeeNo), _localizer["員工編號重複。"]);
+            await PopulateOptionsAsync(model, cancellationToken);
+            return View(model);
+        }
+
         if (!createResult.Succeeded)
         {
             await transaction.RollbackAsync(cancellationToken);
@@ -191,7 +212,7 @@ public sealed class UsersController : Controller
             user.Id,
             AuditValues.CreateAction,
             oldValue: null,
-            UserAuditJson(model.Role, user.DepartmentId, enabled: true),
+            UserAuditJson(model.Role, user.DepartmentId, user.EmployeeNo, enabled: true),
             transaction,
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -216,6 +237,7 @@ public sealed class UsersController : Controller
             Id = user.Id,
             Email = user.Email ?? user.UserName ?? string.Empty,
             DisplayName = user.DisplayName,
+            EmployeeNo = user.EmployeeNo,
             Role = roles.FirstOrDefault(IsManageableRole) ?? string.Empty,
             DepartmentId = user.DepartmentId,
             IsCurrentUser = string.Equals(user.Id, currentUser?.Id, StringComparison.Ordinal),
@@ -228,7 +250,7 @@ public sealed class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(
         string id,
-        [Bind("DisplayName,Role,DepartmentId")] EditUserViewModel model,
+        [Bind("DisplayName,EmployeeNo,Role,DepartmentId")] EditUserViewModel model,
         CancellationToken cancellationToken)
     {
         var user = await _userManager.FindByIdAsync(id);
@@ -247,7 +269,8 @@ public sealed class UsersController : Controller
         model.Email = user.Email ?? user.UserName ?? string.Empty;
         model.IsCurrentUser = string.Equals(user.Id, currentUser.Id, StringComparison.Ordinal);
         Normalize(model);
-        RevalidateNormalizedFields(model, nameof(model.DisplayName), nameof(model.Role));
+        RevalidateNormalizedFields(model, nameof(model.DisplayName), nameof(model.EmployeeNo), nameof(model.Role));
+        await ValidateEmployeeNoUniqueAsync(model.EmployeeNo, user.Id, cancellationToken);
         await ValidateRoleAndDepartmentAsync(model.Role, model.DepartmentId, nameof(model.DepartmentId), cancellationToken);
         if (model.IsCurrentUser && model.Role != ApplicationRoles.Administrator)
         {
@@ -268,6 +291,7 @@ public sealed class UsersController : Controller
             var oldRoles = (await _userManager.GetRolesAsync(user)).OrderBy(value => value, StringComparer.Ordinal).ToArray();
             var oldRole = oldRoles.FirstOrDefault(IsManageableRole) ?? string.Empty;
             var oldDepartmentId = user.DepartmentId;
+            var oldEmployeeNo = user.EmployeeNo;
             var wasEnabledAdministrator = oldRoles.Contains(ApplicationRoles.Administrator, StringComparer.Ordinal)
                 && !IsAdministrativelyDisabled(user);
             if (wasEnabledAdministrator && model.Role != ApplicationRoles.Administrator
@@ -280,6 +304,7 @@ public sealed class UsersController : Controller
             }
 
             user.DisplayName = model.DisplayName;
+            user.EmployeeNo = model.EmployeeNo;
             user.DepartmentId = model.Role == ApplicationRoles.Requester ? model.DepartmentId : null;
             EnsureSucceeded(await _userManager.UpdateAsync(user), _localizer["更新使用者資料失敗。"]);
 
@@ -298,11 +323,18 @@ public sealed class UsersController : Controller
             await InsertAuditAsync(
                 user.Id,
                 AuditValues.UpdateAction,
-                UserAuditJson(oldRole, oldDepartmentId, !IsAdministrativelyDisabled(user)),
-                UserAuditJson(model.Role, user.DepartmentId, !IsAdministrativelyDisabled(user)),
+                UserAuditJson(oldRole, oldDepartmentId, oldEmployeeNo, !IsAdministrativelyDisabled(user)),
+                UserAuditJson(model.Role, user.DepartmentId, user.EmployeeNo, !IsAdministrativelyDisabled(user)),
                 transaction,
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+        }
+        catch (Exception exception) when (IsEmployeeNoUniqueConstraintViolation(exception))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            ModelState.AddModelError(nameof(model.EmployeeNo), _localizer["員工編號重複。"]);
+            await PopulateOptionsAsync(model, cancellationToken);
+            return View(model);
         }
         catch (OracleException exception) when (IsAdministratorLockTimeout(exception))
         {
@@ -372,8 +404,8 @@ public sealed class UsersController : Controller
             await InsertAuditAsync(
                 user.Id,
                 enabled ? AuditValues.EnableAction : AuditValues.DisableAction,
-                UserAuditJson(role, user.DepartmentId, currentlyEnabled),
-                UserAuditJson(role, user.DepartmentId, enabled),
+                UserAuditJson(role, user.DepartmentId, user.EmployeeNo, currentlyEnabled),
+                UserAuditJson(role, user.DepartmentId, user.EmployeeNo, enabled),
                 transaction,
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -420,7 +452,7 @@ public sealed class UsersController : Controller
             EnsureSucceeded(await _userManager.ResetPasswordAsync(user, resetToken, newPassword), _localizer["重設密碼失敗。"]);
             EnsureSucceeded(await _userManager.UpdateSecurityStampAsync(user), _localizer["讓既有登入失效時發生錯誤。"]);
 
-            var auditValue = UserAuditJson(role, user.DepartmentId, !IsAdministrativelyDisabled(user));
+            var auditValue = UserAuditJson(role, user.DepartmentId, user.EmployeeNo, !IsAdministrativelyDisabled(user));
             await InsertAuditAsync(
                 user.Id,
                 AuditValues.ResetPasswordAction,
@@ -488,6 +520,30 @@ public sealed class UsersController : Controller
         if (!exists)
         {
             ModelState.AddModelError(departmentField, _localizer["選擇的科室不存在或已停用。"]);
+        }
+    }
+
+    private async Task ValidateEmployeeNoUniqueAsync(
+        string? employeeNo,
+        string? excludedUserId,
+        CancellationToken cancellationToken)
+    {
+        if (employeeNo is null)
+        {
+            return;
+        }
+
+        var usersWithEmployeeNo = _identityDbContext.Users.AsNoTracking()
+            .Where(user => user.EmployeeNo == employeeNo);
+        if (excludedUserId is not null)
+        {
+            usersWithEmployeeNo = usersWithEmployeeNo.Where(user => user.Id != excludedUserId);
+        }
+
+        var duplicate = await usersWithEmployeeNo.AnyAsync(cancellationToken);
+        if (duplicate)
+        {
+            ModelState.AddModelError(nameof(CreateUserViewModel.EmployeeNo), _localizer["員工編號重複。"]);
         }
     }
 
@@ -579,8 +635,8 @@ public sealed class UsersController : Controller
             transaction.GetDbTransaction(),
             cancellationToken: cancellationToken));
 
-    private static string UserAuditJson(string role, long? departmentId, bool enabled)
-        => AuditValues.ToJson(new { Role = role, DepartmentId = departmentId, Enabled = enabled });
+    private static string UserAuditJson(string role, long? departmentId, string? employeeNo, bool enabled)
+        => AuditValues.ToJson(new { Role = role, DepartmentId = departmentId, EmployeeNo = employeeNo, Enabled = enabled });
 
     private string DisplayRoles(IEnumerable<string> roles)
     {
@@ -619,13 +675,21 @@ public sealed class UsersController : Controller
     {
         model.Email = (model.Email ?? string.Empty).Trim();
         model.DisplayName = (model.DisplayName ?? string.Empty).Trim();
+        model.EmployeeNo = NormalizeEmployeeNo(model.EmployeeNo);
         model.Role = (model.Role ?? string.Empty).Trim();
     }
 
     private static void Normalize(EditUserViewModel model)
     {
         model.DisplayName = (model.DisplayName ?? string.Empty).Trim();
+        model.EmployeeNo = NormalizeEmployeeNo(model.EmployeeNo);
         model.Role = (model.Role ?? string.Empty).Trim();
+    }
+
+    private static string? NormalizeEmployeeNo(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrEmpty(normalized) ? null : normalized;
     }
 
     private void AddIdentityErrors(IdentityResult result)
@@ -647,6 +711,21 @@ public sealed class UsersController : Controller
 
     private static bool IsAdministratorLockTimeout(OracleException exception)
         => exception.Number is OraLockWaitTimeout or OraResourceBusy;
+
+    private static bool IsEmployeeNoUniqueConstraintViolation(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is OracleException oracleException
+                && oracleException.Number == OraUniqueConstraint
+                && oracleException.Message.Contains("UX_IDENTITY_USERS_EMPLOYEE_NO", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static string GeneratePassword()
     {
