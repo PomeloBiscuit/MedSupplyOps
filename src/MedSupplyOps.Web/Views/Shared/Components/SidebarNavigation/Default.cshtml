@@ -21,14 +21,21 @@
 @if (isHidden)
 {
     <header class="mso-compact-header">
-        <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="@L["開啟導覽"]">
+        @* 沒有任何角色的帳號沒有導覽項目；連觸發鈕一起不渲染，
+           免得打開一個空白面板。登出仍在右上角的使用者選單裡。 *@
+        @if (Model.HasRole)
+        {
+                <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="@L["開啟導覽"]">
             <partial name="_NavigationIcon" model='"menu"' />
             <span>@L["導覽"]</span>
         </button>
+        }
         <a class="mso-compact-brand" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
         <partial name="_SidebarUserMenu" model="Model" />
     </header>
-    <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label">
+    @if (Model.HasRole)
+    {
+        <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label">
         <div class="offcanvas-header">
             <span class="offcanvas-title" id="mso-navigation-offcanvas-label">MedSupplyOps</span>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="@L["關閉"]"></button>
@@ -66,9 +73,13 @@
                     </div>
                 </nav>
             }
-            <div class="mt-auto"><partial name="_SidebarUserMenu" model="Model" /></div>
+            @* ★ 這裡原本也放一個使用者選單，於是完全收合時畫面上同時有兩個：
+               細列右上角一個、offcanvas 底部一個，兩者同時可見（offcanvas 是覆蓋層，
+               細列仍在後面）。而且 offcanvas 底部那個展開後會被 offcanvas 的寬度裁掉，
+               彈出選單出現自己的捲軸。細列已經有使用者選單了，這裡不再重複。 *@
         </div>
     </div>
+    }
 }
 else
 {
@@ -90,7 +101,7 @@ else
                     @foreach (var item in navItems)
                     {
                         var isCurrent = controller == item.Controller && action == item.Action;
-                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? item.Name : null)">
+                        <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@item.Name">
                             <span class="mso-nav-icon-wrap"><partial name="_NavigationIcon" model="item.Icon" />@if (isCompact && item.Badge is not null) { <span class="mso-nav-badge" data-testid="nav-@(item.Icon)-badge">@item.Badge</span> }</span>
                             @if (!isCompact)
                             {

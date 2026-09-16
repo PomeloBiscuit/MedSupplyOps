@@ -447,6 +447,10 @@ a:hover {
 }
 
 /* 詳情定義清單以淡色分隔與長文換行呈現，讓 500 字駁回原因仍可閱讀。 */
+/* 摘要面板不跟著主內容一起撐滿：一格只放「急診」這種短值時，
+   後面拖著幾百像素的空白會讓整頁看起來像沒做完。下方的明細表格不受限制。 */
+.mso-detail-list { max-width: 46rem; }
+
 .mso-detail-list dt,
 .mso-detail-list dd {
   margin-bottom: 0;
@@ -838,6 +842,35 @@ html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
 .mso-footer { margin-top: auto; padding: 1rem 0; border-top: 1px solid var(--mso-border); background: var(--mso-surface); color: var(--mso-text-muted); font-size: .75rem; line-height: 1.75; text-align: center; }
 
 /* 小螢幕時側欄仍保留可閱讀主內容，不額外引入另一套行動導覽。 */
+/* ★ 窄視窗時把展開態的側欄壓成圖示列。
+
+   248px 是設計稿的寬度，在 1440px 以上的螢幕只佔 17%；但在約 950px 的視窗（例如
+   Windows 200% 顯示縮放）它會吃掉 26%，主內容被擠得很窄。
+
+   收折態（.mso-sidebar-compact）是伺服器端依 cookie 決定的，它的 Razor 分支根本不渲染
+   文字、改掛 Bootstrap tooltip；CSS 這裡做不到那件事，所以改成：把文字「視覺隱藏但保留
+   給輔助技術」，並在展開態的連結補上原生 title，滑鼠停留仍看得出是哪一項。
+
+   使用者若偏好保留文字，偏好選單裡可以改成「上方導覽列」。 */
+@media (max-width: 991.98px) {
+  .mso-sidebar-expanded { flex-basis: 64px; align-items: center; padding: .875rem 0; }
+  .mso-sidebar-expanded .mso-sidebar-brand-row { flex-direction: column; padding: 0; gap: .5rem; }
+  /* 64px 放不下「MedSupplyOps」，又不想用 ::before 假造一個字；直接讓品牌讓位，
+     只留收折切換鈕。點側欄任一項都回得到首頁，品牌不是必要的導覽入口。 */
+  .mso-sidebar-expanded .mso-sidebar-brand { display: none; }
+  .mso-sidebar-expanded .mso-sidebar-group-title { display: none; }
+  .mso-sidebar-expanded .mso-sidebar-links { justify-items: center; padding: .25rem 0; }
+  .mso-sidebar-expanded .mso-sidebar-link { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+  /* 文字仍在 DOM 裡，螢幕閱讀器讀得到；只是不佔版面。 */
+  .mso-sidebar-expanded .mso-sidebar-link > span:not(.mso-nav-icon-wrap):not(.mso-nav-badge) {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  /* 角標改貼在圖示右上角，不再排在文字後面。 */
+  .mso-sidebar-expanded .mso-nav-badge { position: absolute; top: -2px; right: -2px; margin: 0; background: var(--mso-warning); color: #fff; }
+  .mso-sidebar-expanded .mso-sidebar-user { padding: .75rem 0 0; }
+  .mso-sidebar-expanded .mso-user-summary, .mso-sidebar-expanded .mso-user-chevron { display: none; }
+}
+
 @media (max-width: 575.98px) { .mso-sidebar-layout .mso-main, .mso-sidebar-layout .mso-main-wide { width: min(100% - 1.5rem, 1600px); } }
 
 /* 帳號設定以共用 Bootstrap modal 呈現；內容由受授權端點載入，不把個資塞進 cookie。 */
