@@ -25,6 +25,10 @@
 <form method="get" class="card card-body mb-4" aria-label="@L["使用者篩選"]">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
+            <label class="form-label" for="search">@L["搜尋使用者"]</label>
+            <input class="form-control" id="search" name="search" value="@Model.Search" maxlength="256" />
+        </div>
+        <div class="col-md-4">
             <label class="form-label" for="role">@L["角色"]</label>
             <select class="form-select" id="role" name="role">
                 <option value="">@L["全部角色"]</option>
@@ -42,7 +46,7 @@
                 <option value="@UserStatusFilters.Disabled" selected="@(Model.Status == UserStatusFilters.Disabled ? "selected" : null)">@L["已停用"]</option>
             </select>
         </div>
-        <div class="col-md-4 d-flex gap-2">
+        <div class="col-md-12 d-flex gap-2">
             <button class="btn btn-outline-primary" type="submit">@L["套用篩選"]</button>
             <a class="btn btn-outline-secondary" asp-action="Index">@L["清除"]</a>
         </div>

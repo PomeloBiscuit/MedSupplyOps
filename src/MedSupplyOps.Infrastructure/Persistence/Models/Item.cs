@@ -18,9 +18,15 @@ public sealed class Item
 
     public string Name { get; set; } = string.Empty;
 
+    public string? NameEn { get; set; }
+
     public string? Specification { get; set; }
 
+    public string? SpecificationEn { get; set; }
+
     public string UnitOfMeasure { get; set; } = string.Empty;
+
+    public string? UnitOfMeasureEn { get; set; }
 
     public bool TracksLot { get; set; } = true;
 

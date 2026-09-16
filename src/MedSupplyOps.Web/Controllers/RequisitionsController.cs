@@ -1,6 +1,7 @@
 using MedSupplyOps.Domain.Requisitions;
 using MedSupplyOps.Infrastructure.Auditing;
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Persistence.Models;
 using MedSupplyOps.Infrastructure.Queries;
@@ -92,19 +93,29 @@ public sealed class RequisitionsController : Controller
             query = query.Where(requisition => EF.Property<DateTime>(requisition, "CreatedAt") < until);
         }
 
-        var requisitions = await (
+        var requisitionRows = await (
             from requisition in query
             join department in _dbContext.Departments.AsNoTracking()
                 on requisition.DepartmentId equals department.Id
             orderby EF.Property<DateTime>(requisition, "CreatedAt") descending, requisition.Id descending
-            select new RequisitionListItemViewModel(
+            select new
+            {
                 requisition.Id,
-                EF.Property<string>(requisition, "RequisitionNo"),
-                department.Name,
+                RequisitionNo = EF.Property<string>(requisition, "RequisitionNo"),
+                DepartmentName = department.Name,
+                DepartmentNameEn = department.NameEn,
                 requisition.Status,
-                EF.Property<DateTime>(requisition, "CreatedAt"),
-                requisition.Lines.Count))
+                CreatedAt = EF.Property<DateTime>(requisition, "CreatedAt"),
+                LineCount = requisition.Lines.Count,
+            })
             .ToListAsync(cancellationToken);
+        var requisitions = requisitionRows.Select(row => new RequisitionListItemViewModel(
+            row.Id,
+            row.RequisitionNo,
+            BilingualText.Resolve(row.DepartmentName, row.DepartmentNameEn) ?? row.DepartmentName,
+            row.Status,
+            row.CreatedAt,
+            row.LineCount)).ToList();
 
         var departments = await GetDepartmentOptionsAsync(departmentScope, cancellationToken);
         return View(new RequisitionIndexViewModel
@@ -264,6 +275,7 @@ public sealed class RequisitionsController : Controller
                 requisition.Id,
                 RequisitionNo = EF.Property<string>(requisition, "RequisitionNo"),
                 DepartmentName = department.Name,
+                DepartmentNameEn = department.NameEn,
                 requisition.Status,
                 requisition.RejectionReason,
                 RowVersion = EF.Property<long>(requisition, "RowVersion"),
@@ -283,18 +295,28 @@ public sealed class RequisitionsController : Controller
             return NotFound();
         }
 
-        var lines = await (
+        var lineRows = await (
             from line in _dbContext.RequisitionLines.AsNoTracking()
             join item in _dbContext.Items.AsNoTracking() on line.ItemId equals item.Id
             where EF.Property<long>(line, "RequisitionId") == id
             orderby EF.Property<int>(line, "LineNo")
-            select new RequisitionDetailsLineViewModel(
-                EF.Property<int>(line, "LineNo"),
+            select new
+            {
+                LineNo = EF.Property<int>(line, "LineNo"),
                 item.Code,
                 item.Name,
+                item.NameEn,
                 item.UnitOfMeasure,
-                line.Quantity))
+                item.UnitOfMeasureEn,
+                line.Quantity,
+            })
             .ToListAsync(cancellationToken);
+        var lines = lineRows.Select(row => new RequisitionDetailsLineViewModel(
+            row.LineNo,
+            row.Code,
+            BilingualText.Resolve(row.Name, row.NameEn) ?? row.Name,
+            BilingualText.Resolve(row.UnitOfMeasure, row.UnitOfMeasureEn) ?? row.UnitOfMeasure,
+            row.Quantity)).ToList();
 
         var issueAllocations = await _inventoryQueries
             .GetRequisitionIssueAllocationsAsync(id, cancellationToken);
@@ -303,7 +325,7 @@ public sealed class RequisitionsController : Controller
         {
             Id = header.Id,
             RequisitionNo = header.RequisitionNo,
-            DepartmentName = header.DepartmentName,
+            DepartmentName = BilingualText.Resolve(header.DepartmentName, header.DepartmentNameEn) ?? header.DepartmentName,
             Status = header.Status,
             RejectionReason = header.RejectionReason,
             RowVersion = header.RowVersion,
@@ -312,6 +334,7 @@ public sealed class RequisitionsController : Controller
             ApprovedAt = header.ApprovedAt,
             Lines = lines,
             IssueAllocations = issueAllocations
+                .Select(allocation => allocation.ForCulture(System.Globalization.CultureInfo.CurrentUICulture))
                 .Select(allocation => new RequisitionIssueAllocationViewModel(
                     allocation.LineNo,
                     allocation.ItemCode,
@@ -346,11 +369,11 @@ public sealed class RequisitionsController : Controller
             case RequisitionIssueFailureReason.InsufficientStock:
                 var item = await _dbContext.Items.AsNoTracking()
                     .Where(candidate => candidate.Id == result.FailedItemId)
-                    .Select(candidate => new { candidate.Code, candidate.Name })
+                    .Select(candidate => new { candidate.Code, candidate.Name, candidate.NameEn })
                     .SingleOrDefaultAsync(cancellationToken);
                 var itemText = item is null
                     ? $"品項 ID {result.FailedItemId}"
-                    : $"品項 {item.Code}（{item.Name}）";
+                    : $"品項 {item.Code}（{BilingualText.Resolve(item.Name, item.NameEn) ?? item.Name}）";
                 TempData["ErrorMessage"] =
                     $"{itemText} 庫存不足：需要 {result.RequestedQuantity}、目前可用 {result.AvailableQuantity}。";
                 break;
@@ -497,11 +520,15 @@ public sealed class RequisitionsController : Controller
         CancellationToken cancellationToken)
     {
         model.Departments = await GetDepartmentOptionsAsync(departmentScope, cancellationToken);
-        model.Items = await _dbContext.Items.AsNoTracking()
+        var items = await _dbContext.Items.AsNoTracking()
             .Where(item => !item.IsDeleted)
             .OrderBy(item => item.Code)
-            .Select(item => new RequisitionItemOptionViewModel(item.Id, item.Code, item.Name, item.UnitOfMeasure))
             .ToListAsync(cancellationToken);
+        model.Items = items.Select(item => new RequisitionItemOptionViewModel(
+            item.Id,
+            item.Code,
+            BilingualText.Option(item.Name, item.NameEn),
+            BilingualText.Option(item.UnitOfMeasure, item.UnitOfMeasureEn))).ToList();
     }
 
     private async Task<IReadOnlyList<RequisitionOptionViewModel>> GetDepartmentOptionsAsync(
@@ -515,10 +542,12 @@ public sealed class RequisitionsController : Controller
             query = query.Where(department => department.Id == departmentScope.DepartmentId);
         }
 
-        return await query
+        var departments = await query
             .OrderBy(department => department.Code)
-            .Select(department => new RequisitionOptionViewModel(department.Id, department.Name))
             .ToListAsync(cancellationToken);
+        return departments.Select(department => new RequisitionOptionViewModel(
+            department.Id,
+            BilingualText.Option(department.Name, department.NameEn))).ToList();
     }
 
     private T GetShadowValue<T>(Requisition requisition, string propertyName)

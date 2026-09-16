@@ -1,5 +1,6 @@
 using MedSupplyOps.Domain.Requisitions;
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Time;
@@ -43,13 +44,16 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
             principal.IsInRole(ApplicationRoles.Administrator);
         var actor = principal.Identity?.Name ?? string.Empty;
         var user = string.IsNullOrWhiteSpace(actor) ? null : await _userManager.FindByNameAsync(actor);
+        var displayName = user is null
+            ? actor
+            : BilingualText.Resolve(user.DisplayName, user.DisplayNameEn) ?? actor;
         var model = new SidebarNavigationViewModel(
             normalizedState,
             hasRole,
-            user?.DisplayName ?? actor,
+            displayName,
             user?.Email ?? actor,
             RoleName(principal),
-            Initial(user?.DisplayName ?? actor));
+            Initial(displayName));
 
         if (!hasRole)
         {

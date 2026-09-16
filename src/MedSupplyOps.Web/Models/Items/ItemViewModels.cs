@@ -2,6 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MedSupplyOps.Web.Models.Items;
 
+public sealed class ItemIndexViewModel
+{
+    public string? Search { get; init; }
+
+    public IReadOnlyList<ItemListRowViewModel> Items { get; init; } = [];
+}
+
 public sealed record ItemListRowViewModel(
     long Id,
     string Code,
@@ -22,14 +29,26 @@ public sealed class CreateItemViewModel
     [StringLength(200, ErrorMessage = "名稱不可超過 200 個字。")]
     public string Name { get; set; } = string.Empty;
 
+    [Display(Name = "英文品名")]
+    [StringLength(200, ErrorMessage = "英文品名不可超過 200 個字。")]
+    public string? EnglishName { get; set; }
+
     [Display(Name = "規格")]
     [StringLength(400, ErrorMessage = "規格不可超過 400 個字。")]
     public string? Specification { get; set; }
+
+    [Display(Name = "英文規格")]
+    [StringLength(400, ErrorMessage = "英文規格不可超過 400 個字。")]
+    public string? EnglishSpecification { get; set; }
 
     [Display(Name = "計量單位")]
     [Required(ErrorMessage = "計量單位為必填。")]
     [StringLength(20, ErrorMessage = "計量單位不可超過 20 個字。")]
     public string UnitOfMeasure { get; set; } = string.Empty;
+
+    [Display(Name = "英文計量單位")]
+    [StringLength(20, ErrorMessage = "英文計量單位不可超過 20 個字。")]
+    public string? EnglishUnitOfMeasure { get; set; }
 
     [Display(Name = "安全存量")]
     [Required(ErrorMessage = "安全存量為必填。")]
@@ -49,12 +68,24 @@ public sealed class EditItemViewModel
     [StringLength(200, ErrorMessage = "名稱不可超過 200 個字。")]
     public string Name { get; set; } = string.Empty;
 
+    [Display(Name = "英文品名")]
+    [StringLength(200, ErrorMessage = "英文品名不可超過 200 個字。")]
+    public string? EnglishName { get; set; }
+
     [Display(Name = "規格")]
     [StringLength(400, ErrorMessage = "規格不可超過 400 個字。")]
     public string? Specification { get; set; }
 
+    [Display(Name = "英文規格")]
+    [StringLength(400, ErrorMessage = "英文規格不可超過 400 個字。")]
+    public string? EnglishSpecification { get; set; }
+
     [Display(Name = "計量單位")]
     public string UnitOfMeasure { get; set; } = string.Empty;
+
+    [Display(Name = "英文計量單位")]
+    [StringLength(20, ErrorMessage = "英文計量單位不可超過 20 個字。")]
+    public string? EnglishUnitOfMeasure { get; set; }
 
     [Display(Name = "安全存量")]
     [Required(ErrorMessage = "安全存量為必填。")]

@@ -1,4 +1,4 @@
-@model IReadOnlyList<MedSupplyOps.Web.Models.Items.ItemListRowViewModel>
+@model MedSupplyOps.Web.Models.Items.ItemIndexViewModel
 @{
     ViewData["Title"] = L["品項管理"];
 }
@@ -21,6 +21,19 @@
     <div class="alert alert-danger" role="alert">@errorMessage</div>
 }
 
+<form method="get" class="card card-body mb-4" role="search">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-8">
+            <label class="form-label" for="search">@L["搜尋品項"]</label>
+            <input class="form-control" id="search" name="search" value="@Model.Search" maxlength="400" />
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button class="btn btn-outline-primary" type="submit">@L["搜尋"]</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">@L["清除"]</a>
+        </div>
+    </div>
+</form>
+
 <section class="card mso-table-card" aria-labelledby="item-list-heading">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <h2 class="h5 mb-0" id="item-list-heading">@L["品項主檔"]</h2>
@@ -39,11 +52,11 @@
             </tr>
         </thead>
         <tbody>
-            @if (Model.Count == 0)
+            @if (Model.Items.Count == 0)
             {
                 <tr><td colspan="6" class="mso-empty-state text-center">@L["目前沒有可管理的品項。"]</td></tr>
             }
-            @foreach (var item in Model)
+            @foreach (var item in Model.Items)
             {
                 <tr>
                     <td class="mso-code-cell">@item.Code</td>

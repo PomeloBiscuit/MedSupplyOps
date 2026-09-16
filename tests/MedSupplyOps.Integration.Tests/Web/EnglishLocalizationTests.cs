@@ -15,8 +15,8 @@ namespace MedSupplyOps.Integration.Tests.Web;
 /// 而漏掉的地方只有切到英文才看得見；沒有這道關卡，下一個人新增一個頁面就又漏一批。
 ///
 /// 只驗 UI 字串（頁面標題、區塊標題、表頭、欄位標籤、按鈕、空狀態文字、說明文字），
-/// 不驗資料內容（品名、規格、科室名、批號、儲位、駁回原因等使用者輸入或種子資料）——
-/// 種子品名（無菌手套…）本來就應該維持中文，不在這份清單裡。
+/// UI 字串與主檔資料分開驗：雙語主檔資料由 <see cref="BilingualMasterDataWebTests"/> 驗證；
+/// 批號、儲位、駁回原因等使用者輸入仍不屬於這份翻譯清單（儲位並且刻意維持現場原文）。
 /// </summary>
 public sealed partial class EnglishLocalizationTests : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>
 {

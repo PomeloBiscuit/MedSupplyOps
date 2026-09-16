@@ -52,9 +52,16 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 ## 3. 功能需求
 
 ### 3.1 主檔
-- **FR-101** 品項主檔 CRUD：料號、品名、規格、單位、是否管制效期、是否管制批號、安全庫存量。
-- **FR-102** 科室主檔 CRUD：科室代碼、名稱、是否啟用。
-- **FR-103** 使用者管理：帳號、姓名、Email、角色、啟用狀態。
+- **FR-101** 品項主檔 CRUD：料號、品名、規格、單位、是否管制效期、是否管制批號、安全庫存量；
+  品名、規格、單位另有選填英文欄位，英文未提供時顯示原文，搜尋同時比對原文與英文。
+- **FR-102** 科室主檔 CRUD：科室代碼、名稱、是否啟用；名稱另有選填英文欄位，英文未提供時顯示原文。
+- **FR-103** 使用者管理：帳號、姓名、Email、角色、啟用狀態；顯示名稱另有選填英文欄位，
+  英文未提供時顯示原文，搜尋同時比對原文與英文。
+
+雙語主檔採「原文欄 + `_EN` 選填欄」，不建立 translations 表。語言選擇集中在
+`BilingualText`：表格只顯示依文化選出的單一值；下拉選單在兩者都有時顯示「目前語言（另一語言）」供核對。
+`stock_lots.storage_location` **刻意不做雙語**：它對應倉庫現場實體標示牌（例如「中央庫房-A01」），
+報表若翻成另一個名稱反而會讓人無法依牌面找到位置；這是安全與現場一致性的裁定，不是漏做。
 
 ### 3.2 庫存
 - **FR-201** 批次入庫：指定品項、批號、效期、數量、儲位。
@@ -208,21 +215,21 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 
 | 需求 | 狀態 | 實作位置 | 驗證 |
 |---|---|---|---|
-| **FR-101** | 部分實作 | 部分：`src/MedSupplyOps.Web/Controllers/ItemsController.cs`（新增／編輯／停用、料號正規化、停用守衛已完成；`TracksLot`／`TracksExpiry` 寫死 `true`，尚無可設定畫面） | `T5_disable_guards_stock_and_open_requisitions_then_allows_safe_reuse_of_code`、`T6_item_code_is_trimmed_and_uppercased_before_duplicate_check`、`T7_forged_edit_post_cannot_change_code_or_unit_but_can_change_name` |
-| **FR-102** | 延後 | 未建立：無 `DepartmentsController` 或對應畫面，科室僅由 migration 種子資料建立 | — |
-| **FR-103** | 已實作 | `src/MedSupplyOps.Web/Controllers/UsersController.cs`、`src/MedSupplyOps.Web/Views/Users`、`AuthorizationPolicies.UserManage`（清單與角色／狀態篩選、新增、編輯、停用／啟用、一次性顯示重設密碼；Identity、最後管理員守衛、SecurityStamp、User audit。**Email 建立後不可修改**——它同時是登入帳號與稽核軌跡裡的身分，畫面兩處已標示） | `T1_last_administrator_and_self_guards_block_all_four_direct_posts`、`T2_requester_and_storekeeper_are_denied_by_every_user_management_endpoint`、`T3_disabled_user_gets_generic_login_failure_then_can_login_after_enable`、`T4_reset_password_is_one_time_invalidates_old_password_and_session_and_audits_no_secret`、`T5_requester_without_department_is_rejected_on_create_and_edit`、`Create_edit_and_filters_persist_identity_values_and_audit_role_and_department_without_password` |
+| **FR-101** | 部分實作 | 部分：`db/schema/V009__add_bilingual_master_data.sql`、`src/MedSupplyOps.Infrastructure/Localization/BilingualText.cs`、`src/MedSupplyOps.Web/Controllers/ItemsController.cs`、`src/MedSupplyOps.Web/Views/Items`（新增／編輯／停用、雙語欄位、原文／英文搜尋、料號正規化、停用守衛已完成；`TracksLot`／`TracksExpiry` 寫死 `true`，尚無可設定畫面） | `T1_English_item_display_silently_falls_back_then_uses_the_override`、`T2_views_cannot_select_language_from_persistence_English_properties`、`T3_item_and_user_search_match_English_columns`、`T5_disable_guards_stock_and_open_requisitions_then_allows_safe_reuse_of_code`、`T6_item_code_is_trimmed_and_uppercased_before_duplicate_check`、`T7_forged_edit_post_cannot_change_code_or_unit_but_can_change_name` |
+| **FR-102** | 延後 | 未建立：無 `DepartmentsController` 或對應維護畫面；`V009__add_bilingual_master_data.sql` 已提供選填英文名稱，既有科室選單與表格可雙語顯示 | — |
+| **FR-103** | 已實作 | `src/MedSupplyOps.Web/Controllers/UsersController.cs`、`src/MedSupplyOps.Web/Views/Users`、`src/MedSupplyOps.Infrastructure/Localization/BilingualText.cs`、`AuthorizationPolicies.UserManage`（清單與原文／英文搜尋、角色／狀態篩選、雙語顯示名、新增、編輯、停用／啟用、一次性顯示重設密碼；Identity、最後管理員守衛、SecurityStamp、User audit。**Email 建立後不可修改**——它同時是登入帳號與稽核軌跡裡的身分，畫面兩處已標示） | `T3_item_and_user_search_match_English_columns`、`T4_English_department_dropdown_is_bilingual_while_inventory_table_is_single_language`、`T1_last_administrator_and_self_guards_block_all_four_direct_posts`、`T2_requester_and_storekeeper_are_denied_by_every_user_management_endpoint`、`T3_disabled_user_gets_generic_login_failure_then_can_login_after_enable`、`T4_reset_password_is_one_time_invalidates_old_password_and_session_and_audits_no_secret`、`T5_requester_without_department_is_rejected_on_create_and_edit`、`Create_edit_and_filters_persist_identity_values_and_audit_role_and_department_without_password` |
 | **FR-201** | 已實作 | `src/MedSupplyOps.Infrastructure/Services/StockReceivingService.cs` | `T1_receiving_uses_the_Taipei_business_date_at_the_utc_boundary`、`T2_same_lot_with_different_expiry_is_rejected_then_matching_expiry_adds_atomically`、`T3_two_concurrent_receipts_of_a_new_lot_wait_for_item_lock_then_merge_into_one_row`、`T4_item_lock_timeout_returns_explicit_result_without_writes_or_audit`、P10、P11 |
-| **FR-202** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs` | `GetItemAvailabilityAsync_sums_usable_lots_and_keeps_all_lot_details_in_FEFO_order`、`GetAvailability_returns_camel_case_fields_and_MD_0001_values` |
+| **FR-202** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`src/MedSupplyOps.Infrastructure/Localization/BilingualText.cs`（表格依文化顯示單一語言；`storage_location` 刻意維持現場原文） | `GetItemAvailabilityAsync_sums_usable_lots_and_keeps_all_lot_details_in_FEFO_order`、`GetAvailability_returns_camel_case_fields_and_MD_0001_values`、`T4_English_department_dropdown_is_bilingual_while_inventory_table_is_single_language` |
 | **FR-203** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`src/MedSupplyOps.Web/Controllers/InventoryController.cs`（`Expiring`） | `GetExpiringLotsAsync_returns_only_usable_lots_in_requested_window`、`GetExpiring_returns_camel_case_fields_and_usable_seed_lot_values` |
 | **FR-204** | 部分實作 | 部分：`src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`（`GetItemsBelowSafetyStockAsync` 已實作，數字顯示於首頁營運儀表板卡片；沒有列出品項明細的獨立清單頁） | `GetItemsBelowSafetyStockAsync_counts_only_unexpired_nonzero_lots` |
-| **FR-301** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Create`） | `Create_submit_approve_completes_full_flow`、`Duplicate_item_returns_friendly_message_and_persists_nothing`、`Empty_lines_and_zero_quantity_are_rejected` |
+| **FR-301** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Create`；科室與品項下拉採雙語對照） | `Create_submit_approve_completes_full_flow`、`Duplicate_item_returns_friendly_message_and_persists_nothing`、`Empty_lines_and_zero_quantity_are_rejected` |
 | **FR-302** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Approve`／`Reject`） | `Create_submit_reject_completes_full_flow`、`Reject_WithoutReason_FailsAndLeavesStatusUnchanged`、P6 |
 | **FR-303** | 已實作 | `src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs`、`RequisitionsController.cs`（`Issue`） | `Create_submit_approve_issue_shows_allocations_and_rejects_a_duplicate_post`、`Issues_every_line_and_moves_the_requisition_to_issued`、`A_single_insufficient_line_rolls_back_the_entire_requisition`、P9 |
 | **FR-304** | 已實作 | `src/MedSupplyOps.Domain/Requisitions/RequisitionStateMachine.cs` | `ExactlyFiveTransitionsAreAllowed_AndTheyAreTheExpectedOnes`、`IllegalTransition_ThrowsInsteadOfBeingSilentlyIgnored`、`ForbiddenTransition_IsRejected`、P5 |
-| **FR-305** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Index` 依狀態／科室／建立日期區間查詢） | `Keeper_dashboard_card_numbers_match_the_pages_they_link_to` |
+| **FR-305** | 已實作 | `src/MedSupplyOps.Web/Controllers/RequisitionsController.cs`（`Index` 依狀態／科室／建立日期區間查詢，表格名稱依文化單語顯示） | `Keeper_dashboard_card_numbers_match_the_pages_they_link_to` |
 | **FR-401** | 已實作 | `src/MedSupplyOps.Domain/Inventory/FefoAllocator.cs` | `MultipleLots_TakesEarliestExpiryFirst`、`ExpiredLot_IsNeverAllocated_EvenWhenItIsTheOnlyLotWithStock`、`LotExpiringExactlyOnAsOfDate_IsStillUsable`、`LotsWithSameExpiry_AreOrderedByLotNumberSoResultIsDeterministic`、`WhenTotalAvailableIsLess_FailsEntirelyAndAllocatesNothing`、P1、P2、P3、P4 |
 | **FR-402** | 已實作 | `src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs` | `Two_concurrent_issues_of_the_last_units_never_oversell`、`Concurrent_issues_deplete_exactly_the_available_quantity_and_no_more`、`Issue_lock_timeout_shows_retry_without_claiming_stock_is_insufficient`、P7 |
-| **FR-403** | 已實作 | `src/MedSupplyOps.Infrastructure/Auditing`（`AuditLog` 唯讀約束＋所有寫入路徑的稽核紀錄；User Create／Update／Disable／Enable／ResetPassword 不記錄密碼或權杖） | `AuditLog_rejects_application_updates_and_deletes`、`Cross_role_flow_records_all_four_actions_with_actual_actors`、`T10_item_and_receiving_actions_write_complete_audits_with_the_logged_in_actor`、`Create_edit_and_filters_persist_identity_values_and_audit_role_and_department_without_password`、`T4_reset_password_is_one_time_invalidates_old_password_and_session_and_audits_no_secret` |
+| **FR-403** | 已實作 | `src/MedSupplyOps.Infrastructure/Auditing`、`ItemsController.ItemAuditJson`、`UsersController.UserAuditJson`（`AuditLog` 唯讀約束＋所有寫入路徑的稽核紀錄，含 `_EN` 欄位；User Create／Update／Disable／Enable／ResetPassword 不記錄密碼或權杖） | `AuditLog_rejects_application_updates_and_deletes`、`Cross_role_flow_records_all_four_actions_with_actual_actors`、`T5_changing_only_English_item_name_is_recorded_in_audit_JSON`、`T10_item_and_receiving_actions_write_complete_audits_with_the_logged_in_actor`、`Create_edit_and_filters_persist_identity_values_and_audit_role_and_department_without_password`、`T4_reset_password_is_one_time_invalidates_old_password_and_session_and_audits_no_secret` |
 | **FR-404** | 已實作 | `src/MedSupplyOps.Web/Controllers/ItemsController.cs`（`Disable`）＋函數式唯一索引 `UX_ITEMS_CODE_ACTIVE` | `T5_disable_guards_stock_and_open_requisitions_then_allows_safe_reuse_of_code`、`T6_item_code_is_trimmed_and_uppercased_before_duplicate_check` |
 | **FR-501** | 部分實作 | 部分：`src/MedSupplyOps.Web/Controllers/InventoryApiController.cs`、`src/MedSupplyOps.Web/Controllers/ItemsApiController.cs`（僅涵蓋 FR-202／FR-203 查詢；未涵蓋 FR-301 建立與 FR-303 發料；沒有 OpenAPI 文件產出） | `GetAvailability_returns_camel_case_fields_and_MD_0001_values`、`GetExpiring_returns_camel_case_fields_and_usable_seed_lot_values` |
 | **FR-502** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`src/MedSupplyOps.Infrastructure/Services/StockIssueService.cs`（MVC 與 API controller 共用同一組服務／查詢類別，未各寫一份） | P8 |

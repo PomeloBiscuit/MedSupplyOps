@@ -223,6 +223,7 @@ erDiagram
         varchar CREATED_BY
         timestamp UPDATED_AT
         varchar UPDATED_BY
+        varchar NAME_EN
     }
     IDENTITY_ROLES {
         varchar ID PK
@@ -255,6 +256,7 @@ erDiagram
         varchar DISPLAY_NAME
         number DEPARTMENT_ID FK
         varchar EMPLOYEE_NO
+        varchar DISPLAY_NAME_EN
     }
     IDENTITY_USER_CLAIMS {
         number ID PK
@@ -303,6 +305,9 @@ erDiagram
         varchar CREATED_BY
         timestamp UPDATED_AT
         varchar UPDATED_BY
+        varchar ITEM_NAME_EN
+        varchar SPECIFICATION_EN
+        varchar UNIT_OF_MEASURE_EN
     }
     REQUISITIONS {
         number REQUISITION_ID PK

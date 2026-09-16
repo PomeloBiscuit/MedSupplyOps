@@ -1,3 +1,4 @@
+using System.Globalization;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web.Authorization;
@@ -35,7 +36,7 @@ public sealed class InventoryApiController : ControllerBase
 
         var effectiveAsOf = asOf ?? _businessCalendar.Today;
         var lots = await _inventoryQueries.GetExpiringLotsAsync(withinDays, effectiveAsOf, cancellationToken: cancellationToken);
-        return Ok(lots.Select(lot => new ExpiringLotResponse(
+        return Ok(lots.Select(lot => lot.ForCulture(CultureInfo.CurrentUICulture)).Select(lot => new ExpiringLotResponse(
             lot.StockLotId,
             lot.ItemId,
             lot.ItemCode,

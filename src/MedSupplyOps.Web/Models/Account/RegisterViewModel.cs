@@ -8,6 +8,10 @@ public sealed class RegisterViewModel
     [StringLength(100, ErrorMessage = "姓名不可超過 100 個字。")]
     public string DisplayName { get; set; } = string.Empty;
 
+    [StringLength(100, ErrorMessage = "英文顯示名稱不可超過 100 個字。")]
+    [Display(Name = "英文顯示名稱")]
+    public string? EnglishDisplayName { get; set; }
+
     [Required(ErrorMessage = "請輸入帳號。")]
     [EmailAddress(ErrorMessage = "帳號格式不正確。")]
     public string Email { get; set; } = string.Empty;

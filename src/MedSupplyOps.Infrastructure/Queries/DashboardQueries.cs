@@ -55,6 +55,7 @@ public sealed class DashboardQueries
                    a.actor AS Actor,
                    a.occurred_at AS OccurredAt,
                    u.display_name AS DisplayName,
+                   u.display_name_en AS DisplayNameEn,
                    r.requisition_no AS RequisitionNo,
                    i.item_code AS ItemCode,
                    l.lot_number AS LotNumber
@@ -91,6 +92,7 @@ public sealed record AuditFeedEntry(
     string Actor,
     DateTime OccurredAt,
     string? DisplayName,
+    string? DisplayNameEn,
     string? RequisitionNo,
     string? ItemCode,
     string? LotNumber);

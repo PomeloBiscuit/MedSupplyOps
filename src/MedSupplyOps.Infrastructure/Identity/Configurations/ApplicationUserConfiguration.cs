@@ -30,6 +30,7 @@ internal sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Ap
 
         // 自訂欄位：畫面顯示用的姓名（登入帳號是 email，不適合直接顯示）。
         builder.Property(x => x.DisplayName).HasColumnName("DISPLAY_NAME").HasMaxLength(100).IsRequired();
+        builder.Property(x => x.DisplayNameEn).HasColumnName("DISPLAY_NAME_EN").HasMaxLength(100);
         builder.Property(x => x.EmployeeNo).HasColumnName("EMPLOYEE_NO").HasMaxLength(32);
         builder.Property(x => x.DepartmentId).HasColumnName("DEPARTMENT_ID");
 

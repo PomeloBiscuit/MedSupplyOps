@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using MedSupplyOps.Domain.Requisitions;
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Time;
@@ -91,20 +92,29 @@ public sealed class HomeController : Controller
         var expiredInStockCount = await _dashboardQueries.GetExpiredInStockLotCountAsync(today, cancellationToken: cancellationToken);
 
         var auditEntries = await _dashboardQueries.GetRecentAuditEntriesAsync(RecentItemCount, cancellationToken);
-        var approvedIssueQueue = await (
+        var approvedIssueQueueRows = await (
             from requisition in _dbContext.Requisitions.AsNoTracking()
             join department in _dbContext.Departments.AsNoTracking()
                 on requisition.DepartmentId equals department.Id
             where requisition.Status == RequisitionStatus.Approved &&
                   EF.Property<DateTime?>(requisition, "ApprovedAt") != null
             orderby EF.Property<DateTime?>(requisition, "ApprovedAt"), requisition.Id
-            select new ApprovedIssueQueueItemViewModel(
+            select new
+            {
                 requisition.Id,
-                EF.Property<string>(requisition, "RequisitionNo"),
-                department.Name,
-                requisition.Lines.Count,
-                EF.Property<DateTime>(requisition, "ApprovedAt")))
+                RequisitionNo = EF.Property<string>(requisition, "RequisitionNo"),
+                DepartmentName = department.Name,
+                DepartmentNameEn = department.NameEn,
+                LineCount = requisition.Lines.Count,
+                ApprovedAt = EF.Property<DateTime>(requisition, "ApprovedAt"),
+            })
             .ToListAsync(cancellationToken);
+        var approvedIssueQueue = approvedIssueQueueRows.Select(row => new ApprovedIssueQueueItemViewModel(
+            row.Id,
+            row.RequisitionNo,
+            BilingualText.Resolve(row.DepartmentName, row.DepartmentNameEn) ?? row.DepartmentName,
+            row.LineCount,
+            row.ApprovedAt)).ToList();
 
         return new OperationsDashboardViewModel
         {

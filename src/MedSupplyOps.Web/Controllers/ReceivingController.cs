@@ -1,3 +1,4 @@
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Services;
 using MedSupplyOps.Infrastructure.Time;
@@ -96,15 +97,15 @@ public sealed class ReceivingController : Controller
 
     private async Task PopulateItemsAsync(ReceivingViewModel model, CancellationToken cancellationToken)
     {
-        model.Items = await _dbContext.Items.AsNoTracking()
+        var items = await _dbContext.Items.AsNoTracking()
             .Where(item => !item.IsDeleted)
             .OrderBy(item => item.Code)
-            .Select(item => new ReceivingItemOptionViewModel(
-                item.Id,
-                item.Code,
-                item.Name,
-                item.UnitOfMeasure))
             .ToListAsync(cancellationToken);
+        model.Items = items.Select(item => new ReceivingItemOptionViewModel(
+            item.Id,
+            item.Code,
+            BilingualText.Option(item.Name, item.NameEn),
+            BilingualText.Option(item.UnitOfMeasure, item.UnitOfMeasureEn))).ToList();
     }
 
     private static string NormalizeKey(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();

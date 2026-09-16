@@ -31,11 +31,11 @@ internal static class DemoAccountSeeder
     /// </summary>
     public const string RequesterDepartmentCode = "DEP-ER";
 
-    private static readonly (string Role, string Email, string DisplayName)[] Accounts =
+    private static readonly (string Role, string Email, string DisplayName, string DisplayNameEn)[] Accounts =
     [
-        (ApplicationRoles.Requester, "requester@example.local", "王小明"),
-        (ApplicationRoles.Storekeeper, "keeper@example.local", "陳庫管"),
-        (ApplicationRoles.Administrator, "admin@example.local", "林大同"),
+        (ApplicationRoles.Requester, "requester@example.local", "王小明", "Xiaoming Wang"),
+        (ApplicationRoles.Storekeeper, "keeper@example.local", "陳庫管", "Storekeeper Chen"),
+        (ApplicationRoles.Administrator, "admin@example.local", "林大同", "Datong Lin"),
     ];
 
     public static async Task SeedAsync(IServiceProvider services)
@@ -51,7 +51,7 @@ internal static class DemoAccountSeeder
             ?? throw new InvalidOperationException(
                 $"找不到示範請領人的科室 {RequesterDepartmentCode}（種子資料 db/schema/V002__seed_data.sql）。");
 
-        foreach (var (role, _, _) in Accounts)
+        foreach (var (role, _, _, _) in Accounts)
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
@@ -60,15 +60,27 @@ internal static class DemoAccountSeeder
             }
         }
 
-        foreach (var (role, email, displayName) in Accounts)
+        foreach (var (role, email, displayName, displayNameEn) in Accounts)
         {
             var existing = await userManager.FindByEmailAsync(email);
             if (existing is not null)
             {
+                var changed = false;
                 if (role == ApplicationRoles.Requester && existing.DepartmentId != requesterDepartmentId)
                 {
                     existing.DepartmentId = requesterDepartmentId;
-                    ThrowIfFailed(await userManager.UpdateAsync(existing), $"更新示範帳號 {email} 的科室");
+                    changed = true;
+                }
+
+                if (!string.Equals(existing.DisplayNameEn, displayNameEn, StringComparison.Ordinal))
+                {
+                    existing.DisplayNameEn = displayNameEn;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    ThrowIfFailed(await userManager.UpdateAsync(existing), $"更新示範帳號 {email} 的雙語主檔");
                 }
 
                 continue;
@@ -80,6 +92,7 @@ internal static class DemoAccountSeeder
                 Email = email,
                 EmailConfirmed = true,
                 DisplayName = displayName,
+                DisplayNameEn = displayNameEn,
                 DepartmentId = role == ApplicationRoles.Requester ? requesterDepartmentId : null,
             };
 

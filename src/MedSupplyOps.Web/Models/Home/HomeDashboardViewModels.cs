@@ -1,5 +1,6 @@
 using MedSupplyOps.Domain.Requisitions;
 using MedSupplyOps.Infrastructure.Auditing;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Queries;
 
 namespace MedSupplyOps.Web.Models.Home;
@@ -58,7 +59,7 @@ public sealed record AuditFeedItemViewModel(DateTime OccurredAtUtc, string Actor
 {
     public static AuditFeedItemViewModel FromEntry(AuditFeedEntry entry) => new(
         entry.OccurredAt,
-        entry.DisplayName ?? entry.Actor,
+        BilingualText.Resolve(entry.DisplayName, entry.DisplayNameEn) ?? entry.Actor,
         ActionTextOf(entry.Action),
         TargetTextOf(entry),
         entry.EntityType == AuditValues.RequisitionEntity && long.TryParse(entry.EntityId, out var requisitionId)
