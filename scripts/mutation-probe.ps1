@@ -352,7 +352,16 @@ foreach ($probe in $probes) {
             }
             else {
                 $run = Invoke-TestRun -Project $probeProject
-                if ($run.Failed -gt 0) {
+                if (-not $run.Parsed) {
+                    # ★ 防呆 3：解析不到通過／失敗數 = 這次根本沒有測試跑過（多半是建置失敗）。
+                    #   原本這裡會掉進下面的 else，把「零條測試執行」印成「改壞了卻全綠」——
+                    #   那是最糟的誤判：它去指控測試沒有鑑別力，而真正的事實是什麼都沒跑。
+                    #   2026-09-16 曾在探針執行中把一支編譯不過的暫存測試檔寫進測試專案，
+                    #   P11／P12 就是這樣被誤判成無鑑別力的。見 L-018、L-037。
+                    $tail = ($run.Raw -split "`r?`n" | Where-Object { $_ -match 'error|Build FAILED|建置失敗' } | Select-Object -First 3) -join ' / '
+                    $verdict = "★ 這次沒有測到：dotnet test 沒有產出通過／失敗數，結果不採信。$tail"
+                }
+                elseif ($run.Failed -gt 0) {
                     $verdict = "有鑑別力：$($run.Failed) 條變紅"
                 }
                 else {
