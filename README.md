@@ -2,199 +2,34 @@
 
 醫材耗材的**請領與庫存管理系統**。C# / ASP.NET Core MVC + Web API / Oracle。
 
----
-
-## 這份 README 想回答的問題
-
-不是「用了哪些技術」，而是 —— **你怎麼知道它是對的？**
-
-因為這個系統裡最危險的錯誤，全部都**不會當機、不會報錯、畫面完全正常**：
-
-| 如果這裡寫錯 | 使用者會看到什麼 |
-|---|---|
-| 效期發料的順序反了 | 數量正確、庫存扣得剛好、頁面毫無異狀 —— 只是發出去的是快過期的那批 |
-| 過期判定差一天（`<` 寫成 `<=`） | 每批醫材少用一天。沒有任何人會回報 |
-| 兩人同時領最後一箱 | 兩張單都成功、庫存變成 -5 |
-| 請領單的非法狀態轉換被靜默忽略 | 使用者按了核准、沒有錯誤訊息、單子還停在原狀態 |
-| ER 圖與實際 schema 脫節 | 圖畫得漂漂亮亮，只是它已經是錯的 |
-
-「跑起來看看」抓不到上面任何一項。所以這個專案的重點不在功能數量，
-在於**為每一條這樣的規則，設計一個能區分對錯的驗證**。
+三種角色（請領人、庫管員、管理員）、14 張資料表、FEFO 先到期先出自動配批、
+只增不改不刪的稽核軌跡。介面支援繁體中文與英文、亮色／暗色／高對比主題。
 
 ---
 
-## 我如何確認它是對的
+## 這個系統做什麼
 
-### 1. 六道關卡，每次提交都全跑
+醫院的醫材耗材（注射針、紗布、導管這類）從入庫到發出去，中間要回答三個問題：
+**現在還有多少、哪一批快過期、這批是誰領走的。**
 
-```bash
-dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 211 條測試
-dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mutation-probe.ps1                # ★ 鑑別力探針
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-er-diagram.ps1 -Check    # ★ ER 圖漂移檢查
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1                # ★ 測試沒在資料庫留下殘留
+這個系統處理的就是這條線：
+
+```
+入庫（批號 + 效期）→ 庫存查詢／效期預警 → 科室建立請領單 → 審核 → 發料（FEFO 自動配批）→ 稽核軌跡
 ```
 
-前三道是常見的。**後三道是這個專案的重點。**
+三種角色看到的東西不一樣：
 
-### 2. ★ 鑑別力探針：證明測試真的測得到
-
-> **不能區分「修前」與「修後」的驗證，等於沒有驗證。**
-
-測試全綠只代表「測試沒有失敗」，**不代表「測試測得到那件事」**。
-所以 [`scripts/mutation-probe.ps1`](scripts/mutation-probe.ps1) 會自動把實作**故意改壞 12 次**，
-每次確認對應的測試變紅，再還原並複驗回到基線：
-
-| 探針 | 對應規則 | 結果 |
+| 角色 | 能做什麼 | 看得到誰的資料 |
 |---|---|---|
-| P1 FEFO 排序反轉（改成先發最晚到期） | FR-401 先到期先出 | 2 條變紅 |
-| P2 過期判定 `<` 改成 `<=`（差一天） | FR-401 效期當天仍可用 | 2 條變紅 |
-| P3 移除同效期的批號決勝鍵 | FR-401 跨環境配批一致 | 1 條變紅 |
-| P4 允許部分發料 | FR-401 不足即整筆失敗 | 4 條變紅 |
-| P5 狀態機偷開一條非法轉換 | FR-304 非法轉換須被拒絕 | 2 條變紅 |
-| P6 駁回不再要求填原因 | FR-302 | 1 條變紅 |
-| **P7 拿掉發料的 `SELECT ... FOR UPDATE`** | **FR-402 並發不得超發** | **3 條變紅** |
-| **P8 拿掉 `InventoryQueries` 的 DI 註冊** | **正式 DI 圖必須完整** | **9 條變紅** |
-| **P9 整張單發料改成「跳過失敗的明細繼續」** | **FR-303 整張單原子發料** | **6 條變紅** |
-| **P10 入庫拿掉品項列的 `FOR UPDATE`** | **同品項的新批號入庫必須序列化** | **2 條變紅** |
-| **P11 入庫的過期判定 `<` 改成 `<=`** | **效期當天仍可入庫** | **1 條變紅** |
-| **P12 首頁「沒有角色」的範圍改回「不受限」** | **沒有任何角色的帳號不得看到全院資料** | **1 條變紅** |
+| **請領人** Requester | 建立與送審自己科室的請領單、查看狀態與駁回原因 | **只有自己的科室**（資料庫查詢層過濾，不是畫面藏起來） |
+| **庫管員** Storekeeper | 入庫、庫存查詢、效期預警、審核／駁回、發料 | 全院 |
+| **管理員** Administrator | 庫管員的全部，加上品項主檔與使用者管理 | 全院 |
 
-另有 5 支**資料庫層**探針（直接寫入壞資料，確認被限制條件擋下）：
-負數庫存 → `ORA-02290`；不存在的狀態值 → `ORA-02290`；已駁回但無原因 → `ORA-02290`；
-料號重複 → `ORA-00001`；**軟刪除後沿用同一料號 → 放行**。
+系統採**預設拒絕**：沒有明確標註授權政策的端點一律拒絕，而不是一律放行。
 
-最後一支特別重要 —— 前四支只證明「**該擋的有擋**」，
-只有它能證明「**不該擋的沒有誤擋**」。少了它，一個「永遠拒絕」的索引也會讓前四支全過。
-
-**探針抓到過的真問題**（不是理論上的）：
-我寫過一條叫「決定性測試」的測試，探針把它要驗的排序鍵整條拿掉之後，**48 條測試依然全綠** ——
-因為測試資料剛好讓兩種排序鍵給出相同答案。那條測試從頭到尾沒有在測它宣稱要測的東西，
-而且**光讀測試碼是看不出來的**。
-
-### 3. ★ 測試不得在資料庫留下殘留
-
-整合測試共用同一個 Oracle 容器，每條測試都會建立自己的資料再刪掉。
-但**測試失敗或被中斷時，清理不一定跑得完** —— 而留下來的資料完全不會被任何斷言發現，
-因為每條測試的斷言都刻意限定在自己的範圍內（那是為了避免互相干擾，是對的決定）。
-代價是殘留資料剛好落在所有斷言的盲區裡，示範資料庫會慢慢長出一堆測試品項。
-
-[`scripts/check-db-clean.ps1`](scripts/check-db-clean.ps1) 就是補這個盲區的：
-跑完測試之後，資料庫必須回到只剩種子資料的狀態，否則 `exit 1`。
-
-整合測試組件另以系統層級 `Global\MedSupplyOps.IntegrationTests` mutex 保護同一個 Oracle schema。
-第二個 `dotnet test` 最多等 5 秒後會直接說明已有另一個 `testhost` 佔用，要求等待或停止前一個程序；
-它不會排隊後再用同一批測試帳號／種子資料互相覆寫。`mutation-probe.ps1` 也會在啟動前列出現有
-`testhost` 的 PID 並拒絕執行，絕不自動終止別人的測試。
-
-### 4. ★ ER 圖漂移檢查：文件不會偷偷過期
-
-一張匯出的 schema 圖是最典型的「錯了但看起來正常」：資料庫加了欄位、圖沒更新，
-圖依然畫得漂亮、依然可以放進 README，**沒有任何人會發現它已經是錯的**。
-
-所以 [`docs/diagrams/schema.mmd`](docs/diagrams/schema.mmd) 不是手繪的 ——
-它由 [`scripts/generate-er-diagram.ps1`](scripts/generate-er-diagram.ps1)
-從 Oracle 的**資料字典**產生，並提供 `-Check` 模式：
-schema 改了而圖沒重產，這道關卡就 `exit 1`。
-
-### 4.5 ★ 需求追溯關卡：需求表不會偷偷過期
-
-[`RequirementsTraceabilityTests`](tests/MedSupplyOps.Integration.Tests/RequirementsTraceabilityTests.cs)
-解析需求規格與第 9 章追溯表：每個 FR／SEC／NFR 必須恰好一列；已實作列的測試方法、探針或檔案
-必須真的存在；未完成列不能掛上假的證明；**只做了一半的不准標成「已實作」**（實作位置以「部分：」
-開頭的列，狀態必須是「部分實作」）；程式與測試也不能引用不存在的 FR。它隨第二道 `dotnet test`
-執行，不另加一個可被遺忘的命令。
-
-最後那條規則是覆核時加上的：原先的版本把 `FR-501`（REST API + OpenAPI 文件）標成「已實作」，
-而同一列的實作位置欄寫著「沒有 OpenAPI 文件、未涵蓋建立與發料」。**狀態欄才是別人會讀的那一格**。
-
-### 5. 效能用「邏輯讀取次數」，不用執行時間
-
-時間量測的母體是「你的查詢 ＋ 作業系統排程 ＋ GC ＋ 其他行程」，你只想量第一項。
-而且「加索引前跑一次、加索引後跑一次」的改善數字，**有可能全部來自 buffer cache 變暖**，
-跟索引一點關係都沒有 —— 數字還會很漂亮。
-
-所以 [`docs/performance/dapper-fefo.md`](docs/performance/dapper-fefo.md)
-與 [`docs/performance/dashboard-read-paths.md`](docs/performance/dashboard-read-paths.md)
-都用 `DBMS_XPLAN` 的實際執行計畫與 **Buffers（邏輯讀取）**：
-
-```
-TABLE ACCESS FULL  STOCK_LOTS           A-Rows 101   Buffers 1004
-INDEX RANGE SCAN   IX_STOCK_LOTS_FEFO   A-Rows 101   Buffers   10   （總計 111）
-```
-
-**A-Rows 兩邊都是 101** —— 這一行才是關鍵：實際回傳列數沒變，
-代表這是最佳化，不是「把查詢改壞來換數字」。
-
-`Buffers` 是 logical reads；cache 變暖主要會改變 physical I/O 與 elapsed time，不應被誤讀成
-Buffers 的改善。兩份實證仍都連跑兩次、保存兩次計畫，以確認第二次沒有換 cursor／換計畫；
-實際的索引前後比較則固定採相同資料、相同 bind、相同 A-Rows 的第二次計畫。
-
----
-
-## 三個技術重點
-
-### FEFO 效期配批（`FefoAllocator`）
-
-同品項多批次時一律先發效期最早的；單批不足跨批取用；總量不足**整筆失敗不做部分發料**；
-**已過期批次一律不得配到**，即使那是唯一有量的批次。
-
-三個容易寫錯而不會被發現的細節：
-
-- **效期當天仍可用**。「有效期限 2026-08-31」表示 8/31 可用、9/1 起不可用。
-  寫成 `<=` 只會讓每批少用一天。
-- **判定過期的基準日由呼叫端傳入**，演算法內部不讀系統時間 ——
-  否則「今天剛好沒事、明天就錯」的缺陷會躲過所有測試。
-- **同效期以「批號」決勝，不用資料庫 Id**。Id 是代理鍵，
-  同一批資料匯入開發庫與正式庫可能拿到不同 Id，配批結果跟著不同，**而兩邊畫面都正常**。
-
-`MedSupplyOps.Domain` 專案**刻意零套件依賴**（連 EF Core 都不引用）。
-這不是架構潔癖：它讓這些規則能在沒有資料庫的情況下被測試，
-也證明領域規則沒有偷偷依賴持久化細節。
-
-### 並發發料不得超發（`StockIssueService`）
-
-用 `SELECT ... FOR UPDATE WAIT n` 序列化同一品項的發料。
-
-**為什麼是悲觀鎖不是樂觀鎖**：發料是短交易、高衝突，結果對使用者就是「能不能領到」。
-樂觀鎖讓第二個人做完所有事才被告知「請重試」；悲觀鎖讓他在讀取階段等待，
-等到之後看到的是扣減後的**真實庫存**，於是他得到的是「庫存不足，目前可用 1」
-這種對他有意義的訊息。
-
-**等鎖逾時與庫存不足是兩種結果，不可混為一談** —— 逾時代表庫存可能夠、只是拿不到鎖，
-呼叫端該重試。混在一起會讓使用者看到一個**假的缺貨訊息**。
-（逾時時可用量回傳 `-1` 而不是 `0`：我們根本沒讀到資料，回 0 會讓呼叫端以為「查過了就是沒貨」。）
-
-**資料庫層的 `CHECK (quantity >= 0)` 是最後防線，不是重複。**
-P7 探針拿掉應用層的鎖之後，資料**依然沒有變成負數** —— 第二次 `UPDATE` 撞上 CHECK 而失敗。
-也就是說：應用層負責「給出正確且友善的結果」，資料庫層負責「保證資料永遠不會錯」。
-
-**並發測試不用 `Thread.Sleep`。** 靠睡眠製造競態，結果取決於當下排程 ——
-那種測試會時綠時紅，而**偶爾綠比一直紅更糟，因為它會訓練人忽略紅燈**。
-改在服務裡留一個明確的同步點（生產一律傳 `null`），
-讓「兩條交易都讀完才開始寫」成為決定性事實。
-
-### 手寫 Oracle SQL 與索引調校
-
-架構裁定是**寫入用 EF Core、讀取用手寫 Oracle SQL（Dapper）**。
-理由不是「手寫比較快」，是全部交給 ORM 的話，SQL 是誰產生的、為什麼那樣產生、怎麼調，
-作者一句都答不出來。
-
-schema 是**手寫 DDL 優先**（[`db/schema/V001__initial_schema.sql`](db/schema/V001__initial_schema.sql)），
-EF Core 對映到它，不是反過來。三個 Oracle 專屬的決定：
-
-- **字串一律 `VARCHAR2(n CHAR)` 而非預設的 BYTE 語意。**
-  AL32UTF8 下一個中文字佔 3 bytes，`VARCHAR2(50)` 只裝得下 16 個中文字。
-  醫院系統幾乎全中文，長科室名會直接爆 `ORA-12899`，
-  而開發者看到欄位長度 50、輸入 20 個字，會完全想不通。
-- **軟刪除用函數索引達成「只對未刪除的資料強制唯一」**：
-  `CREATE UNIQUE INDEX ... ON items (CASE WHEN is_deleted = 0 THEN item_code END)`。
-  Oracle 不索引全為 NULL 的鍵，等同其他資料庫的 partial index。
-  直接對 `item_code` 建 UNIQUE 的話，軟刪除後就**永遠無法沿用同一個料號**，
-  而且不會有任何訊息解釋原因。
-- **全 schema 零 `ON DELETE CASCADE`**。刪一個科室若連帶刪光它的請領單與發料紀錄，
-  在醫療場域等同於**銷毀稽核軌跡**。所有刪除一律為軟刪除。
+**這個系統完全不處理病人資料** —— 沒有病歷、醫囑、掛號、健保申報。
+那些需要臨床領域知識，寧可不做，也不做一個看起來對但其實錯的東西。
 
 ---
 
@@ -234,7 +69,55 @@ Docker 會直接改寫 iptables/WinNAT，Windows 防火牆規則擋不住它，
 
 ---
 
-## 架構
+---
+
+## 使用操作
+
+登入後的首頁會依角色顯示不同的工作儀表板 —— 它是工作起點，不是介紹頁。
+
+### 請領人
+
+1. **首頁**：自己科室的請領單狀態一覽；被駁回的單會直接顯示駁回原因。
+2. **請領單 → 建立**：選品項、填數量。
+   選好品項後畫面會即時顯示**目前可用量與最早效期**；
+   可用量不足時仍可送出（庫存隨時在變），但**伺服器會在發料當下重新驗算**，
+   畫面上的數字只是參考，不是承諾。
+3. 送審後狀態變成「待審核」，接下來由庫管員處理。
+
+### 庫管員
+
+1. **首頁營運儀表板**：待審核、待發料、30 天內到期、低於安全存量、已過期仍在庫，
+   加上「今日待發料佇列」與最近異動。每張卡片都可以點進對應清單。
+2. **入庫**：選品項、輸入批號、效期、數量與儲位。
+   同一品項的並發入庫會被序列化，新批次立即參與 FEFO。
+3. **庫存查詢／效期預警**：依品項展開批次明細；效期預警可調天數。
+4. **請領單 → 詳情**：核准或駁回。**駁回一定要填原因**，沒填不讓送出。
+5. **發料**：對已核准的單按發料，系統以 FEFO 自動配批並寫入配批明細。
+   任何一行數量不足，**整張單失敗並回滾**，不做部分發料。
+
+### 管理員
+
+除了上述，另有兩個後台：
+
+- **品項管理**：新增／編輯／停用品項。料號會正規化；料號與單位建立後不可改；
+  停用前會檢查是否還有庫存或未結案的請領單。
+- **使用者管理**：新增、編輯（姓名／角色／科室）、停用／啟用、重設密碼。
+  Email 建立後不可修改（它同時是登入帳號與稽核軌跡裡的身分）。
+  重設後的新密碼**只顯示一次**，而且不會寫進稽核紀錄。
+  系統**保證至少保留一位啟用中的管理員**，也不允許管理員停用或降級自己 —— 這些都在伺服器端擋。
+
+### 全站偏好
+
+右上角齒輪可切換：**語言**（繁體中文／English）、**顯示時區**（9 個）、
+**主題**（明亮／暗色／跟隨系統／高對比）、**表格密度**、**導覽版面**（頂列／側欄）。
+
+顯示時區只影響畫面上的時間呈現。**業務規則的「今天」固定用台北時間**——
+效期判定與請領單號的日期不會因為誰把時區調成紐約就跟著變。
+
+---
+
+## 系統架構
+
 
 ```mermaid
 flowchart TB
@@ -270,18 +153,32 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 
 ---
 
-## 範圍
+## 資料庫結構
 
-**刻意不做**（[`docs/requirements.md`](docs/requirements.md) §6）：
-病歷／醫囑／掛號／健保申報（**無臨床領域知識，寧可不做，也不做一個看起來對但錯的東西**）、
-對外採購與驗收、多院區調撥、前端 SPA、高可用叢集。
+Schema 是**手寫 DDL**（不是 EF Core migration 產生的），放在 `db/migrations`，
+由容器啟動時依序套用，版本記錄在 `SCHEMA_VERSIONS`（該表不屬於資料模型，不進 ER 圖）。
 
-> 系統內出現的所有機構、科室與人名皆為虛構或通用職能名詞，
-> 不指向任何真實醫療院所（`docs/requirements.md` OUT-7）。
+### 業務資料表（7 張）
 
----
+| 資料表 | 職責 |
+|---|---|
+| `DEPARTMENTS` | 科室主檔。同時是請領單的歸屬，以及請領人列級授權的範圍依據 |
+| `ITEMS` | 品項主檔：料號、品名、規格、單位、安全存量。軟刪除（停用） |
+| `STOCK_LOTS` | 庫存批次：批號、效期、數量、儲位。**FEFO 配批的來源** |
+| `REQUISITIONS` | 請領單主檔：單號、科室、狀態、駁回原因、各階段時間戳 |
+| `REQUISITION_LINES` | 請領單明細：品項與數量。**拆成明細表才做得到整張單的原子發料** |
+| `ISSUE_ALLOCATIONS` | 發料配批：哪一行、從哪一批、扣了多少。配批結果可逐筆追溯 |
+| `AUDIT_LOGS` | 稽核軌跡。**只增不改不刪**，由資料庫層的約束保證，不是靠應用程式自律 |
 
-## 幾個關鍵的資料模型決策
+### 身分資料表（7 張）
+
+`IDENTITY_USERS`、`IDENTITY_ROLES`、`IDENTITY_USER_ROLES`、`IDENTITY_USER_CLAIMS`、
+`IDENTITY_ROLE_CLAIMS`、`IDENTITY_USER_LOGINS`、`IDENTITY_USER_TOKENS` ——
+ASP.NET Core Identity 的標準結構，同樣手寫 DDL。
+`IDENTITY_USERS` 多一個 `DEPARTMENT_ID` 欄位，那是請領人列級授權的依據。
+
+### 幾個關鍵的資料模型決策
+
 
 | 常見做法 | 本系統的決策與理由 |
 |---|---|
@@ -299,21 +196,249 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 
 ---
 
-## 專案數字
+## 關聯綱目
 
+<!-- ER-DIAGRAM:BEGIN 本區塊由 scripts/generate-er-diagram.ps1 從 Oracle 資料字典產生，請勿手動編輯 -->
+```mermaid
+erDiagram
+    AUDIT_LOGS {
+        number AUDIT_LOG_ID PK
+        varchar ENTITY_TYPE
+        varchar ENTITY_ID
+        varchar ACTION
+        varchar ACTOR
+        timestamp OCCURRED_AT
+        clob OLD_VALUE
+        clob NEW_VALUE
+    }
+    DEPARTMENTS {
+        number DEPARTMENT_ID PK
+        varchar DEPARTMENT_CODE
+        varchar DEPARTMENT_NAME
+        number IS_ACTIVE
+        number IS_DELETED
+        timestamp DELETED_AT
+        varchar DELETED_BY
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    IDENTITY_ROLES {
+        varchar ID PK
+        varchar NAME
+        varchar NORMALIZED_NAME
+        varchar CONCURRENCY_STAMP
+    }
+    IDENTITY_ROLE_CLAIMS {
+        number ID PK
+        varchar ROLE_ID FK
+        varchar CLAIM_TYPE
+        varchar CLAIM_VALUE
+    }
+    IDENTITY_USERS {
+        varchar ID PK
+        varchar USER_NAME
+        varchar NORMALIZED_USER_NAME
+        varchar EMAIL
+        varchar NORMALIZED_EMAIL
+        number EMAIL_CONFIRMED
+        varchar PASSWORD_HASH
+        varchar SECURITY_STAMP
+        varchar CONCURRENCY_STAMP
+        varchar PHONE_NUMBER
+        number PHONE_NUMBER_CONFIRMED
+        number TWO_FACTOR_ENABLED
+        timestamp LOCKOUT_END
+        number LOCKOUT_ENABLED
+        number ACCESS_FAILED_COUNT
+        varchar DISPLAY_NAME
+        number DEPARTMENT_ID FK
+    }
+    IDENTITY_USER_CLAIMS {
+        number ID PK
+        varchar USER_ID FK
+        varchar CLAIM_TYPE
+        varchar CLAIM_VALUE
+    }
+    IDENTITY_USER_LOGINS {
+        varchar LOGIN_PROVIDER PK
+        varchar PROVIDER_KEY PK
+        varchar PROVIDER_DISPLAY_NAME
+        varchar USER_ID FK
+    }
+    IDENTITY_USER_ROLES {
+        varchar USER_ID PK, FK
+        varchar ROLE_ID PK, FK
+    }
+    IDENTITY_USER_TOKENS {
+        varchar USER_ID PK, FK
+        varchar LOGIN_PROVIDER PK
+        varchar NAME PK
+        varchar VALUE
+    }
+    ISSUE_ALLOCATIONS {
+        number ISSUE_ALLOCATION_ID PK
+        number REQUISITION_LINE_ID FK
+        number STOCK_LOT_ID FK
+        number QUANTITY
+        date EXPIRY_DATE_AT_ISSUE
+        timestamp ISSUED_AT
+        varchar ISSUED_BY
+    }
+    ITEMS {
+        number ITEM_ID PK
+        varchar ITEM_CODE
+        varchar ITEM_NAME
+        varchar SPECIFICATION
+        varchar UNIT_OF_MEASURE
+        number TRACKS_LOT
+        number TRACKS_EXPIRY
+        number SAFETY_STOCK_QTY
+        number IS_DELETED
+        timestamp DELETED_AT
+        varchar DELETED_BY
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    REQUISITIONS {
+        number REQUISITION_ID PK
+        varchar REQUISITION_NO
+        number DEPARTMENT_ID FK
+        varchar STATUS
+        varchar REJECTION_REASON
+        timestamp SUBMITTED_AT
+        timestamp APPROVED_AT
+        timestamp ISSUED_AT
+        timestamp CLOSED_AT
+        number ROW_VERSION
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    REQUISITION_LINES {
+        number REQUISITION_LINE_ID PK
+        number REQUISITION_ID FK
+        number LINE_NO
+        number ITEM_ID FK
+        number QUANTITY
+    }
+    STOCK_LOTS {
+        number STOCK_LOT_ID PK
+        number ITEM_ID FK
+        varchar LOT_NUMBER
+        date EXPIRY_DATE
+        number QUANTITY
+        varchar STORAGE_LOCATION
+        number ROW_VERSION
+        timestamp CREATED_AT
+        varchar CREATED_BY
+        timestamp UPDATED_AT
+        varchar UPDATED_BY
+    }
+    IDENTITY_ROLES ||--o{ IDENTITY_ROLE_CLAIMS : "FK_IDENTITY_ROLE_CLAIMS_ROLE"
+    DEPARTMENTS o|--o{ IDENTITY_USERS : "FK_IDENTITY_USERS_DEPARTMENT"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_CLAIMS : "FK_IDENTITY_USER_CLAIMS_USER"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_LOGINS : "FK_IDENTITY_USER_LOGINS_USER"
+    IDENTITY_ROLES ||--o{ IDENTITY_USER_ROLES : "FK_IDENTITY_USER_ROLES_ROLE"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_ROLES : "FK_IDENTITY_USER_ROLES_USER"
+    IDENTITY_USERS ||--o{ IDENTITY_USER_TOKENS : "FK_IDENTITY_USER_TOKENS_USER"
+    REQUISITION_LINES ||--o{ ISSUE_ALLOCATIONS : "FK_ISSUE_ALLOC_LINE"
+    STOCK_LOTS ||--o{ ISSUE_ALLOCATIONS : "FK_ISSUE_ALLOC_LOT"
+    DEPARTMENTS ||--o{ REQUISITIONS : "FK_REQUISITIONS_DEPT"
+    ITEMS ||--o{ REQUISITION_LINES : "FK_REQ_LINES_ITEM"
+    REQUISITIONS ||--o{ REQUISITION_LINES : "FK_REQ_LINES_REQUISITION"
+    ITEMS ||--o{ STOCK_LOTS : "FK_STOCK_LOTS_ITEM"
 ```
-211 條測試（Domain 48 + Integration 163，整合測試全部跑真實 Oracle）
-12 支程式碼探針 + 5 支資料庫探針 + ER 圖與需求追溯漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
-端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
-```
+<!-- ER-DIAGRAM:END -->
 
-測試碼與產品碼大約 1:1。這不是刻意湊的比例 ——
-是因為每一條「做錯了看起來仍然正常」的規則，都需要一條專門釘住它的測試。
+這張圖**不是手畫的**，也不是畫一次就放著：
+它由 `scripts/generate-er-diagram.ps1` 從 Oracle 的資料字典（`user_tables` / `user_tab_columns` /
+`user_constraints`）讀出來產生，而 `-Check` 模式是提交前必跑的關卡之一。
+**schema 與這張圖一旦脫節，建置就會紅**，訊息會指名是哪張表、哪個欄位、哪條關係對不上 ——
+包含你正在看的這一份。文件不會偷偷過期。
 
-> 上面的數字是撰寫當下的快照，會隨開發前進而過時。
-> **不會過時的是那六道關卡** —— 它們每次提交都跑，
-> 而且 ER 圖那道會在 schema 與文件脫節時直接讓建置變紅。
-> （我刻意沒有把 commit 數寫進來：那個數字在我提交這份 README 的瞬間就是錯的，
-> 而它錯了不會有任何徵兆 —— 正是這個專案在防的那一類東西。）
+同一份內容也存成 [`docs/diagrams/schema.mmd`](docs/diagrams/schema.mmd)。
 
 ---
+
+## 序列圖
+
+### 請領單的狀態機
+
+狀態轉換是**明列**的，不是散在各處的 if／switch。明列之後，測試才能窮舉
+（狀態 × 動作）的完整組合，斷言「恰好這五條成立、其餘全部被拒絕」。
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: 建立
+    Draft --> PendingApproval: 送審
+    PendingApproval --> Approved: 核准
+    PendingApproval --> Rejected: 駁回（必填原因）
+    Approved --> Issued: 發料
+    Issued --> Closed: 結案
+    Rejected --> [*]
+    Closed --> [*]
+```
+
+不合法的轉換一律回傳失敗並產生明確錯誤，**不得靜默忽略**。
+
+### 發料：從按下按鈕到寫進資料庫
+
+```mermaid
+sequenceDiagram
+autonumber
+participant K as 庫管員
+participant W as Web（預設拒絕）
+participant S as StockIssueService
+participant D as Oracle
+K->>W: 對已核准的請領單按「發料」
+W->>S: IssueRequisitionAsync（單一交易）
+S->>D: SELECT ... FOR UPDATE WAIT 5（依 item_id 遞增取鎖）
+Note over S,D: 取鎖順序固定，避免死結
+S->>S: FefoAllocator：先到期先出，同效期以批號決勝
+alt 任一明細數量不足
+S->>D: ROLLBACK
+S-->>W: 整張單失敗（不做部分發料）
+else 全部足夠
+S->>D: UPDATE 批次數量 + INSERT 配批 + INSERT 稽核
+S->>D: COMMIT
+S-->>W: 成功，回傳實際配到的批次
+end
+```
+
+三個值得說明的地方：
+
+- **為什麼用悲觀鎖**：庫存扣帳衝突的代價是「發出去的東西比實際有的多」，
+  樂觀鎖的重試在這裡沒有意義 —— 重試完還是要擋。
+- **為什麼依 `item_id` 遞增取鎖**：兩張單同時發料且品項交集時，
+  取鎖順序不固定就會死結。固定順序是唯一不用靠運氣的解法。
+- **為什麼不做部分發料**：半發的請領單在現場等於「這單到底算不算領完了」的爭議，
+  而爭議會變成有人手動改資料庫。整張單成功或整張單失敗，沒有中間狀態。
+
+---
+
+## 範圍
+
+**刻意不做**（[`docs/requirements.md`](docs/requirements.md) §6）：
+病歷／醫囑／掛號／健保申報（**無臨床領域知識，寧可不做，也不做一個看起來對但錯的東西**）、
+對外採購與驗收、多院區調撥、前端 SPA、高可用叢集。
+
+> 系統內出現的所有機構、科室與人名皆為虛構或通用職能名詞，
+> 不指向任何真實醫療院所（`docs/requirements.md` OUT-7）。
+
+---
+
+## 延伸閱讀
+
+| 文件 | 內容 |
+|---|---|
+| [`docs/requirements.md`](docs/requirements.md) | 需求規格與追溯表（每條需求有 ID、狀態與可定位的證據） |
+| [`docs/engineering.md`](docs/engineering.md) | 工程與驗證方法：六道關卡、鑑別力探針、效能量測方式 |
+| [`docs/diagrams/schema.mmd`](docs/diagrams/schema.mmd) | 由資料字典產生的 ER 圖 |
+| [`docs/integration/fhir.md`](docs/integration/fhir.md) | HL7 FHIR R4 唯讀介接 |
+| [`docs/operations/backup-restore.md`](docs/operations/backup-restore.md) | 備份與還原演練 |
+| [`docs/operations/cold-start-verification.md`](docs/operations/cold-start-verification.md) | 乾淨環境冷啟的完整重演紀錄 |
