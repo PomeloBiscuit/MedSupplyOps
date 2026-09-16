@@ -11,6 +11,8 @@ public static class UserStatusFilters
 
 public sealed class UserIndexViewModel
 {
+    public string? Search { get; init; }
+
     public string? Role { get; init; }
 
     public string Status { get; init; } = UserStatusFilters.All;
@@ -43,6 +45,10 @@ public sealed class CreateUserViewModel
     [Display(Name = "姓名")]
     public string DisplayName { get; set; } = string.Empty;
 
+    [StringLength(100, ErrorMessage = "英文顯示名稱不可超過 100 個字。")]
+    [Display(Name = "英文顯示名稱")]
+    public string? EnglishDisplayName { get; set; }
+
     [StringLength(32, ErrorMessage = "員工編號不可超過 32 個字。")]
     [Display(Name = "員工編號")]
     public string? EmployeeNo { get; set; }
@@ -74,6 +80,10 @@ public sealed class EditUserViewModel
     [StringLength(100, ErrorMessage = "姓名不可超過 100 個字。")]
     [Display(Name = "姓名")]
     public string DisplayName { get; set; } = string.Empty;
+
+    [StringLength(100, ErrorMessage = "英文顯示名稱不可超過 100 個字。")]
+    [Display(Name = "英文顯示名稱")]
+    public string? EnglishDisplayName { get; set; }
 
     [StringLength(32, ErrorMessage = "員工編號不可超過 32 個字。")]
     [Display(Name = "員工編號")]

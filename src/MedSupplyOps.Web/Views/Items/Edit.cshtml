@@ -25,15 +25,30 @@
             <input asp-for="Name" class="form-control" maxlength="200" />
             <span asp-validation-for="Name" class="text-danger"></span>
         </div>
+        <div class="col-md-6">
+            <label asp-for="EnglishName" class="form-label"></label>
+            <input asp-for="EnglishName" class="form-control" maxlength="200" />
+            <span asp-validation-for="EnglishName" class="text-danger"></span>
+        </div>
         <div class="col-12">
             <label asp-for="Specification" class="form-label"></label>
             <textarea asp-for="Specification" class="form-control" maxlength="400" rows="3"></textarea>
             <span asp-validation-for="Specification" class="text-danger"></span>
         </div>
+        <div class="col-12">
+            <label asp-for="EnglishSpecification" class="form-label"></label>
+            <textarea asp-for="EnglishSpecification" class="form-control" maxlength="400" rows="3"></textarea>
+            <span asp-validation-for="EnglishSpecification" class="text-danger"></span>
+        </div>
         <div class="col-md-6">
             <label asp-for="UnitOfMeasure" class="form-label"></label>
             <input asp-for="UnitOfMeasure" class="form-control" readonly aria-readonly="true" />
             <div class="form-text">@L["計量單位建立後不可修改；建錯時請停用並建立新品項。"]</div>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="EnglishUnitOfMeasure" class="form-label"></label>
+            <input asp-for="EnglishUnitOfMeasure" class="form-control" maxlength="20" />
+            <span asp-validation-for="EnglishUnitOfMeasure" class="text-danger"></span>
         </div>
         <div class="col-md-6">
             <label asp-for="SafetyStockQty" class="form-label"></label>

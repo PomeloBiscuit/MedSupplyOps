@@ -1,4 +1,5 @@
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Persistence.Models;
 using MedSupplyOps.Web.Authorization;
@@ -113,6 +114,7 @@ public sealed class AccountController : Controller
             UserName = model.Email,
             Email = model.Email,
             DisplayName = model.DisplayName,
+            DisplayNameEn = string.IsNullOrWhiteSpace(model.EnglishDisplayName) ? null : model.EnglishDisplayName.Trim(),
             DepartmentId = model.DepartmentId,
         };
 
@@ -164,13 +166,18 @@ public sealed class AccountController : Controller
         }
 
         var roles = await _userManager.GetRolesAsync(user);
-        var departmentName = user.DepartmentId is long departmentId
+        var department = user.DepartmentId is long departmentId
             ? await _dbContext.Departments.AsNoTracking()
                 .Where(department => department.Id == departmentId && !department.IsDeleted)
-                .Select(department => department.Name)
-                .SingleOrDefaultAsync(cancellationToken) ?? _localizer["未指定"]
-            : _localizer["未指定"];
-        var displayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email ?? user.UserName ?? _localizer["使用者"] : user.DisplayName;
+                .SingleOrDefaultAsync(cancellationToken)
+            : null;
+        var departmentName = department is null
+            ? _localizer["未指定"].Value
+            : BilingualText.Resolve(department.Name, department.NameEn) ?? department.Name;
+        var displayName = BilingualText.Resolve(user.DisplayName, user.DisplayNameEn);
+        displayName = string.IsNullOrWhiteSpace(displayName)
+            ? user.Email ?? user.UserName ?? _localizer["使用者"]
+            : displayName;
 
         return View(new ProfileViewModel(
             displayName,
@@ -282,10 +289,12 @@ public sealed class AccountController : Controller
 
     private async Task PopulateDepartmentsAsync(RegisterViewModel model, CancellationToken cancellationToken)
     {
-        model.Departments = await _dbContext.Departments.AsNoTracking()
+        var departments = await _dbContext.Departments.AsNoTracking()
             .Where(department => department.IsActive && !department.IsDeleted)
             .OrderBy(department => department.Code)
-            .Select(department => new RegisterDepartmentOption(department.Id, department.Name))
             .ToListAsync(cancellationToken);
+        model.Departments = departments.Select(department => new RegisterDepartmentOption(
+            department.Id,
+            BilingualText.Option(department.Name, department.NameEn))).ToList();
     }
 }

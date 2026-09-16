@@ -3,6 +3,7 @@ using System.Globalization;
 using Dapper;
 using MedSupplyOps.Infrastructure.Auditing;
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Persistence.Models;
 using MedSupplyOps.Web.Authorization;
@@ -32,21 +33,37 @@ public sealed class ItemsController : Controller
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.ItemManage)]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken)
     {
-        var items = await _dbContext.Items.AsNoTracking()
-            .Where(item => !item.IsDeleted)
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        var query = _dbContext.Items.AsNoTracking().Where(item => !item.IsDeleted);
+        if (normalizedSearch is not null)
+        {
+            query = query.Where(item =>
+                item.Code.Contains(normalizedSearch) ||
+                item.Name.Contains(normalizedSearch) ||
+                (item.NameEn != null && item.NameEn.Contains(normalizedSearch)) ||
+                (item.Specification != null && item.Specification.Contains(normalizedSearch)) ||
+                (item.SpecificationEn != null && item.SpecificationEn.Contains(normalizedSearch)) ||
+                item.UnitOfMeasure.Contains(normalizedSearch) ||
+                (item.UnitOfMeasureEn != null && item.UnitOfMeasureEn.Contains(normalizedSearch)));
+        }
+
+        var items = await query
             .OrderBy(item => item.Code)
-            .Select(item => new ItemListRowViewModel(
-                item.Id,
-                item.Code,
-                item.Name,
-                item.Specification,
-                item.UnitOfMeasure,
-                item.SafetyStockQty))
             .ToListAsync(cancellationToken);
 
-        return View(items);
+        return View(new ItemIndexViewModel
+        {
+            Search = normalizedSearch,
+            Items = items.Select(item => new ItemListRowViewModel(
+                item.Id,
+                item.Code,
+                BilingualText.Resolve(item.Name, item.NameEn) ?? item.Name,
+                BilingualText.Resolve(item.Specification, item.SpecificationEn),
+                BilingualText.Resolve(item.UnitOfMeasure, item.UnitOfMeasureEn) ?? item.UnitOfMeasure,
+                item.SafetyStockQty)).ToList(),
+        });
     }
 
     [HttpGet]
@@ -62,8 +79,11 @@ public sealed class ItemsController : Controller
         Normalize(model);
         ModelState.Remove(nameof(model.Code));
         ModelState.Remove(nameof(model.Name));
+        ModelState.Remove(nameof(model.EnglishName));
         ModelState.Remove(nameof(model.Specification));
+        ModelState.Remove(nameof(model.EnglishSpecification));
         ModelState.Remove(nameof(model.UnitOfMeasure));
+        ModelState.Remove(nameof(model.EnglishUnitOfMeasure));
         TryValidateModel(model);
 
         if (!ModelState.IsValid)
@@ -82,8 +102,11 @@ public sealed class ItemsController : Controller
         {
             Code = model.Code,
             Name = model.Name,
+            NameEn = model.EnglishName,
             Specification = model.Specification,
+            SpecificationEn = model.EnglishSpecification,
             UnitOfMeasure = model.UnitOfMeasure,
+            UnitOfMeasureEn = model.EnglishUnitOfMeasure,
             SafetyStockQty = model.SafetyStockQty,
             TracksLot = true,
             TracksExpiry = true,
@@ -128,8 +151,11 @@ public sealed class ItemsController : Controller
                 Id = item.Id,
                 Code = item.Code,
                 Name = item.Name,
+                EnglishName = item.NameEn,
                 Specification = item.Specification,
+                EnglishSpecification = item.SpecificationEn,
                 UnitOfMeasure = item.UnitOfMeasure,
+                EnglishUnitOfMeasure = item.UnitOfMeasureEn,
                 SafetyStockQty = item.SafetyStockQty,
             })
             .SingleOrDefaultAsync(cancellationToken);
@@ -142,13 +168,16 @@ public sealed class ItemsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(
         long id,
-        [Bind("Name,Specification,SafetyStockQty")] EditItemViewModel model,
+        [Bind("Name,EnglishName,Specification,EnglishSpecification,EnglishUnitOfMeasure,SafetyStockQty")] EditItemViewModel model,
         CancellationToken cancellationToken)
     {
         // ★ 同 Create：安全存量送空白或非數字時，Clear() 會讓它變成 0 寫進資料庫（L-028）。
         Normalize(model);
         ModelState.Remove(nameof(model.Name));
+        ModelState.Remove(nameof(model.EnglishName));
         ModelState.Remove(nameof(model.Specification));
+        ModelState.Remove(nameof(model.EnglishSpecification));
+        ModelState.Remove(nameof(model.EnglishUnitOfMeasure));
         TryValidateModel(model);
 
         var item = await _dbContext.Items
@@ -170,7 +199,10 @@ public sealed class ItemsController : Controller
 
         var oldValue = ItemAuditJson(item);
         item.Name = model.Name;
+        item.NameEn = model.EnglishName;
         item.Specification = model.Specification;
+        item.SpecificationEn = model.EnglishSpecification;
+        item.UnitOfMeasureEn = model.EnglishUnitOfMeasure;
         item.SafetyStockQty = model.SafetyStockQty;
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -278,14 +310,20 @@ public sealed class ItemsController : Controller
     {
         model.Code = NormalizeKey(model.Code);
         model.Name = (model.Name ?? string.Empty).Trim();
+        model.EnglishName = NormalizeOptional(model.EnglishName);
         model.Specification = NormalizeOptional(model.Specification);
+        model.EnglishSpecification = NormalizeOptional(model.EnglishSpecification);
         model.UnitOfMeasure = (model.UnitOfMeasure ?? string.Empty).Trim();
+        model.EnglishUnitOfMeasure = NormalizeOptional(model.EnglishUnitOfMeasure);
     }
 
     private static void Normalize(EditItemViewModel model)
     {
         model.Name = (model.Name ?? string.Empty).Trim();
+        model.EnglishName = NormalizeOptional(model.EnglishName);
         model.Specification = NormalizeOptional(model.Specification);
+        model.EnglishSpecification = NormalizeOptional(model.EnglishSpecification);
+        model.EnglishUnitOfMeasure = NormalizeOptional(model.EnglishUnitOfMeasure);
     }
 
     private static string NormalizeKey(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();
@@ -297,8 +335,11 @@ public sealed class ItemsController : Controller
     {
         item.Code,
         item.Name,
+        item.NameEn,
         item.Specification,
+        item.SpecificationEn,
         item.UnitOfMeasure,
+        item.UnitOfMeasureEn,
         item.SafetyStockQty,
         item.IsDeleted,
         item.DeletedAt,

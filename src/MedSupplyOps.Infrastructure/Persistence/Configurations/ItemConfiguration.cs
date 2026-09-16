@@ -27,8 +27,11 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
 
         builder.Property(x => x.Code).HasColumnName("ITEM_CODE").HasMaxLength(32).IsRequired();
         builder.Property(x => x.Name).HasColumnName("ITEM_NAME").HasMaxLength(200).IsRequired();
+        builder.Property(x => x.NameEn).HasColumnName("ITEM_NAME_EN").HasMaxLength(200);
         builder.Property(x => x.Specification).HasColumnName("SPECIFICATION").HasMaxLength(400);
+        builder.Property(x => x.SpecificationEn).HasColumnName("SPECIFICATION_EN").HasMaxLength(400);
         builder.Property(x => x.UnitOfMeasure).HasColumnName("UNIT_OF_MEASURE").HasMaxLength(20).IsRequired();
+        builder.Property(x => x.UnitOfMeasureEn).HasColumnName("UNIT_OF_MEASURE_EN").HasMaxLength(20);
 
         builder.Property(x => x.TracksLot).HasColumnName("TRACKS_LOT").IsRequired();
         builder.Property(x => x.TracksExpiry).HasColumnName("TRACKS_EXPIRY").IsRequired();

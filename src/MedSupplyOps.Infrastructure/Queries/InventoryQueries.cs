@@ -1,5 +1,7 @@
 using System.Data.Common;
+using System.Globalization;
 using Dapper;
+using MedSupplyOps.Infrastructure.Localization;
 
 namespace MedSupplyOps.Infrastructure.Queries;
 
@@ -93,6 +95,7 @@ public sealed class InventoryQueries
                    l.item_id AS ItemId,
                    i.item_code AS ItemCode,
                    i.item_name AS ItemName,
+                   i.item_name_en AS ItemNameEn,
                    l.lot_number AS LotNumber,
                    l.expiry_date AS ExpiryDate,
                    l.quantity AS Quantity,
@@ -124,7 +127,8 @@ public sealed class InventoryQueries
                 row.LotNumber,
                 DateOnly.FromDateTime(row.ExpiryDate),
                 row.Quantity,
-                row.StorageLocation))
+                row.StorageLocation,
+                row.ItemNameEn))
             .ToList();
     }
 
@@ -139,6 +143,7 @@ public sealed class InventoryQueries
             SELECT i.item_id AS ItemId,
                    i.item_code AS ItemCode,
                    i.item_name AS ItemName,
+                   i.item_name_en AS ItemNameEn,
                    i.safety_stock_qty AS SafetyStockQuantity,
                    NVL(SUM(CASE
                        WHEN {usableLotPredicate} THEN l.quantity
@@ -147,7 +152,7 @@ public sealed class InventoryQueries
             FROM items i
             LEFT JOIN stock_lots l ON l.item_id = i.item_id
             WHERE i.is_deleted = 0
-            GROUP BY i.item_id, i.item_code, i.item_name, i.safety_stock_qty
+            GROUP BY i.item_id, i.item_code, i.item_name, i.item_name_en, i.safety_stock_qty
             HAVING NVL(SUM(CASE
                 WHEN {usableLotPredicate} THEN l.quantity
                 ELSE 0
@@ -166,7 +171,8 @@ public sealed class InventoryQueries
                 row.ItemCode,
                 row.ItemName,
                 decimal.ToInt32(row.SafetyStockQuantity),
-                decimal.ToInt32(row.AvailableQuantity)))
+                decimal.ToInt32(row.AvailableQuantity),
+                row.ItemNameEn))
             .ToList();
     }
 
@@ -184,8 +190,11 @@ public sealed class InventoryQueries
             SELECT i.item_id AS ItemId,
                    i.item_code AS ItemCode,
                    i.item_name AS ItemName,
+                   i.item_name_en AS ItemNameEn,
                    i.specification AS Specification,
+                   i.specification_en AS SpecificationEn,
                    i.unit_of_measure AS UnitOfMeasure,
+                   i.unit_of_measure_en AS UnitOfMeasureEn,
                    i.safety_stock_qty AS SafetyStockQuantity,
                    NVL(SUM(CASE
                        WHEN {usableLotPredicate} THEN l.quantity
@@ -204,8 +213,11 @@ public sealed class InventoryQueries
             GROUP BY i.item_id,
                      i.item_code,
                      i.item_name,
+                     i.item_name_en,
                      i.specification,
+                     i.specification_en,
                      i.unit_of_measure,
+                     i.unit_of_measure_en,
                      i.safety_stock_qty
             ORDER BY i.item_code, i.item_id
             """;
@@ -224,7 +236,10 @@ public sealed class InventoryQueries
                 decimal.ToInt32(row.SafetyStockQuantity),
                 decimal.ToInt32(row.AvailableQuantity),
                 decimal.ToInt32(row.UsableLotCount),
-                row.EarliestUsableExpiry is null ? null : DateOnly.FromDateTime(row.EarliestUsableExpiry.Value)))
+                row.EarliestUsableExpiry is null ? null : DateOnly.FromDateTime(row.EarliestUsableExpiry.Value),
+                row.ItemNameEn,
+                row.SpecificationEn,
+                row.UnitOfMeasureEn))
             .ToList();
     }
 
@@ -237,7 +252,9 @@ public sealed class InventoryQueries
             SELECT rl.line_no AS LineNo,
                    i.item_code AS ItemCode,
                    i.item_name AS ItemName,
+                   i.item_name_en AS ItemNameEn,
                    i.unit_of_measure AS UnitOfMeasure,
+                   i.unit_of_measure_en AS UnitOfMeasureEn,
                    l.lot_number AS LotNumber,
                    a.expiry_date_at_issue AS ExpiryDate,
                    a.quantity AS Quantity
@@ -259,7 +276,9 @@ public sealed class InventoryQueries
                 row.UnitOfMeasure,
                 row.LotNumber,
                 DateOnly.FromDateTime(row.ExpiryDate),
-                row.Quantity))
+                row.Quantity,
+                row.ItemNameEn,
+                row.UnitOfMeasureEn))
             .ToList();
     }
 
@@ -291,6 +310,7 @@ internal sealed class ExpiringLotRow
     public decimal ItemId { get; set; }
     public string ItemCode { get; set; } = string.Empty;
     public string ItemName { get; set; } = string.Empty;
+    public string? ItemNameEn { get; set; }
     public string LotNumber { get; set; } = string.Empty;
     public DateTime ExpiryDate { get; set; }
     public int Quantity { get; set; }
@@ -302,6 +322,7 @@ internal sealed class ItemBelowSafetyStockRow
     public decimal ItemId { get; set; }
     public string ItemCode { get; set; } = string.Empty;
     public string ItemName { get; set; } = string.Empty;
+    public string? ItemNameEn { get; set; }
     public decimal SafetyStockQuantity { get; set; }
     public decimal AvailableQuantity { get; set; }
 }
@@ -311,8 +332,11 @@ internal sealed class InventoryItemRow
     public decimal ItemId { get; set; }
     public string ItemCode { get; set; } = string.Empty;
     public string ItemName { get; set; } = string.Empty;
+    public string? ItemNameEn { get; set; }
     public string? Specification { get; set; }
+    public string? SpecificationEn { get; set; }
     public string UnitOfMeasure { get; set; } = string.Empty;
+    public string? UnitOfMeasureEn { get; set; }
     public decimal SafetyStockQuantity { get; set; }
     public decimal AvailableQuantity { get; set; }
     public decimal UsableLotCount { get; set; }
@@ -324,7 +348,9 @@ internal sealed class RequisitionIssueAllocationRow
     public decimal LineNo { get; set; }
     public string ItemCode { get; set; } = string.Empty;
     public string ItemName { get; set; } = string.Empty;
+    public string? ItemNameEn { get; set; }
     public string UnitOfMeasure { get; set; } = string.Empty;
+    public string? UnitOfMeasureEn { get; set; }
     public string LotNumber { get; set; } = string.Empty;
     public DateTime ExpiryDate { get; set; }
     public int Quantity { get; set; }
@@ -351,7 +377,14 @@ public sealed record ExpiringLot(
     string LotNumber,
     DateOnly ExpiryDate,
     int Quantity,
-    string StorageLocation);
+    string StorageLocation,
+    string? ItemNameEn)
+{
+    public ExpiringLot ForCulture(CultureInfo culture) => this with
+    {
+        ItemName = BilingualText.Resolve(ItemName, ItemNameEn, culture) ?? ItemName,
+    };
+}
 
 /// <summary>低庫存預警中的單一品項。</summary>
 public sealed record ItemBelowSafetyStock(
@@ -359,7 +392,14 @@ public sealed record ItemBelowSafetyStock(
     string ItemCode,
     string ItemName,
     int SafetyStockQuantity,
-    int AvailableQuantity);
+    int AvailableQuantity,
+    string? ItemNameEn)
+{
+    public ItemBelowSafetyStock ForCulture(CultureInfo culture) => this with
+    {
+        ItemName = BilingualText.Resolve(ItemName, ItemNameEn, culture) ?? ItemName,
+    };
+}
 
 /// <summary>庫存查詢頁使用的品項摘要。</summary>
 public sealed record InventoryItem(
@@ -371,7 +411,18 @@ public sealed record InventoryItem(
     int SafetyStockQuantity,
     int AvailableQuantity,
     int UsableLotCount,
-    DateOnly? EarliestUsableExpiry);
+    DateOnly? EarliestUsableExpiry,
+    string? ItemNameEn,
+    string? SpecificationEn,
+    string? UnitOfMeasureEn)
+{
+    public InventoryItem ForCulture(CultureInfo culture) => this with
+    {
+        ItemName = BilingualText.Resolve(ItemName, ItemNameEn, culture) ?? ItemName,
+        Specification = BilingualText.Resolve(Specification, SpecificationEn, culture),
+        UnitOfMeasure = BilingualText.Resolve(UnitOfMeasure, UnitOfMeasureEn, culture) ?? UnitOfMeasure,
+    };
+}
 
 /// <summary>請領單畫面用的已發料配批紀錄。</summary>
 public sealed record RequisitionIssueAllocation(
@@ -381,4 +432,13 @@ public sealed record RequisitionIssueAllocation(
     string UnitOfMeasure,
     string LotNumber,
     DateOnly ExpiryDate,
-    int Quantity);
+    int Quantity,
+    string? ItemNameEn,
+    string? UnitOfMeasureEn)
+{
+    public RequisitionIssueAllocation ForCulture(CultureInfo culture) => this with
+    {
+        ItemName = BilingualText.Resolve(ItemName, ItemNameEn, culture) ?? ItemName,
+        UnitOfMeasure = BilingualText.Resolve(UnitOfMeasure, UnitOfMeasureEn, culture) ?? UnitOfMeasure,
+    };
+}

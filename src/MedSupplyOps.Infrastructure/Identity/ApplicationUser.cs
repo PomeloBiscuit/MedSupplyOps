@@ -9,6 +9,8 @@ public sealed class ApplicationUser : IdentityUser
 {
     public string DisplayName { get; set; } = string.Empty;
 
+    public string? DisplayNameEn { get; set; }
+
     public string? EmployeeNo { get; set; }
 
     public long? DepartmentId { get; set; }

@@ -19,6 +19,7 @@ internal sealed class DepartmentConfiguration : IEntityTypeConfiguration<Departm
 
         builder.Property(x => x.Code).HasColumnName("DEPARTMENT_CODE").HasMaxLength(32).IsRequired();
         builder.Property(x => x.Name).HasColumnName("DEPARTMENT_NAME").HasMaxLength(200).IsRequired();
+        builder.Property(x => x.NameEn).HasColumnName("NAME_EN").HasMaxLength(200);
         builder.Property(x => x.IsActive).HasColumnName("IS_ACTIVE").IsRequired();
 
         builder.Property(x => x.IsDeleted).HasColumnName("IS_DELETED").IsRequired();

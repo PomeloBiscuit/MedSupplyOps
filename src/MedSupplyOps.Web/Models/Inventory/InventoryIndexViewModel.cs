@@ -8,4 +8,5 @@ public sealed record InventoryIndexViewModel(
 
 public sealed record InventoryItemDetailsViewModel(
     InventoryItem Summary,
-    IReadOnlyList<ItemAvailabilityLot> Lots);
+    IReadOnlyList<ItemAvailabilityLot> Lots,
+    string SelectionLabel);

@@ -1,3 +1,5 @@
+using System.Globalization;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Queries;
 using MedSupplyOps.Infrastructure.Time;
 using MedSupplyOps.Web.Authorization;
@@ -31,7 +33,10 @@ public sealed class InventoryController : Controller
                 summary.ItemId,
                 effectiveAsOf,
                 cancellationToken: cancellationToken);
-            itemDetails.Add(new InventoryItemDetailsViewModel(summary, availability.Lots));
+            itemDetails.Add(new InventoryItemDetailsViewModel(
+                summary.ForCulture(CultureInfo.CurrentUICulture),
+                availability.Lots,
+                $"{summary.ItemCode} — {BilingualText.Option(summary.ItemName, summary.ItemNameEn)}"));
         }
 
         return View(new InventoryIndexViewModel(effectiveAsOf, itemDetails));
@@ -48,7 +53,12 @@ public sealed class InventoryController : Controller
         }
 
         var effectiveAsOf = asOf ?? _businessCalendar.Today;
-        var lots = await _inventoryQueries.GetExpiringLotsAsync(withinDays, effectiveAsOf, cancellationToken: cancellationToken);
+        var lots = (await _inventoryQueries.GetExpiringLotsAsync(
+            withinDays,
+            effectiveAsOf,
+            cancellationToken: cancellationToken))
+            .Select(lot => lot.ForCulture(CultureInfo.CurrentUICulture))
+            .ToList();
         return View(new ExpiringLotsViewModel(withinDays, effectiveAsOf, lots));
     }
 }

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Dapper;
 using MedSupplyOps.Infrastructure.Auditing;
 using MedSupplyOps.Infrastructure.Identity;
+using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Web.Authorization;
 using MedSupplyOps.Web.Models.Users;
@@ -66,15 +67,26 @@ public sealed class UsersController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? role, string? status, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(string? search, string? role, string? status, CancellationToken cancellationToken)
     {
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
         var selectedRole = IsManageableRole(role) ? role : null;
         var selectedStatus = status is UserStatusFilters.Enabled or UserStatusFilters.Disabled
             ? status
             : UserStatusFilters.All;
         var currentUser = await _userManager.GetUserAsync(User);
 
-        var users = await _identityDbContext.Users.AsNoTracking()
+        var usersQuery = _identityDbContext.Users.AsNoTracking();
+        if (normalizedSearch is not null)
+        {
+            usersQuery = usersQuery.Where(user =>
+                user.DisplayName.Contains(normalizedSearch) ||
+                (user.DisplayNameEn != null && user.DisplayNameEn.Contains(normalizedSearch)) ||
+                (user.Email != null && user.Email.Contains(normalizedSearch)) ||
+                (user.EmployeeNo != null && user.EmployeeNo.Contains(normalizedSearch)));
+        }
+
+        var users = await usersQuery
             .OrderBy(user => user.DisplayName)
             .ThenBy(user => user.Email)
             .ToListAsync(cancellationToken);
@@ -94,14 +106,14 @@ public sealed class UsersController : Controller
                 StringComparer.Ordinal);
         var departments = await _dbContext.Departments.AsNoTracking()
             .Where(department => !department.IsDeleted)
-            .ToDictionaryAsync(department => department.Id, department => department.Name, cancellationToken);
+            .ToDictionaryAsync(department => department.Id, cancellationToken);
 
         var rows = users.Select(user =>
         {
             var userRoles = rolesByUser.GetValueOrDefault(user.Id, []);
             var isEnabled = !IsAdministrativelyDisabled(user);
-            var departmentName = user.DepartmentId is long departmentId && departments.TryGetValue(departmentId, out var name)
-                ? name
+            var departmentName = user.DepartmentId is long departmentId && departments.TryGetValue(departmentId, out var department)
+                ? BilingualText.Resolve(department.Name, department.NameEn) ?? department.Name
                 : _localizer["未指定"].Value;
             return new
             {
@@ -132,6 +144,7 @@ public sealed class UsersController : Controller
 
         return View(new UserIndexViewModel
         {
+            Search = normalizedSearch,
             Role = selectedRole,
             Status = selectedStatus,
             Roles = RoleOptions(),
@@ -156,6 +169,7 @@ public sealed class UsersController : Controller
             model,
             nameof(model.Email),
             nameof(model.DisplayName),
+            nameof(model.EnglishDisplayName),
             nameof(model.EmployeeNo),
             nameof(model.Role));
         await ValidateEmployeeNoUniqueAsync(model.EmployeeNo, excludedUserId: null, cancellationToken);
@@ -172,6 +186,7 @@ public sealed class UsersController : Controller
             Email = model.Email,
             EmailConfirmed = true,
             DisplayName = model.DisplayName,
+            DisplayNameEn = model.EnglishDisplayName,
             EmployeeNo = model.EmployeeNo,
             DepartmentId = model.Role == ApplicationRoles.Requester ? model.DepartmentId : null,
             LockoutEnabled = true,
@@ -212,7 +227,7 @@ public sealed class UsersController : Controller
             user.Id,
             AuditValues.CreateAction,
             oldValue: null,
-            UserAuditJson(model.Role, user.DepartmentId, user.EmployeeNo, enabled: true),
+            UserAuditJson(user.DisplayName, user.DisplayNameEn, model.Role, user.DepartmentId, user.EmployeeNo, enabled: true),
             transaction,
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -237,6 +252,7 @@ public sealed class UsersController : Controller
             Id = user.Id,
             Email = user.Email ?? user.UserName ?? string.Empty,
             DisplayName = user.DisplayName,
+            EnglishDisplayName = user.DisplayNameEn,
             EmployeeNo = user.EmployeeNo,
             Role = roles.FirstOrDefault(IsManageableRole) ?? string.Empty,
             DepartmentId = user.DepartmentId,
@@ -250,7 +266,7 @@ public sealed class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(
         string id,
-        [Bind("DisplayName,EmployeeNo,Role,DepartmentId")] EditUserViewModel model,
+        [Bind("DisplayName,EnglishDisplayName,EmployeeNo,Role,DepartmentId")] EditUserViewModel model,
         CancellationToken cancellationToken)
     {
         var user = await _userManager.FindByIdAsync(id);
@@ -269,7 +285,12 @@ public sealed class UsersController : Controller
         model.Email = user.Email ?? user.UserName ?? string.Empty;
         model.IsCurrentUser = string.Equals(user.Id, currentUser.Id, StringComparison.Ordinal);
         Normalize(model);
-        RevalidateNormalizedFields(model, nameof(model.DisplayName), nameof(model.EmployeeNo), nameof(model.Role));
+        RevalidateNormalizedFields(
+            model,
+            nameof(model.DisplayName),
+            nameof(model.EnglishDisplayName),
+            nameof(model.EmployeeNo),
+            nameof(model.Role));
         await ValidateEmployeeNoUniqueAsync(model.EmployeeNo, user.Id, cancellationToken);
         await ValidateRoleAndDepartmentAsync(model.Role, model.DepartmentId, nameof(model.DepartmentId), cancellationToken);
         if (model.IsCurrentUser && model.Role != ApplicationRoles.Administrator)
@@ -292,6 +313,8 @@ public sealed class UsersController : Controller
             var oldRole = oldRoles.FirstOrDefault(IsManageableRole) ?? string.Empty;
             var oldDepartmentId = user.DepartmentId;
             var oldEmployeeNo = user.EmployeeNo;
+            var oldDisplayName = user.DisplayName;
+            var oldDisplayNameEn = user.DisplayNameEn;
             var wasEnabledAdministrator = oldRoles.Contains(ApplicationRoles.Administrator, StringComparer.Ordinal)
                 && !IsAdministrativelyDisabled(user);
             if (wasEnabledAdministrator && model.Role != ApplicationRoles.Administrator
@@ -304,6 +327,7 @@ public sealed class UsersController : Controller
             }
 
             user.DisplayName = model.DisplayName;
+            user.DisplayNameEn = model.EnglishDisplayName;
             user.EmployeeNo = model.EmployeeNo;
             user.DepartmentId = model.Role == ApplicationRoles.Requester ? model.DepartmentId : null;
             EnsureSucceeded(await _userManager.UpdateAsync(user), _localizer["更新使用者資料失敗。"]);
@@ -323,8 +347,8 @@ public sealed class UsersController : Controller
             await InsertAuditAsync(
                 user.Id,
                 AuditValues.UpdateAction,
-                UserAuditJson(oldRole, oldDepartmentId, oldEmployeeNo, !IsAdministrativelyDisabled(user)),
-                UserAuditJson(model.Role, user.DepartmentId, user.EmployeeNo, !IsAdministrativelyDisabled(user)),
+                UserAuditJson(oldDisplayName, oldDisplayNameEn, oldRole, oldDepartmentId, oldEmployeeNo, !IsAdministrativelyDisabled(user)),
+                UserAuditJson(user.DisplayName, user.DisplayNameEn, model.Role, user.DepartmentId, user.EmployeeNo, !IsAdministrativelyDisabled(user)),
                 transaction,
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -404,8 +428,8 @@ public sealed class UsersController : Controller
             await InsertAuditAsync(
                 user.Id,
                 enabled ? AuditValues.EnableAction : AuditValues.DisableAction,
-                UserAuditJson(role, user.DepartmentId, user.EmployeeNo, currentlyEnabled),
-                UserAuditJson(role, user.DepartmentId, user.EmployeeNo, enabled),
+                UserAuditJson(user.DisplayName, user.DisplayNameEn, role, user.DepartmentId, user.EmployeeNo, currentlyEnabled),
+                UserAuditJson(user.DisplayName, user.DisplayNameEn, role, user.DepartmentId, user.EmployeeNo, enabled),
                 transaction,
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -452,7 +476,13 @@ public sealed class UsersController : Controller
             EnsureSucceeded(await _userManager.ResetPasswordAsync(user, resetToken, newPassword), _localizer["重設密碼失敗。"]);
             EnsureSucceeded(await _userManager.UpdateSecurityStampAsync(user), _localizer["讓既有登入失效時發生錯誤。"]);
 
-            var auditValue = UserAuditJson(role, user.DepartmentId, user.EmployeeNo, !IsAdministrativelyDisabled(user));
+            var auditValue = UserAuditJson(
+                user.DisplayName,
+                user.DisplayNameEn,
+                role,
+                user.DepartmentId,
+                user.EmployeeNo,
+                !IsAdministrativelyDisabled(user));
             await InsertAuditAsync(
                 user.Id,
                 AuditValues.ResetPasswordAction,
@@ -567,13 +597,15 @@ public sealed class UsersController : Controller
     ];
 
     private async Task<IReadOnlyList<UserDepartmentOptionViewModel>> DepartmentOptionsAsync(CancellationToken cancellationToken)
-        => await _dbContext.Departments.AsNoTracking()
+    {
+        var departments = await _dbContext.Departments.AsNoTracking()
             .Where(department => department.IsActive && !department.IsDeleted)
             .OrderBy(department => department.Code)
-            .Select(department => new UserDepartmentOptionViewModel(
-                department.Id,
-                department.Code + " — " + department.Name))
             .ToListAsync(cancellationToken);
+        return departments.Select(department => new UserDepartmentOptionViewModel(
+            department.Id,
+            department.Code + " — " + BilingualText.Option(department.Name, department.NameEn))).ToList();
+    }
 
     private async Task LockAdministratorRoleAsync(
         IDbContextTransaction transaction,
@@ -635,8 +667,22 @@ public sealed class UsersController : Controller
             transaction.GetDbTransaction(),
             cancellationToken: cancellationToken));
 
-    private static string UserAuditJson(string role, long? departmentId, string? employeeNo, bool enabled)
-        => AuditValues.ToJson(new { Role = role, DepartmentId = departmentId, EmployeeNo = employeeNo, Enabled = enabled });
+    private static string UserAuditJson(
+        string displayName,
+        string? displayNameEn,
+        string role,
+        long? departmentId,
+        string? employeeNo,
+        bool enabled)
+        => AuditValues.ToJson(new
+        {
+            DisplayName = displayName,
+            DisplayNameEn = displayNameEn,
+            Role = role,
+            DepartmentId = departmentId,
+            EmployeeNo = employeeNo,
+            Enabled = enabled,
+        });
 
     private string DisplayRoles(IEnumerable<string> roles)
     {
@@ -651,9 +697,9 @@ public sealed class UsersController : Controller
     }
 
     private static string DisplayName(ApplicationUser user)
-        => string.IsNullOrWhiteSpace(user.DisplayName)
+        => string.IsNullOrWhiteSpace(BilingualText.Resolve(user.DisplayName, user.DisplayNameEn))
             ? user.Email ?? user.UserName ?? user.Id
-            : user.DisplayName;
+            : BilingualText.Resolve(user.DisplayName, user.DisplayNameEn)!;
 
     private static bool IsManageableRole(string? role)
         => role is not null && ManageableRoles.Contains(role, StringComparer.Ordinal);
@@ -675,6 +721,7 @@ public sealed class UsersController : Controller
     {
         model.Email = (model.Email ?? string.Empty).Trim();
         model.DisplayName = (model.DisplayName ?? string.Empty).Trim();
+        model.EnglishDisplayName = NormalizeEmployeeNo(model.EnglishDisplayName);
         model.EmployeeNo = NormalizeEmployeeNo(model.EmployeeNo);
         model.Role = (model.Role ?? string.Empty).Trim();
     }
@@ -682,6 +729,7 @@ public sealed class UsersController : Controller
     private static void Normalize(EditUserViewModel model)
     {
         model.DisplayName = (model.DisplayName ?? string.Empty).Trim();
+        model.EnglishDisplayName = NormalizeEmployeeNo(model.EnglishDisplayName);
         model.EmployeeNo = NormalizeEmployeeNo(model.EmployeeNo);
         model.Role = (model.Role ?? string.Empty).Trim();
     }

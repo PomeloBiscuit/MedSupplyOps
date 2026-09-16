@@ -31,7 +31,7 @@
                     <option value="">@L["請選擇品項"]</option>
                     @foreach (var item in Model.Items)
                     {
-                        <option value="@item.Summary.ItemId">@item.Summary.ItemCode — @item.Summary.ItemName</option>
+                        <option value="@item.Summary.ItemId">@item.SelectionLabel</option>
                     }
                 </select>
             </div>
