@@ -269,4 +269,7 @@
   <data name="停用品項" xml:space="preserve"><value>Disable item</value></data>
   <data name="核准請領單" xml:space="preserve"><value>Approve</value></data>
   <data name="駁回請領單" xml:space="preserve"><value>Reject</value></data>
+  <data name="© {0} MedSupplyOps．版權所有" xml:space="preserve"><value>© {0} MedSupplyOps. All rights reserved.</value></data>
+  <data name="個人資料為唯讀；如需修改請聯絡系統管理員。" xml:space="preserve"><value>Your profile is read-only. Contact a system administrator to request changes.</value></data>
+  <data name="更新後，目前裝置會重新簽入，其他裝置的既有登入會失效。" xml:space="preserve"><value>After you update it, this device is signed in again and existing sessions on other devices are ended.</value></data>
 </root>

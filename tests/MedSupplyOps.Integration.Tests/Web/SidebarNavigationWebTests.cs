@@ -215,7 +215,9 @@ public sealed partial class SidebarNavigationWebTests
         var year = TestBusinessCalendar.Today.Year;
         var anonymousHtml = await GetHtmlAsync(anonymous, "/Account/Login");
         var authenticatedHtml = await GetHtmlAsync(authenticated, "/");
-        var copyright = $"© {year} MedSupplyOps．版權所有 All rights reserved.";
+        // ★ 版權字串改成走資源檔（鍵帶 {0} 年份），英文版才不會夾中文標點與「版權所有」。
+        //   這條測試驗的是「年份取自業務日曆」，不是那句話怎麼寫；繁中版的實際文字見資源鍵。見 L-038。
+        var copyright = $"© {year} MedSupplyOps．版權所有";
         const string warning = "本系統為院內作業系統，內容僅供授權人員使用，禁止未經授權之重製、散布、擷取或外傳。";
 
         Assert.Contains(copyright, anonymousHtml, StringComparison.Ordinal);
