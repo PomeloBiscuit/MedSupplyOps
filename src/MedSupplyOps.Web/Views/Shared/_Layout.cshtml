@@ -3,6 +3,7 @@
 @inject IAuthorizationService AuthorizationService
 @{
     var canManageItems = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.ItemManage)).Succeeded;
+    var canManageUsers = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.UserManage)).Succeeded;
     var canReceiveStock = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.StockReceive)).Succeeded;
     var sidebarState = Context.Request.Cookies["mso-sidebar-state"];
     sidebarState = sidebarState is "expanded" or "compact" or "hidden" ? sidebarState : "expanded";
@@ -71,6 +72,12 @@ else
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-area="" asp-controller="Items" asp-action="Index">@L["品項管理"]</a>
+                            </li>
+                        }
+                        @if (canManageUsers)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Users" asp-action="Index">@L["使用者管理"]</a>
                             </li>
                         }
                         @if (canReceiveStock)

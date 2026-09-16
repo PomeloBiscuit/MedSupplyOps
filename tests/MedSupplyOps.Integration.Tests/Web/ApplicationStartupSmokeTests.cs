@@ -56,6 +56,8 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
         "/Inventory/Expiring",
         "/Items",
         "/Items/Create",
+        "/Users",
+        "/Users/Create",
         "/Receiving",
         "/Requisitions",
         "/Requisitions/Create",
@@ -121,7 +123,6 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
         await connection.OpenAsync();
         var itemId = await connection.ExecuteScalarAsync<decimal>(
             "SELECT MIN(item_id) FROM items WHERE is_deleted = 0");
-
         var response = await _client.GetAsync(
             FormattableString.Invariant($"/api/items/{decimal.ToInt64(itemId)}/availability"));
 
@@ -138,6 +139,9 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
         await connection.OpenAsync();
         var itemId = await connection.ExecuteScalarAsync<decimal>(
             "SELECT MIN(item_id) FROM items WHERE is_deleted = 0");
+        var administratorId = await connection.QuerySingleAsync<string>(
+            "SELECT id FROM identity_users WHERE normalized_email = :email",
+            new { email = TestIdentitySeeder.AdministratorEmail.ToUpperInvariant() });
 
         using var requester = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await WebAuthTestHelpers.LoginAsync(requester, TestIdentitySeeder.RequesterEmail);
@@ -147,6 +151,8 @@ public sealed class ApplicationStartupSmokeTests : IClassFixture<ApplicationStar
         {
             ("/Items/Create", _client),
             ($"/Items/Edit/{decimal.ToInt64(itemId)}", _client),
+            ("/Users/Create", _client),
+            ($"/Users/Edit/{administratorId}", _client),
             ("/Receiving", _client),
             ("/Requisitions/Create", requester),
             ("/Account/Login", anonymous),

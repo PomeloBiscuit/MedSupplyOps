@@ -45,6 +45,14 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         "帳號尚未設定角色或科室，請聯絡管理員。",
         "院內帳號登入後依角色顯示對應的工作儀表板。", "示範帳號", "關閉示範帳號提示", "填入",
         "密碼皆為", "忘記密碼請聯絡系統管理員。",
+        "使用者管理", "維護帳號、角色、科室與啟用狀態。", "新增使用者", "使用者篩選",
+        "全部角色", "啟用狀態", "全部狀態", "啟用中", "已停用", "套用篩選", "使用者清單",
+        "沒有符合條件的使用者。", "重設密碼", "目前登入帳號不可停用",
+        "建立帳號並指派角色；請領人必須選擇科室。", "請選擇角色", "初始密碼",
+        "選擇請領人角色時，科室為必填。", "初始密碼只交給 Identity 處理，不會顯示既有密碼。",
+        "編輯使用者", "更新姓名、角色與所屬科室。Email 建立後不可修改。", "Email 建立後不可修改。",
+        "管理員不能把自己的角色降級，請由另一位管理員操作。",
+        "選擇請領人角色時，科室為必填；其他角色會清除科室。",
     ];
 
     private readonly RequisitionFlowTests.RequisitionWebApplicationFactory _factory;
@@ -63,6 +71,8 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         { "/Requisitions", TestIdentitySeeder.StorekeeperEmail },
         { "/Requisitions/Create", TestIdentitySeeder.RequesterEmail },
         { "/Items", TestIdentitySeeder.AdministratorEmail },
+        { "/Users", TestIdentitySeeder.AdministratorEmail },
+        { "/Users/Create", TestIdentitySeeder.AdministratorEmail },
         { "/Receiving", TestIdentitySeeder.StorekeeperEmail },
         { "/", TestIdentitySeeder.AdministratorEmail }, // 營運儀表板
         { "/", TestIdentitySeeder.RequesterEmail }, // 我的儀表板
@@ -111,6 +121,19 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
     }
 
     [Fact]
+    public async Task User_edit_in_English_does_not_leak_untranslated_Chinese_UI_strings()
+    {
+        using var client = CreateEnglishClient();
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.AdministratorEmail);
+
+        var userId = await GetUserIdAsync(TestIdentitySeeder.AdministratorEmail);
+        var html = await (await client.GetAsync($"/Users/Edit/{userId}")).Content.ReadAsStringAsync();
+
+        AssertNoLeakedChinese($"/Users/Edit/{userId}", html);
+        _output.WriteLine($"T4 /Users/Edit/{userId}: 無未翻譯字串");
+    }
+
+    [Fact]
     public async Task Requisition_details_in_English_does_not_leak_untranslated_Chinese_UI_strings()
     {
         using var client = CreateEnglishClient();
@@ -156,6 +179,14 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
     {
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
         return await connection.QuerySingleAsync<long>("SELECT MIN(item_id) FROM items WHERE is_deleted = 0");
+    }
+
+    private static async Task<string> GetUserIdAsync(string email)
+    {
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        return await connection.QuerySingleAsync<string>(
+            "SELECT id FROM identity_users WHERE normalized_email = :email",
+            new { email = email.ToUpperInvariant() });
     }
 
     private static async Task<long> CreatePendingRequisitionAsync(HttpClient client)
