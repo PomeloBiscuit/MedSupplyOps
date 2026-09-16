@@ -7,4 +7,5 @@
   <data name="_ResourceMarker" xml:space="preserve"><value>MedSupplyOps</value></data>
   <data name="清單分隔符" xml:space="preserve"><value>、</value></data>
   <data name="動作完成助詞" xml:space="preserve"><value>了</value></data>
+  <data name="登入失敗次數過多，帳號已被暫時鎖定，請稍後再試。" xml:space="preserve"><value>帳號或密碼不正確。</value></data>
 </root>

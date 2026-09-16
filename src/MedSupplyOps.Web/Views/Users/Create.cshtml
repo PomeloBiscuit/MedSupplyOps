@@ -1,0 +1,67 @@
+@model MedSupplyOps.Web.Models.Users.CreateUserViewModel
+@{
+    ViewData["Title"] = L["新增使用者"];
+}
+
+<div class="mso-page mso-form-page">
+<div class="mso-page-heading mb-4">
+    <h1 class="h2 mb-1">@L["新增使用者"]</h1>
+    <p class="text-muted mb-0">@L["建立帳號並指派角色；請領人必須選擇科室。"]</p>
+</div>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+    <div class="card card-body mso-form-card">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" maxlength="256" autocomplete="off" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DisplayName" class="form-label"></label>
+                <input asp-for="DisplayName" class="form-control" maxlength="100" />
+                <span asp-validation-for="DisplayName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Role" class="form-label"></label>
+                <select asp-for="Role" class="form-select">
+                    <option value="">@L["請選擇角色"]</option>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <option value="@role.Value">@role.Label</option>
+                    }
+                </select>
+                <span asp-validation-for="Role" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DepartmentId" class="form-label"></label>
+                <select asp-for="DepartmentId" class="form-select">
+                    <option value="">@L["未指定"]</option>
+                    @foreach (var department in Model.Departments)
+                    {
+                        <option value="@department.Id">@department.Label</option>
+                    }
+                </select>
+                <div class="form-text">@L["選擇請領人角色時，科室為必填。"]</div>
+                <span asp-validation-for="DepartmentId" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="InitialPassword" class="form-label"></label>
+                <input asp-for="InitialPassword" class="form-control" autocomplete="new-password" />
+                <div class="form-text">@L["初始密碼只交給 Identity 處理，不會顯示既有密碼。"]</div>
+                <span asp-validation-for="InitialPassword" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+        <button class="btn btn-primary" type="submit">@L["新增"]</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">@L["取消"]</a>
+    </div>
+</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,118 @@
+@model MedSupplyOps.Web.Models.Users.UserIndexViewModel
+@using MedSupplyOps.Web.Models.Users
+@{
+    ViewData["Title"] = L["使用者管理"];
+}
+
+<div class="mso-page">
+<div class="mso-page-heading d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h2 mb-1">@L["使用者管理"]</h1>
+        <p class="text-muted mb-0">@L["維護帳號、角色、科室與啟用狀態。"]</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">@L["新增使用者"]</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="alert">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<form method="get" class="card card-body mb-4" aria-label="@L["使用者篩選"]">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label" for="role">@L["角色"]</label>
+            <select class="form-select" id="role" name="role">
+                <option value="">@L["全部角色"]</option>
+                @foreach (var role in Model.Roles)
+                {
+                    <option value="@role.Value" selected="@(Model.Role == role.Value ? "selected" : null)">@role.Label</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="status">@L["啟用狀態"]</label>
+            <select class="form-select" id="status" name="status">
+                <option value="@UserStatusFilters.All" selected="@(Model.Status == UserStatusFilters.All ? "selected" : null)">@L["全部狀態"]</option>
+                <option value="@UserStatusFilters.Enabled" selected="@(Model.Status == UserStatusFilters.Enabled ? "selected" : null)">@L["啟用中"]</option>
+                <option value="@UserStatusFilters.Disabled" selected="@(Model.Status == UserStatusFilters.Disabled ? "selected" : null)">@L["已停用"]</option>
+            </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button class="btn btn-outline-primary" type="submit">@L["套用篩選"]</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">@L["清除"]</a>
+        </div>
+    </div>
+</form>
+
+<section class="card mso-table-card" aria-labelledby="user-list-heading">
+    <div class="card-header">
+        <h2 class="h5 mb-0" id="user-list-heading">@L["使用者清單"]</h2>
+    </div>
+    <div class="table-responsive mso-table-scroll">
+        <table class="table align-middle mb-0 mso-data-table">
+            <thead>
+                <tr>
+                    <th scope="col">@L["姓名"]</th>
+                    <th scope="col">@L["Email"]</th>
+                    <th scope="col">@L["角色"]</th>
+                    <th scope="col">@L["所屬科室"]</th>
+                    <th scope="col">@L["啟用狀態"]</th>
+                    <th scope="col"><span class="visually-hidden">@L["操作"]</span></th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Users.Count == 0)
+            {
+                <tr><td colspan="6" class="mso-empty-state text-center">@L["沒有符合條件的使用者。"]</td></tr>
+            }
+            @foreach (var user in Model.Users)
+            {
+                <tr>
+                    <td class="text-break">@user.DisplayName</td>
+                    <td class="text-break">@user.Email</td>
+                    <td>@user.Role</td>
+                    <td class="text-break">@user.DepartmentName</td>
+                    <td>
+                        <span class="badge @(user.IsEnabled ? "text-bg-success" : "text-bg-secondary")">
+                            @(user.IsEnabled ? L["啟用中"] : L["已停用"])
+                        </span>
+                    </td>
+                    <td class="text-nowrap">
+                        <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@user.Id">@L["編輯"]</a>
+                        <form asp-action="ResetPassword" asp-route-id="@user.Id" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-sm btn-outline-warning" type="submit">@L["重設密碼"]</button>
+                        </form>
+                        @if (user.IsEnabled && !user.IsCurrentUser)
+                        {
+                            <form asp-action="SetEnabled" asp-route-id="@user.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="enabled" value="false" />
+                                <button class="btn btn-sm btn-outline-danger" type="submit">@L["停用"]</button>
+                            </form>
+                        }
+                        else if (!user.IsEnabled)
+                        {
+                            <form asp-action="SetEnabled" asp-route-id="@user.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="enabled" value="true" />
+                                <button class="btn btn-sm btn-outline-success" type="submit">@L["啟用"]</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="small text-muted">@L["目前登入帳號不可停用"]</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+</div>

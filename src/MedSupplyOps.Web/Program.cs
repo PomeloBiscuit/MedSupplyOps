@@ -135,6 +135,9 @@ builder.Services.AddAuthorizationBuilder()
         AuthorizationPolicies.ItemManage,
         policy => policy.RequireRole(ApplicationRoles.Administrator))
     .AddPolicy(
+        AuthorizationPolicies.UserManage,
+        policy => policy.RequireRole(ApplicationRoles.Administrator))
+    .AddPolicy(
         AuthorizationPolicies.StockReceive,
         policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator));
 

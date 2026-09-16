@@ -29,7 +29,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 158 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 211 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mutation-probe.ps1                # ★ 鑑別力探針
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-er-diagram.ps1 -Check    # ★ ER 圖漂移檢查
@@ -56,7 +56,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 | P6 駁回不再要求填原因 | FR-302 | 1 條變紅 |
 | **P7 拿掉發料的 `SELECT ... FOR UPDATE`** | **FR-402 並發不得超發** | **3 條變紅** |
 | **P8 拿掉 `InventoryQueries` 的 DI 註冊** | **正式 DI 圖必須完整** | **9 條變紅** |
-| **P9 整張單發料改成「跳過失敗的明細繼續」** | **FR-303 整張單原子發料** | **5 條變紅** |
+| **P9 整張單發料改成「跳過失敗的明細繼續」** | **FR-303 整張單原子發料** | **6 條變紅** |
 | **P10 入庫拿掉品項列的 `FOR UPDATE`** | **同品項的新批號入庫必須序列化** | **2 條變紅** |
 | **P11 入庫的過期判定 `<` 改成 `<=`** | **效期當天仍可入庫** | **1 條變紅** |
 | **P12 首頁「沒有角色」的範圍改回「不受限」** | **沒有任何角色的帳號不得看到全院資料** | **1 條變紅** |
@@ -302,7 +302,7 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 ## 專案數字
 
 ```
-158 條測試（Domain 48 + Integration 110，整合測試全部跑真實 Oracle）
+211 條測試（Domain 48 + Integration 163，整合測試全部跑真實 Oracle）
 12 支程式碼探針 + 5 支資料庫探針 + ER 圖與需求追溯漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```

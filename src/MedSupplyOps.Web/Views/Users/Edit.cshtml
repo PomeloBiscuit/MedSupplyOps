@@ -1,0 +1,74 @@
+@model MedSupplyOps.Web.Models.Users.EditUserViewModel
+@{
+    ViewData["Title"] = L["編輯使用者"];
+}
+
+<div class="mso-page mso-form-page">
+<div class="mso-page-heading mb-4">
+    <h1 class="h2 mb-1">@L["編輯使用者"]</h1>
+    <p class="text-muted mb-0">@L["更新姓名、角色與所屬科室。Email 建立後不可修改。"]</p>
+</div>
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+    <div class="card card-body mso-form-card">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" for="Email">@L["Email"]</label>
+                <input id="Email" value="@Model.Email" class="form-control" readonly aria-readonly="true" />
+                <div class="form-text">@L["Email 建立後不可修改。"]</div>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DisplayName" class="form-label"></label>
+                <input asp-for="DisplayName" class="form-control" maxlength="100" />
+                <span asp-validation-for="DisplayName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Role" class="form-label"></label>
+                @if (Model.IsCurrentUser)
+                {
+                    <input type="hidden" asp-for="Role" />
+                    <select class="form-select" disabled aria-disabled="true">
+                        @foreach (var role in Model.Roles)
+                        {
+                            <option selected="@(role.Value == Model.Role ? "selected" : null)">@role.Label</option>
+                        }
+                    </select>
+                    <div class="form-text">@L["管理員不能把自己的角色降級，請由另一位管理員操作。"]</div>
+                }
+                else
+                {
+                    <select asp-for="Role" class="form-select">
+                        @foreach (var role in Model.Roles)
+                        {
+                            <option value="@role.Value">@role.Label</option>
+                        }
+                    </select>
+                }
+                <span asp-validation-for="Role" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DepartmentId" class="form-label"></label>
+                <select asp-for="DepartmentId" class="form-select">
+                    <option value="">@L["未指定"]</option>
+                    @foreach (var department in Model.Departments)
+                    {
+                        <option value="@department.Id">@department.Label</option>
+                    }
+                </select>
+                <div class="form-text">@L["選擇請領人角色時，科室為必填；其他角色會清除科室。"]</div>
+                <span asp-validation-for="DepartmentId" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+        <button class="btn btn-primary" type="submit">@L["儲存"]</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">@L["取消"]</a>
+    </div>
+</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
