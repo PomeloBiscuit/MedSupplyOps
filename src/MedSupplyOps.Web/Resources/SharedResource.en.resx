@@ -326,4 +326,6 @@
   <data name="系統目前沒有啟用中的管理員，無法重設密碼。" xml:space="preserve"><value>No enabled administrator is available, so the password cannot be reset.</value></data>
   <data name="重設密碼失敗。" xml:space="preserve"><value>Could not reset the password.</value></data>
   <data name="新密碼已顯示過或已失效，請重新執行重設密碼。" xml:space="preserve"><value>The new password was already shown or has expired. Reset it again.</value></data>
+  <data name="稽核動作：入庫" xml:space="preserve"><value>received</value></data>
+  <data name="稽核動作：發料" xml:space="preserve"><value>issued</value></data>
 </root>

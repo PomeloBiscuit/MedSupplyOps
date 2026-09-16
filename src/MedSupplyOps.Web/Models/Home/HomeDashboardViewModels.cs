@@ -70,10 +70,17 @@ public sealed record AuditFeedItemViewModel(DateTime OccurredAtUtc, string Actor
         "Create" => "建立",
         "Approve" => "核准",
         "Reject" => "駁回",
-        "Issue" => "發料",
+        // ★ 「入庫」與「發料」在這個系統裡有兩種身分：導覽／按鈕的名詞（Receiving／Issue）
+        //   與稽核軌跡的動詞（received／issued）。共用同一個資源鍵時，英文版必有一邊是錯的
+        //   —— 實際錯的是稽核那邊，它讀成「… Receiving」「… Issue」，而同一清單其他五個
+        //   動作詞是 created／approved／rejected／edited／deactivated。
+        //   docs/i18n-glossary.md 早就訂了這條規則（發料 issue：動詞；入庫 receiving：功能名稱），
+        //   只是程式沒照做。這裡改用「稽核動作：」前綴的獨立鍵，繁中顯示文字不變
+        //   （SharedResource.resx 有顯式覆寫），英文才拿得到正確的過去式。
+        "Issue" => "稽核動作：發料",
         "Update" => "編輯",
         "Delete" => "停用",
-        "Receive" => "入庫",
+        "Receive" => "稽核動作：入庫",
         _ => action,
     };
 

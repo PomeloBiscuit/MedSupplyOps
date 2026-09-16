@@ -168,6 +168,60 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         Assert.True(leaked.Count == 0, $"{path} 在英文文化下仍出現未翻譯字串：{string.Join("、", leaked)}");
     }
 
+    /// <summary>
+    /// ★ 同音詞撞鍵：「入庫」「發料」在導覽／按鈕是名詞與祈使句（Receiving／Issue），
+    /// 在稽核軌跡是動詞（received／issued）。共用一個資源鍵時英文版必有一邊是錯的，
+    /// 而錯的那一邊不會有任何徵兆 —— 頁面照樣渲染，只是讀起來像壞掉的機器翻譯。
+    ///
+    /// 這條測試釘住稽核那一邊：英文版的最近異動必須出現過去式動詞，
+    /// 且**不得**出現名詞形式。見 L-038 與 docs/i18n-glossary.md。
+    /// </summary>
+    [Fact]
+    public async Task Audit_feed_in_English_uses_past_tense_verbs_not_the_navigation_nouns()
+    {
+        var suffix = "AV" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        var requisitionNo = "R" + suffix;
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.OpenAsync();
+        var departmentId = await connection.ExecuteScalarAsync<long>(
+            "SELECT department_id FROM departments WHERE department_code = :code",
+            new { code = TestIdentitySeeder.RequesterDepartmentCode });
+        await connection.ExecuteAsync("""
+            INSERT INTO requisitions (requisition_no, department_id, status, created_at, created_by)
+            VALUES (:no, :deptId, 'Approved', TIMESTAMP '2030-01-01 00:00:00', 'itest')
+            """, new { no = requisitionNo, deptId = departmentId });
+        var requisitionId = await connection.ExecuteScalarAsync<long>(
+            "SELECT requisition_id FROM requisitions WHERE requisition_no = :no", new { no = requisitionNo });
+        var occurredAt = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        try
+        {
+            await connection.ExecuteAsync(
+                "INSERT INTO audit_logs (entity_type, entity_id, action, actor, occurred_at) VALUES ('Requisition', :id, 'Issue', :actor, :t)",
+                new { id = requisitionId.ToString(CultureInfo.InvariantCulture), actor = TestIdentitySeeder.StorekeeperEmail, t = occurredAt });
+            await connection.ExecuteAsync(
+                "INSERT INTO audit_logs (entity_type, entity_id, action, actor, occurred_at) VALUES ('StockLot', :id, 'Receive', :actor, :t)",
+                new { id = requisitionId.ToString(CultureInfo.InvariantCulture), actor = TestIdentitySeeder.StorekeeperEmail, t = occurredAt.AddMinutes(1) });
+
+            using var client = CreateEnglishClient();
+            await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+            var html = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
+            var feed = html[html.IndexOf("recent-audit", StringComparison.Ordinal)..];
+
+            Assert.Contains("issued", feed, StringComparison.Ordinal);
+            Assert.Contains("received", feed, StringComparison.Ordinal);
+            Assert.DoesNotContain("Receiving", feed, StringComparison.Ordinal);
+            _output.WriteLine("英文版最近異動使用過去式動詞：issued／received，未出現導覽用的名詞 Receiving。");
+        }
+        finally
+        {
+            await connection.ExecuteAsync("DELETE FROM audit_logs WHERE actor = :actor AND occurred_at >= :t",
+                new { actor = TestIdentitySeeder.StorekeeperEmail, t = occurredAt });
+            await connection.ExecuteAsync("DELETE FROM requisitions WHERE requisition_no = :no", new { no = requisitionNo });
+            await connection.ExecuteAsync("COMMIT");
+        }
+    }
+
     private HttpClient CreateEnglishClient()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

@@ -11,7 +11,10 @@
 param(
     [switch]$Check,
     [string]$ContainerName = 'medsupplyops-oracle',
-    [string]$OutputPath = 'docs/diagrams/schema.mmd'
+    [string]$OutputPath = 'docs/diagrams/schema.mmd',
+    # ★ README 也放同一張圖。手抄一份進 README，它一定會過期，而且沒有任何關卡看得到——
+    #   所以那一份也由這支腳本產生、也由 -Check 把關。見 README 的 ER-DIAGRAM 標記。
+    [string]$ReadmePath = 'README.md'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -300,6 +303,20 @@ function Get-MermaidLineLabels {
     return $labels
 }
 
+function Get-ReadmeWithDiagram {
+    param([string]$ReadmeText, [string]$DiagramBody)
+
+    $pattern = '(?s)(<!-- ER-DIAGRAM:BEGIN[^>]*-->?
+).*?(<!-- ER-DIAGRAM:END -->)'
+    $match = [regex]::Match($ReadmeText, $pattern)
+    if (-not $match.Success) {
+        throw "在 $ReadmePath 找不到 ER-DIAGRAM:BEGIN / ER-DIAGRAM:END 標記，無法同步關聯綱目。"
+    }
+
+    $replacement = $match.Groups[1].Value + $DiagramBody + $match.Groups[2].Value
+    return $ReadmeText.Substring(0, $match.Index) + $replacement + $ReadmeText.Substring($match.Index + $match.Length)
+}
+
 function Write-DriftDiff {
     param([string]$ExistingText, [string]$ExpectedText)
 
@@ -332,6 +349,20 @@ try {
     $expectedBytes = $utf8WithoutBom.GetBytes($diagram)
     $absoluteOutputPath = Join-Path $repoRoot $OutputPath
 
+    # README 內嵌的那一份只要 ```mermaid 圍欄本身，不要 .mmd 的檔案標頭註解。
+    $fenceIndex = $diagram.IndexOf('```mermaid')
+    if ($fenceIndex -lt 0) { throw '產生的內容裡找不到 mermaid 圍欄，無法同步 README。' }
+    $diagramBody = $diagram.Substring($fenceIndex)
+
+    $absoluteReadmePath = Join-Path $repoRoot $ReadmePath
+    if (-not (Test-Path -LiteralPath $absoluteReadmePath)) {
+        throw "找不到 $ReadmePath。"
+    }
+    $readmeBytes = [System.IO.File]::ReadAllBytes($absoluteReadmePath)
+    $readmeText = [System.Text.Encoding]::UTF8.GetString($readmeBytes)
+    $expectedReadmeText = Get-ReadmeWithDiagram -ReadmeText $readmeText -DiagramBody $diagramBody
+    $expectedReadmeBytes = $utf8WithoutBom.GetBytes($expectedReadmeText)
+
     if ($Check) {
         if (-not (Test-Path -LiteralPath $absoluteOutputPath)) {
             Write-Host "ER 圖漂移：找不到 $OutputPath。請先執行產生模式。" -ForegroundColor Red
@@ -339,14 +370,22 @@ try {
         }
 
         $existingBytes = [System.IO.File]::ReadAllBytes($absoluteOutputPath)
-        if (Test-ByteArrayEqual -Left $existingBytes -Right $expectedBytes) {
-            Write-Host "ER 圖與資料字典一致：$OutputPath" -ForegroundColor Green
-            exit 0
+        if (-not (Test-ByteArrayEqual -Left $existingBytes -Right $expectedBytes)) {
+            $existingText = [System.Text.Encoding]::UTF8.GetString($existingBytes)
+            Write-DriftDiff -ExistingText $existingText -ExpectedText $diagram
+            exit 1
         }
 
-        $existingText = [System.Text.Encoding]::UTF8.GetString($existingBytes)
-        Write-DriftDiff -ExistingText $existingText -ExpectedText $diagram
-        exit 1
+        # ★ 第二份：README 內嵌的關聯綱目。schema.mmd 對了不代表 README 也對——
+        #   README 是最多人看的那一份，它過期比 .mmd 過期更糟。
+        if (-not (Test-ByteArrayEqual -Left $readmeBytes -Right $expectedReadmeBytes)) {
+            Write-Host "ER 圖漂移：$ReadmePath 內嵌的關聯綱目與資料字典不一致。" -ForegroundColor Red
+            Write-Host "請執行產生模式（不加 -Check）重新同步。" -ForegroundColor Yellow
+            exit 1
+        }
+
+        Write-Host "ER 圖與資料字典一致：$OutputPath、$ReadmePath" -ForegroundColor Green
+        exit 0
     }
 
     $outputDirectory = Split-Path -Parent $absoluteOutputPath
@@ -354,7 +393,8 @@ try {
         New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     }
     [System.IO.File]::WriteAllBytes($absoluteOutputPath, $expectedBytes)
-    Write-Host "已從 Oracle 資料字典產生 $OutputPath" -ForegroundColor Green
+    [System.IO.File]::WriteAllBytes($absoluteReadmePath, $expectedReadmeBytes)
+    Write-Host "已從 Oracle 資料字典產生 $OutputPath 與 $ReadmePath 的關聯綱目" -ForegroundColor Green
 }
 catch {
     Write-Host "產生 ER 圖失敗：$($_.Exception.Message)" -ForegroundColor Red

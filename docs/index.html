@@ -85,7 +85,7 @@ footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
     這份作品想回答的不是「用了哪些技術」，而是 —— <strong style="color:var(--ink)">你怎麼知道它是對的？</strong>
   </p>
   <div class="facts">
-    <div class="fact"><b>158</b><span>條測試，整合測試全部跑真實 Oracle</span></div>
+    <div class="fact"><b>211</b><span>條測試，整合測試全部跑真實 Oracle</span></div>
     <div class="fact"><b>12+5</b><span>支鑑別力探針（程式碼／資料庫層）</span></div>
     <div class="fact"><b>6</b><span>道關卡，每次提交全跑</span></div>
   </div>
@@ -112,7 +112,7 @@ footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
   <p>所以這個專案的重點是：<strong>為每一條這樣的規則，設計一個能區分對錯的驗證</strong>。</p>
   <h3>六道關卡，每次提交都全跑</h3>
   <pre><code>dotnet build   MedSupplyOps.slnx     # 編譯 + 分析器（警告即錯誤）
-dotnet test    MedSupplyOps.slnx     # 158 條測試
+dotnet test    MedSupplyOps.slnx     # 211 條測試
 dotnet format  --verify-no-changes   # 格式與命名
 scripts/mutation-probe.ps1           # ★ 鑑別力探針：證明測試真的測得到
 scripts/generate-er-diagram.ps1 -Check   # ★ ER 圖漂移檢查
