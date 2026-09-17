@@ -1,0 +1,30 @@
+@using MedSupplyOps.Domain.Barcodes
+@model string
+@{
+    var canEncode = Code128BarcodeEncoder.TryEncode(Model, out var modules);
+    var humanReadable = string.Concat(Model.Select(character =>
+        char.IsControl(character) ? $"\\x{(int)character:X2}" : character.ToString()));
+    var moduleWidth = 2;
+    var svgWidth = modules.Length * moduleWidth;
+}
+
+@if (canEncode)
+{
+    <div class="mso-barcode-print-area" data-testid="code128-barcode">
+        <svg class="mso-barcode-svg" viewBox="0 0 @svgWidth 94" role="img" aria-label="@L["條碼圖形：{0}", humanReadable]" preserveAspectRatio="xMidYMid meet">
+            <title>@L["條碼圖形：{0}", humanReadable]</title>
+            @for (var index = 0; index < modules.Length; index++)
+            {
+                if (modules[index])
+                {
+                    <rect x="@(index * moduleWidth)" y="0" width="@moduleWidth" height="72"></rect>
+                }
+            }
+            <text x="@(svgWidth / 2)" y="90" text-anchor="middle">@humanReadable</text>
+        </svg>
+    </div>
+}
+else
+{
+    <p class="text-muted mb-0" role="status">@L["此條碼無法以 Code 128 呈現"]</p>
+}

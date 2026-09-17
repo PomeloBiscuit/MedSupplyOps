@@ -174,6 +174,7 @@ public sealed class ItemsController : Controller
                 Id = item.Id,
                 Code = item.Code,
                 Barcode = item.Barcode,
+                PersistedBarcode = item.Barcode,
                 Name = item.Name,
                 EnglishName = item.NameEn,
                 Specification = item.Specification,
@@ -217,6 +218,7 @@ public sealed class ItemsController : Controller
         model.Id = item.Id;
         model.Code = item.Code;
         model.UnitOfMeasure = item.UnitOfMeasure;
+        model.PersistedBarcode = item.Barcode;
         if (!ModelState.IsValid)
         {
             return View(model);
@@ -266,7 +268,7 @@ public sealed class ItemsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthorizationPolicies.ItemManage)]
+    [Authorize(Policy = AuthorizationPolicies.ItemDeactivate)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Disable(long id, CancellationToken cancellationToken)
     {

@@ -72,6 +72,8 @@ public sealed class EditItemViewModel
     [StringLength(64, ErrorMessage = "條碼不可超過 64 個字。")]
     public string? Barcode { get; set; }
 
+    public string? PersistedBarcode { get; set; }
+
     [Display(Name = "名稱")]
     [Required(ErrorMessage = "名稱為必填。")]
     [StringLength(200, ErrorMessage = "名稱不可超過 200 個字。")]

@@ -359,4 +359,9 @@
   <data name="往左拖曳以收合側欄" xml:space="preserve"><value>Drag left to collapse the sidebar</value></data>
   <data name="往右拖曳以展開側欄" xml:space="preserve"><value>Drag right to expand the sidebar</value></data>
   <data name="往左拖曳以關閉導覽" xml:space="preserve"><value>Drag left to close navigation</value></data>
+  <data name="顯示條碼" xml:space="preserve"><value>Show barcode</value></data>
+  <data name="條碼圖形：{0}" xml:space="preserve"><value>Barcode image: {0}</value></data>
+  <data name="此條碼無法以 Code 128 呈現" xml:space="preserve"><value>This barcode cannot be represented as Code 128</value></data>
+  <data name="目前已存檔的條碼" xml:space="preserve"><value>Currently saved barcode</value></data>
+  <data name="列印" xml:space="preserve"><value>Print</value></data>
 </root>

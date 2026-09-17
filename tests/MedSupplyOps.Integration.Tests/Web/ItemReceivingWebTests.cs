@@ -365,7 +365,7 @@ public sealed partial class ItemReceivingWebTests
                 await WebAuthTestHelpers.LoginAsync(client, email);
             }
 
-            var itemAuthorized = email == TestIdentitySeeder.AdministratorEmail;
+            var itemAuthorized = email is TestIdentitySeeder.StorekeeperEmail or TestIdentitySeeder.AdministratorEmail;
             var receiveAuthorized = email is TestIdentitySeeder.StorekeeperEmail or TestIdentitySeeder.AdministratorEmail;
             var navigationPage = await client.GetAsync(email is null ? "/Account/Login" : "/");
             var navigationHtml = await navigationPage.Content.ReadAsStringAsync();
@@ -408,7 +408,8 @@ public sealed partial class ItemReceivingWebTests
                 Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
                 Assert.Equal("/Account/Login", result.Location);
             }
-            else if (result.Role == "請領人" || (result.Role == "庫管員" && result.Endpoint.Contains("/Items", StringComparison.Ordinal)))
+            else if (result.Role == "請領人" ||
+                     (result.Role == "庫管員" && result.Endpoint == "POST /Items/Disable"))
             {
                 Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
                 Assert.Equal("/Account/AccessDenied", result.Location);
