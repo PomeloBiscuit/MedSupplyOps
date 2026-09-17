@@ -364,4 +364,9 @@
   <data name="此條碼無法以 Code 128 呈現" xml:space="preserve"><value>This barcode cannot be represented as Code 128</value></data>
   <data name="目前已存檔的條碼" xml:space="preserve"><value>Currently saved barcode</value></data>
   <data name="列印" xml:space="preserve"><value>Print</value></data>
+  <data name="登入狀態已失效，請重新登入。" xml:space="preserve"><value>Your session has expired. Please sign in again.</value></data>
+  <data name="您沒有查看這張請領單的權限。" xml:space="preserve"><value>You do not have permission to view this requisition.</value></data>
+  <data name="找不到這張請領單，可能已被刪除或您無權查看。" xml:space="preserve"><value>This requisition could not be found. It may have been deleted or you may not have access.</value></data>
+  <data name="無法載入請領單詳情，請重新整理後再試。" xml:space="preserve"><value>Requisition details could not be loaded. Refresh the page and try again.</value></data>
+  <data name="網路連線失敗，請檢查連線後再試。" xml:space="preserve"><value>The network connection failed. Check your connection and try again.</value></data>
 </root>

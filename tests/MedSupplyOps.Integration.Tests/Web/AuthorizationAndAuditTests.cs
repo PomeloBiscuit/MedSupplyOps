@@ -120,7 +120,7 @@ public sealed partial class AuthorizationAndAuditTests
     }
 
     [Fact]
-    public async Task Requester_direct_url_to_another_department_is_forbidden()
+    public async Task Requester_direct_url_to_another_department_is_not_found()
     {
         var requesterDepartmentId = await GetRequesterDepartmentIdAsync();
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
@@ -146,7 +146,7 @@ public sealed partial class AuthorizationAndAuditTests
 
             Assert.Equal(HttpStatusCode.OK, list.StatusCode);
             Assert.DoesNotContain(number, listHtml, StringComparison.Ordinal);
-            AssertAccessDenied(response);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
             _output.WriteLine(
                 $"A department {requesterDepartmentId} -> B department {otherDepartmentId}, list contains B=false; direct Details/{requisitionId}: HTTP {(int)response.StatusCode} Location={response.Headers.Location}");
         }

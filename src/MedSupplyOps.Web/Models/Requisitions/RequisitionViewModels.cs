@@ -87,6 +87,8 @@ public sealed class RequisitionDetailsViewModel
 
     public bool CanRetryIssue { get; init; }
 
+    public string? ReturnUrl { get; init; }
+
     public bool CanReview => Status == RequisitionStatus.PendingApproval;
 
     public bool CanIssue => Status == RequisitionStatus.Approved;

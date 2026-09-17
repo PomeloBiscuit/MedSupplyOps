@@ -19,6 +19,15 @@
     }
 </div>
 
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
 <div class="mso-filter-card">
 <form method="get" class="card card-body mb-4">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
@@ -100,12 +109,12 @@
                 @foreach (var requisition in Model.Requisitions)
                 {
                     <tr>
-                        <td><a asp-action="Details" asp-route-id="@requisition.Id">@requisition.RequisitionNo</a></td>
+                        <td><a asp-action="Details" asp-route-id="@requisition.Id" data-mso-requisition-details data-panel-url="@Url.Action("DetailsPanel", new { id = requisition.Id })">@requisition.RequisitionNo</a></td>
                         <td>@requisition.DepartmentName</td>
                         <td><span class="badge @(requisition.Status == RequisitionStatus.Issued ? "mso-badge-ok" : requisition.Status == RequisitionStatus.Rejected ? "mso-badge-bad" : requisition.Status == RequisitionStatus.Draft || requisition.Status == RequisitionStatus.Closed ? "mso-badge-idle" : "mso-badge-warn")">@L[RequisitionStatusText.Get(requisition.Status)]</span></td>
                         <td>@DisplayTimeZone.Format(requisition.CreatedAt)</td>
                         <td class="text-end">@requisition.LineCount</td>
-                        <td><a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@requisition.Id">@L["詳情"]</a></td>
+                        <td><a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@requisition.Id" data-mso-requisition-details data-panel-url="@Url.Action("DetailsPanel", new { id = requisition.Id })">@L["詳情"]</a></td>
                     </tr>
                 }
             }
@@ -114,3 +123,30 @@
 </div>
 </section>
 </div>
+
+<div class="modal fade"
+     id="requisition-details-modal"
+     tabindex="-1"
+     aria-labelledby="requisition-details-modal-title"
+     aria-hidden="true"
+     data-mso-requisition-modal
+     data-loading-message="@L["載入中…"]"
+     data-unauthorized-message="@L["登入狀態已失效，請重新登入。"]"
+     data-forbidden-message="@L["您沒有查看這張請領單的權限。"]"
+     data-not-found-message="@L["找不到這張請領單，可能已被刪除或您無權查看。"]"
+     data-server-error-message="@L["無法載入請領單詳情，請重新整理後再試。"]"
+     data-network-error-message="@L["網路連線失敗，請檢查連線後再試。"]"
+     data-close-label="@L["關閉"]">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" data-mso-requisition-dialog>
+        <div class="modal-content">
+            <div class="modal-body text-center text-muted py-5" role="status">
+                <h2 class="visually-hidden" id="requisition-details-modal-title">@L["載入中…"]</h2>
+                @L["載入中…"]
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/requisition-details.js" asp-append-version="true"></script>
+}
