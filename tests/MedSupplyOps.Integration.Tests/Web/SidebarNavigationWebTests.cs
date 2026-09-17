@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Dapper;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Oracle.ManagedDataAccess.Client;
 using Xunit.Abstractions;
@@ -154,6 +155,35 @@ public sealed partial class SidebarNavigationWebTests
         _output.WriteLine($"圖示列把手：{compactHandle}");
     }
 
+    /// <summary>
+    /// ★ 側欄寬度依語言各取一個剛好的值：繁中 180px、英文 232px。
+    /// 180px 放英文時，最長的 "Storage location management" 被截斷並長出水平捲軸（實機回報）；
+    /// 瀏覽器實測英文最長標籤需要 222px。這條同時釘住 CSS 與伺服器端輸出的寬度，兩邊不能各說各話。
+    /// </summary>
+    [Theory]
+    [InlineData("zh-Hant", 180)]
+    [InlineData("en", 232)]
+    public async Task Expanded_sidebar_width_is_fixed_per_language_and_matches_the_css_variable(string culture, int expectedWidth)
+    {
+        using var client = CreateSidebarClient("expanded");
+        client.DefaultRequestHeaders.Remove("Cookie");
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Cookie",
+            "mso-navigation-layout=sidebar; mso-sidebar-state=expanded; " +
+            $"{CookieRequestCultureProvider.DefaultCookieName}={Uri.EscapeDataString(CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)))}");
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+
+        var html = await GetHtmlAsync(client, "/");
+        Assert.Contains($"lang=\"{culture}\"", html, StringComparison.Ordinal);
+        Assert.Contains($"data-sidebar-width=\"{expectedWidth}\"", html, StringComparison.Ordinal);
+
+        var css = await File.ReadAllTextAsync(FindRepositoryFile("src/MedSupplyOps.Web/wwwroot/css/site.css"));
+        Assert.Contains(":root { --mso-sidebar-width: 180px; }", css, StringComparison.Ordinal);
+        Assert.Contains("html[lang|=\"en\"] { --mso-sidebar-width: 232px; }", css, StringComparison.Ordinal);
+        Assert.Contains("flex: 0 0 var(--mso-sidebar-width);", css, StringComparison.Ordinal);
+        _output.WriteLine($"{culture}: data-sidebar-width={expectedWidth}，CSS 變數一致。");
+    }
+
     private static string HandleTag(string html)
     {
         var match = Regex.Match(html, "<div class=\"mso-sidebar-drag-handle\"[^>]*>");
@@ -185,7 +215,7 @@ public sealed partial class SidebarNavigationWebTests
         var css = await File.ReadAllTextAsync(FindRepositoryFile("src/MedSupplyOps.Web/wwwroot/css/site.css"));
         var rule = Regex.Match(css, @"\.mso-navigation-offcanvas\s*\{([^}]*)\}");
         Assert.True(rule.Success, "site.css 找不到 .mso-navigation-offcanvas 規則。");
-        Assert.Contains("--bs-offcanvas-width: min(180px", rule.Groups[1].Value, StringComparison.Ordinal);
+        Assert.Contains("--bs-offcanvas-width: min(var(--mso-sidebar-width)", rule.Groups[1].Value, StringComparison.Ordinal);
         Assert.DoesNotMatch(@"(^|[;\s])width\s*:", rule.Groups[1].Value);
         _output.WriteLine($"offcanvas 把手：{handle}");
         _output.WriteLine($"offcanvas 寬度規則：{rule.Value}");

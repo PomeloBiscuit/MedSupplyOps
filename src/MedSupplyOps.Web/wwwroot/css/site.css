@@ -771,7 +771,14 @@ html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
 .mso-app-shell-hidden { flex-direction: column; }
 
 /* 側欄寬度由伺服器端驗證過的偏好值設定；內容與使用者選單可以跨出欄界。 */
-.mso-sidebar { position: relative; display: flex; overflow: visible; flex: 0 0 180px; flex-direction: column; min-height: 100vh; background: var(--mso-navy); color: #fff; }
+/* ★ 側欄寬度依語言各取一個「剛好」的值，展開態與 offcanvas 共用。
+   瀏覽器實測（同一組 CSS）：繁中最長的導覽標籤「效期預警」連同角標需要 140px，
+   沿用使用者已確認的 180px；英文最長的 "Storage location management" 需要 222px，
+   取 232px 吸收字型的次像素差異。180px 放英文會被截斷並長出水平捲軸。 */
+:root { --mso-sidebar-width: 180px; }
+html[lang|="en"] { --mso-sidebar-width: 232px; }
+
+.mso-sidebar { position: relative; display: flex; overflow: visible; flex: 0 0 var(--mso-sidebar-width); flex-direction: column; min-height: 100vh; background: var(--mso-navy); color: #fff; }
 
 /* 半收折態依規格保留 64px 圖示列。 */
 .mso-sidebar-compact { flex-basis: 64px; align-items: center; padding: .875rem 0; }
@@ -795,7 +802,8 @@ html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
 .mso-sidebar-group-title { padding: 0 .625rem .25rem; color: rgb(255 255 255 / 48%); font-size: .6875rem; font-weight: 700; letter-spacing: .06em; }
 
 /* 導覽連結以小間距堆疊，讓目前頁面底色清楚可見。 */
-.mso-sidebar-links { display: grid; gap: .125rem; padding: .25rem .625rem; }
+/* 欄位用 minmax(0, 1fr)：grid 預設不讓項目縮到比內容窄，文字的省略號保險會失效而長出水平捲軸。 */
+.mso-sidebar-links { display: grid; grid-template-columns: minmax(0, 1fr); gap: .125rem; padding: .25rem .625rem; }
 
 /* 每個導覽目標保留足夠的鍵盤焦點與滑鼠命中面積。 */
 .mso-sidebar-link { display: flex; position: relative; align-items: center; gap: .625rem; min-height: 40px; padding: .5rem .6875rem; border-radius: var(--mso-radius); color: rgb(255 255 255 / 78%); font-size: .875rem; text-decoration: none; }
@@ -904,7 +912,7 @@ body.mso-sidebar-dragging { cursor: ew-resize; user-select: none; }
 /* ★ 不能直接寫 width：Bootstrap 的 .offcanvas.offcanvas-start（兩個 class）權重比這裡高，
    會以 width: var(--bs-offcanvas-width)（預設 400px）蓋掉。從側欄改版以來，這裡寫的寬度
    一次都沒生效過——瀏覽器實測 computed width 一直是 400px。改設 Bootstrap 自己讀的變數。見 L-040。 */
-.mso-navigation-offcanvas { --bs-offcanvas-width: min(180px, 82vw); background: var(--mso-navy); color: #fff; }
+.mso-navigation-offcanvas { --bs-offcanvas-width: min(var(--mso-sidebar-width), 82vw); background: var(--mso-navy); color: #fff; }
 
 /* Bootstrap 顯示完成後明確移除 transform，讓 fixed Popper 以 viewport 為包含區塊。 */
 .mso-navigation-offcanvas.show:not(.hiding) { transform: none; }
@@ -920,7 +928,9 @@ body.mso-sidebar-dragging { cursor: ew-resize; user-select: none; }
 
 /* 導覽項目自己捲動；使用者選單所在容器保持可溢出，避免彈出層被裁切或製造面板捲軸。 */
 .mso-navigation-offcanvas .offcanvas-body { overflow: visible; }
-.mso-offcanvas-navigation { min-height: 0; flex: 1; overflow-y: auto; }
+.mso-offcanvas-navigation { min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; }
+/* 保險：標籤比側欄寬時以省略號收尾，不長出水平捲軸（完整文字在連結的 title）。 */
+.mso-sidebar-link > span:not(.mso-nav-icon-wrap):not(.mso-nav-badge) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mso-offcanvas-user { flex: 0 0 auto; }
 
 /* offcanvas 使用者按鈕固定深底視覺，與左欄一致。 */

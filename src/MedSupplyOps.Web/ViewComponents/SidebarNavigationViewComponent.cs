@@ -17,7 +17,9 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
 {
     // ★ 寬度固定，不提供調寬。使用者要的是「拖曳手勢收合／展開」，不是連續調整寬度；
     //   第一版做成可調寬（還存 cookie），是把參考介面上的「Drag to resize」照字面實作了。
+    // 與 site.css 的 --mso-sidebar-width 一致：繁中 180px，英文 232px（實測最長標籤需要 222px）。
     private const int ExpandedSidebarWidth = 180;
+    private const int ExpandedSidebarWidthEnglish = 232;
     private const int CompactSidebarWidth = 64;
 
     private readonly MedSupplyOpsDbContext _dbContext;
@@ -52,7 +54,11 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
         var displayName = user is null
             ? actor
             : BilingualText.Resolve(user.DisplayName, user.DisplayNameEn) ?? actor;
-        var sidebarWidth = normalizedState == "compact" ? CompactSidebarWidth : ExpandedSidebarWidth;
+        var sidebarWidth = normalizedState == "compact"
+            ? CompactSidebarWidth
+            : System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en"
+                ? ExpandedSidebarWidthEnglish
+                : ExpandedSidebarWidth;
         var model = new SidebarNavigationViewModel(
             normalizedState,
             sidebarWidth,

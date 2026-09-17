@@ -44,6 +44,13 @@ docker compose logs -f oracle   # 等 "DONE: Executing user defined scripts"（�
 dotnet test MedSupplyOps.slnx
 ```
 
+> **整合測試與示範網站共用同一個資料庫**，其中幾條會核對種子資料的精確數量（例如 MD-0001 的可用量）。
+> 如果手動操作過網站（例如按過「發料」），請先重建資料庫再跑測試：
+>
+> ```bash
+> docker compose down -v && docker compose up -d
+> ```
+
 資料庫在 `//localhost:1521/FREEPDB1`，應用帳號 `MEDSUPPLY`
 （**權限最小化**：只有 `CREATE SESSION/TABLE/SEQUENCE/VIEW/PROCEDURE`，
 不是 DBA 也不是 SYSTEM。SYS 密碼只存在於容器環境變數，應用程式全程不使用）。
