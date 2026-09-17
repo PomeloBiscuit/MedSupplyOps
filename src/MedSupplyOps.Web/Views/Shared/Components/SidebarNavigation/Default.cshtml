@@ -44,7 +44,7 @@
                             @foreach (var item in navItems)
                             {
                                 var isCurrent = controller == item.Controller && action == item.Action;
-                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)">
+                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)" title="@item.Name">
                                     <partial name="_NavigationIcon" model="item.Icon" />
                                     <span>@item.Name</span>
                                     @if (item.Badge is not null)
@@ -56,22 +56,22 @@
                             @if (canManageItems)
                             {
                                 var isCurrent = controller == "Items" && action == "Index";
-                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"items"' /><span>@L["品項管理"]</span></a>
+                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" title="@L["品項管理"]"><partial name="_NavigationIcon" model='"items"' /><span>@L["品項管理"]</span></a>
                             }
                             @if (canManageStorageLocations)
                             {
                                 var isCurrent = controller == "StorageLocations";
-                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="StorageLocations" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"inventory"' /><span>@L["儲藏位置管理"]</span></a>
+                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="StorageLocations" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" title="@L["儲藏位置管理"]"><partial name="_NavigationIcon" model='"inventory"' /><span>@L["儲藏位置管理"]</span></a>
                             }
                             @if (isAdministrator)
                             {
                                 var isUsersCurrent = controller == "Users";
-                                <a class="mso-sidebar-link @(isUsersCurrent ? "is-current" : null)" asp-controller="Users" asp-action="Index" aria-current="@(isUsersCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"users"' /><span>@L["使用者管理"]</span></a>
+                                <a class="mso-sidebar-link @(isUsersCurrent ? "is-current" : null)" asp-controller="Users" asp-action="Index" aria-current="@(isUsersCurrent ? "page" : null)" title="@L["使用者管理"]"><partial name="_NavigationIcon" model='"users"' /><span>@L["使用者管理"]</span></a>
                             }
                             @if (canReceiveStock)
                             {
                                 var isCurrent = controller == "Receiving" && action == "Index";
-                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"receive"' /><span>@L["入庫"]</span></a>
+                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" title="@L["入庫"]"><partial name="_NavigationIcon" model='"receive"' /><span>@L["入庫"]</span></a>
                             }
                         </div>
                     </nav>
