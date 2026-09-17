@@ -38,7 +38,7 @@ public sealed class ItemsApiController : ControllerBase
             availability.ItemId,
             availability.AvailableQuantity,
             earliestUsableExpiry,
-            availability.Lots.Select(lot => new ItemAvailabilityLotResponse(
+            availability.Lots.Select(lot => lot.ForCulture(System.Globalization.CultureInfo.CurrentUICulture)).Select(lot => new ItemAvailabilityLotResponse(
                 lot.StockLotId,
                 lot.LotNumber,
                 lot.ExpiryDate,

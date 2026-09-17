@@ -128,6 +128,12 @@ builder.Services.AddAuthorizationBuilder()
         AuthorizationPolicies.ItemDeactivate,
         policy => policy.RequireRole(ApplicationRoles.Administrator))
     .AddPolicy(
+        AuthorizationPolicies.StorageLocationManage,
+        policy => policy.RequireRole(ApplicationRoles.Storekeeper, ApplicationRoles.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.StorageLocationDeactivate,
+        policy => policy.RequireRole(ApplicationRoles.Administrator))
+    .AddPolicy(
         AuthorizationPolicies.UserManage,
         policy => policy.RequireRole(ApplicationRoles.Administrator))
     .AddPolicy(

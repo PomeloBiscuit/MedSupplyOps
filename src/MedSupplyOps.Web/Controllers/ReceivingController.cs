@@ -89,7 +89,7 @@ public sealed class ReceivingController : Controller
     public async Task<IActionResult> Index(ReceivingViewModel model, CancellationToken cancellationToken)
     {
         model.LotNumber = NormalizeKey(model.LotNumber);
-        model.StorageLocation = NormalizeKey(model.StorageLocation);
+        model.StorageLocation = (model.StorageLocation ?? string.Empty).Trim();
 
         // ★ 只清掉「被正規化過的欄位」的舊驗證結果，不可以 ModelState.Clear()：
         //   那會連同綁定錯誤一起清掉 —— 數量送空白時屬性維持預設值 1，重新驗證又合法，
@@ -100,6 +100,16 @@ public sealed class ReceivingController : Controller
         if (model.ExpiryDate == default)
         {
             ModelState.AddModelError(nameof(model.ExpiryDate), "請輸入效期。");
+        }
+
+        if (ModelState.IsValid && !await _dbContext.StorageLocations.AsNoTracking()
+            .AnyAsync(
+                location => !location.IsDeleted && location.Name == model.StorageLocation,
+                cancellationToken))
+        {
+            ModelState.AddModelError(
+                nameof(model.StorageLocation),
+                _localizer["儲藏位置不存在或已停用。"].Value);
         }
 
         if (!ModelState.IsValid)
@@ -129,7 +139,7 @@ public sealed class ReceivingController : Controller
             ReceiveFailureReason.Expired =>
                 $"此批次效期 {model.ExpiryDate:yyyy-MM-dd} 已過期（今天是 {asOf:yyyy-MM-dd}），不可入庫。",
             ReceiveFailureReason.ExpiryMismatch =>
-                $"批號 {model.LotNumber} 在儲位 {model.StorageLocation} 已登記效期 {result.ExistingExpiry:yyyy-MM-dd}，與本次輸入不同，請確認標籤。",
+                $"批號 {model.LotNumber} 在儲藏位置 {model.StorageLocation} 已登記效期 {result.ExistingExpiry:yyyy-MM-dd}，與本次輸入不同，請確認標籤。",
             ReceiveFailureReason.ItemNotFound => "品項不存在或已停用。",
             ReceiveFailureReason.LockTimeout => "目前有其他人正在異動這個品項的庫存，請稍後再試。",
             _ => "入庫未完成，請重新整理後再試。",
@@ -150,6 +160,14 @@ public sealed class ReceivingController : Controller
             item.Code,
             BilingualText.Option(item.Name, item.NameEn),
             BilingualText.Option(item.UnitOfMeasure, item.UnitOfMeasureEn))).ToList();
+
+        var locations = await _dbContext.StorageLocations.AsNoTracking()
+            .Where(location => !location.IsDeleted)
+            .OrderBy(location => location.Code)
+            .ToListAsync(cancellationToken);
+        model.StorageLocations = locations.Select(location => new ReceivingStorageLocationOptionViewModel(
+            location.Name,
+            BilingualText.Option(location.Name, location.NameEn))).ToList();
     }
 
     private static string NormalizeKey(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();

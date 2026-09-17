@@ -15,6 +15,7 @@
 | 科室 | department | 資料內容（實際科室名稱）不翻譯 |
 | 品項 | item | 資料內容（品名與規格）不翻譯 |
 | 批號 | lot number | 批次識別文字不翻譯 |
+| 儲藏位置 | storage location | UI 不再使用舊稱；主檔可填英文名稱，英文缺值或舊批次對不到主檔時回退原文 |
 | 顯示時區 | display time zone | 只影響時間呈現，不影響業務日曆 |
 
 資料一律以 UTC 儲存。FEFO 的「今天」與請領單號日期固定由 `Asia/Taipei` 的 `BusinessCalendar` 決定，不隨顯示時區改變。

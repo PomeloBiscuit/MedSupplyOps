@@ -1,0 +1,41 @@
+@model MedSupplyOps.Web.Models.StorageLocations.EditStorageLocationViewModel
+@{
+    ViewData["Title"] = L["編輯儲藏位置"];
+}
+
+<div class="mso-page mso-form-page">
+<div class="mso-page-heading mb-4">
+    <h1 class="h2 mb-1">@L["編輯儲藏位置"]</h1>
+    <p class="text-muted mb-0">@L["只能更新英文名稱；代碼與原文名稱建立後不可修改。"]</p>
+</div>
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+    <div class="card card-body mso-form-card">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Code" class="form-label"></label>
+                <input asp-for="Code" class="form-control" readonly aria-readonly="true" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" readonly aria-readonly="true" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="EnglishName" class="form-label"></label>
+                <input asp-for="EnglishName" class="form-control" maxlength="200" />
+                <span asp-validation-for="EnglishName" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+        <button class="btn btn-primary" type="submit">@L["儲存"]</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">@L["取消"]</a>
+    </div>
+</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -41,6 +41,7 @@ public sealed class InventoryQueries
                    l.expiry_date AS ExpiryDate,
                    l.quantity AS Quantity,
                    l.storage_location AS StorageLocation,
+                   sl.name_en AS StorageLocationEn,
                    CASE
                        WHEN {usableLotPredicate} THEN 1
                        ELSE 0
@@ -50,6 +51,7 @@ public sealed class InventoryQueries
                 ELSE 0
             END) OVER (), 0) AS AvailableQuantity
             FROM stock_lots l
+            LEFT JOIN storage_locations sl ON sl.name = l.storage_location
             WHERE l.item_id = :itemId
             ORDER BY l.expiry_date, l.lot_number, l.stock_lot_id
             """;
@@ -70,8 +72,9 @@ public sealed class InventoryQueries
                 row.LotNumber,
                 DateOnly.FromDateTime(row.ExpiryDate),
                 row.Quantity,
-                row.StorageLocation,
-                row.IsAvailable != 0m))
+                 row.StorageLocation,
+                 row.IsAvailable != 0m,
+                 row.StorageLocationEn))
             .ToList();
 
         return new ItemAvailability(itemId, rows.Count == 0 ? 0 : decimal.ToInt32(rows[0].AvailableQuantity), lots);
@@ -99,9 +102,11 @@ public sealed class InventoryQueries
                    l.lot_number AS LotNumber,
                    l.expiry_date AS ExpiryDate,
                    l.quantity AS Quantity,
-                   l.storage_location AS StorageLocation
+                   l.storage_location AS StorageLocation,
+                   sl.name_en AS StorageLocationEn
             FROM stock_lots l
             INNER JOIN items i ON i.item_id = l.item_id
+            LEFT JOIN storage_locations sl ON sl.name = l.storage_location
             WHERE i.is_deleted = 0
               AND {usableLotPredicate}
               AND l.expiry_date <= :expiresBy
@@ -127,8 +132,9 @@ public sealed class InventoryQueries
                 row.LotNumber,
                 DateOnly.FromDateTime(row.ExpiryDate),
                 row.Quantity,
-                row.StorageLocation,
-                row.ItemNameEn))
+                 row.StorageLocation,
+                 row.ItemNameEn,
+                 row.StorageLocationEn))
             .ToList();
     }
 
@@ -315,6 +321,7 @@ internal sealed class ItemAvailabilityLotRow
     public DateTime ExpiryDate { get; set; }
     public int Quantity { get; set; }
     public string StorageLocation { get; set; } = string.Empty;
+    public string? StorageLocationEn { get; set; }
     public decimal IsAvailable { get; set; }
     public decimal AvailableQuantity { get; set; }
 }
@@ -330,6 +337,7 @@ internal sealed class ExpiringLotRow
     public DateTime ExpiryDate { get; set; }
     public int Quantity { get; set; }
     public string StorageLocation { get; set; } = string.Empty;
+    public string? StorageLocationEn { get; set; }
 }
 
 internal sealed class ItemBelowSafetyStockRow
@@ -381,7 +389,14 @@ public sealed record ItemAvailabilityLot(
     DateOnly ExpiryDate,
     int Quantity,
     string StorageLocation,
-    bool IsAvailable);
+    bool IsAvailable,
+    string? StorageLocationEn)
+{
+    public ItemAvailabilityLot ForCulture(CultureInfo culture) => this with
+    {
+        StorageLocation = BilingualText.Resolve(StorageLocation, StorageLocationEn, culture) ?? StorageLocation,
+    };
+}
 
 /// <summary>效期預警中的單一批次。</summary>
 public sealed record ExpiringLot(
@@ -393,11 +408,13 @@ public sealed record ExpiringLot(
     DateOnly ExpiryDate,
     int Quantity,
     string StorageLocation,
-    string? ItemNameEn)
+    string? ItemNameEn,
+    string? StorageLocationEn)
 {
     public ExpiringLot ForCulture(CultureInfo culture) => this with
     {
         ItemName = BilingualText.Resolve(ItemName, ItemNameEn, culture) ?? ItemName,
+        StorageLocation = BilingualText.Resolve(StorageLocation, StorageLocationEn, culture) ?? StorageLocation,
     };
 }
 

@@ -44,7 +44,7 @@ public sealed partial class ItemReceivingWebTests
             await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.AdministratorEmail);
 
             var expired = await PostReceivingAsync(
-                client, itemId, " t1-old ", new DateOnly(2030, 6, 15), 3, " room-t1 ");
+                client, itemId, " t1-old ", new DateOnly(2030, 6, 15), 3, "中央庫房-A01");
             var expiredHtml = HtmlDecode(await expired.Content.ReadAsStringAsync());
             const string expiredMessage = "此批次效期 2030-06-15 已過期（今天是 2030-06-16），不可入庫。";
             Assert.Equal(HttpStatusCode.OK, expired.StatusCode);
@@ -57,7 +57,7 @@ public sealed partial class ItemReceivingWebTests
             Assert.Equal(0, rowsAfterExpired);
 
             var accepted = await PostReceivingAsync(
-                client, itemId, " t1-today ", new DateOnly(2030, 6, 16), 4, " room-t1 ");
+                client, itemId, " t1-today ", new DateOnly(2030, 6, 16), 4, "中央庫房-A01");
             Assert.Equal(HttpStatusCode.Redirect, accepted.StatusCode);
             var acceptedPage = await client.GetAsync(accepted.Headers.Location);
             var acceptedHtml = HtmlDecode(await acceptedPage.Content.ReadAsStringAsync());
@@ -75,7 +75,7 @@ public sealed partial class ItemReceivingWebTests
             Assert.Equal("T1-TODAY", row.LotNumber);
             Assert.Equal(new DateTime(2030, 6, 16), row.ExpiryDate);
             Assert.Equal(4, decimal.ToInt32(row.Quantity));
-            Assert.Equal("ROOM-T1", row.StorageLocation);
+            Assert.Equal("中央庫房-A01", row.StorageLocation);
 
             _output.WriteLine($"T1 UTC={boundary:O}; Taipei asOf=2030-06-16");
             _output.WriteLine($"T1 rejected page: {expiredMessage}; DB rows={rowsAfterExpired}");
@@ -446,7 +446,7 @@ public sealed partial class ItemReceivingWebTests
                 """, new { itemId });
 
             var receive = await PostReceivingAsync(
-                client, itemId, "T9-EARLY", new DateOnly(2031, 1, 1), 5, "ROOM-T9");
+                client, itemId, "T9-EARLY", new DateOnly(2031, 1, 1), 5, "中央庫房-A01");
             Assert.Equal(HttpStatusCode.Redirect, receive.StatusCode);
 
             var departmentId = await connection.QuerySingleAsync<long>(
@@ -507,11 +507,11 @@ public sealed partial class ItemReceivingWebTests
             Assert.Equal(
                 HttpStatusCode.Redirect,
                 (await PostReceivingAsync(
-                    client, receivingItemId, "T10-LOT", new DateOnly(2032, 2, 2), 4, "ROOM-T10")).StatusCode);
+                    client, receivingItemId, "T10-LOT", new DateOnly(2032, 2, 2), 4, "中央庫房-A01")).StatusCode);
             Assert.Equal(
                 HttpStatusCode.Redirect,
                 (await PostReceivingAsync(
-                    client, receivingItemId, " t10-lot ", new DateOnly(2032, 2, 2), 3, " room-t10 ")).StatusCode);
+                    client, receivingItemId, " t10-lot ", new DateOnly(2032, 2, 2), 3, "中央庫房-A01")).StatusCode);
 
             await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
             var stockLotId = await connection.QuerySingleAsync<long>(

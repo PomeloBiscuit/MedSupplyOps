@@ -8,6 +8,8 @@ public sealed record ReceivingItemOptionViewModel(
     string Name,
     string UnitOfMeasure);
 
+public sealed record ReceivingStorageLocationOptionViewModel(string Name, string Label);
+
 public sealed class ReceivingViewModel
 {
     [Display(Name = "品項")]
@@ -30,10 +32,12 @@ public sealed class ReceivingViewModel
     [Range(1, 100_000, ErrorMessage = "數量必須是 1 到 100,000 的整數。")]
     public int Quantity { get; set; } = 1;
 
-    [Display(Name = "儲位")]
-    [Required(ErrorMessage = "儲位為必填。")]
-    [StringLength(64, ErrorMessage = "儲位不可超過 64 個字。")]
+    [Display(Name = "儲藏位置")]
+    [Required(ErrorMessage = "儲藏位置為必填。")]
+    [StringLength(64, ErrorMessage = "儲藏位置不可超過 64 個字。")]
     public string StorageLocation { get; set; } = string.Empty;
 
     public IReadOnlyList<ReceivingItemOptionViewModel> Items { get; set; } = [];
+
+    public IReadOnlyList<ReceivingStorageLocationOptionViewModel> StorageLocations { get; set; } = [];
 }

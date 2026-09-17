@@ -181,6 +181,44 @@ public sealed class AuthorizationMetadataTests
         _output.WriteLine("ItemDeactivate | Administrator");
     }
 
+    [Fact]
+    public async Task Storage_location_actions_split_maintenance_and_deactivation_policies()
+    {
+        _ = _factory.CreateClient();
+        var endpoints = GetControllerEndpoints()
+            .Where(item => item.Descriptor.ControllerTypeInfo.Name == "StorageLocationsController")
+            .ToList();
+        Assert.NotEmpty(endpoints);
+
+        foreach (var endpoint in endpoints)
+        {
+            var expectedPolicy = endpoint.Descriptor.MethodInfo.Name == "Disable"
+                ? AuthorizationPolicies.StorageLocationDeactivate
+                : AuthorizationPolicies.StorageLocationManage;
+            var policies = endpoint.Endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
+                .Select(data => data.Policy)
+                .Where(policy => !string.IsNullOrWhiteSpace(policy))
+                .Cast<string>()
+                .ToList();
+            Assert.Equal([expectedPolicy], policies);
+        }
+
+        var provider = _factory.Services.GetRequiredService<IAuthorizationPolicyProvider>();
+        var manage = Assert.IsType<RolesAuthorizationRequirement>(Assert.Single(
+            (await provider.GetPolicyAsync(AuthorizationPolicies.StorageLocationManage))!.Requirements
+                .OfType<RolesAuthorizationRequirement>()));
+        var deactivate = Assert.IsType<RolesAuthorizationRequirement>(Assert.Single(
+            (await provider.GetPolicyAsync(AuthorizationPolicies.StorageLocationDeactivate))!.Requirements
+                .OfType<RolesAuthorizationRequirement>()));
+
+        Assert.Equal(
+            [ApplicationRoles.Administrator, ApplicationRoles.Storekeeper],
+            manage.AllowedRoles.Order(StringComparer.Ordinal));
+        Assert.Equal([ApplicationRoles.Administrator], deactivate.AllowedRoles);
+        _output.WriteLine("StorageLocationManage | Administrator,Storekeeper");
+        _output.WriteLine("StorageLocationDeactivate | Administrator");
+    }
+
     /// <summary>
     /// 只列舉 Controller Action。
     /// 非 Controller 的端點（靜態檔等）不在這裡檢查 ——

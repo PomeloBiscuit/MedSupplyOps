@@ -189,7 +189,7 @@ public sealed class StockReceivingService
 
         if (storageLocation.Length is < 1 or > 64)
         {
-            throw new ArgumentException("儲位必填且不可超過 64 個字。", nameof(storageLocation));
+            throw new ArgumentException("儲藏位置必填且不可超過 64 個字。", nameof(storageLocation));
         }
 
         ArgumentOutOfRangeException.ThrowIfLessThan(quantity, 1);
