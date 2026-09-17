@@ -13,7 +13,7 @@ function originBadge() {
   };
 }
 
-test("掃描結果只帶入品項與 GS1 欄位，不清空已填的數量與儲位", () => {
+test("掃描結果只帶入品項與 GS1 欄位，不清空已填的數量與儲藏位置", () => {
   const lotOrigin = originBadge();
   lotOrigin.classList.owner = lotOrigin;
   const expiryOrigin = originBadge();

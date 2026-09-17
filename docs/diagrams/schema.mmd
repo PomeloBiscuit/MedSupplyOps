@@ -146,6 +146,17 @@ erDiagram
         timestamp UPDATED_AT
         varchar UPDATED_BY
     }
+    STORAGE_LOCATIONS {
+        number LOCATION_ID PK
+        varchar LOCATION_CODE
+        varchar NAME
+        varchar NAME_EN
+        number IS_DELETED
+        timestamp DELETED_AT
+        varchar DELETED_BY
+        timestamp CREATED_AT
+        varchar CREATED_BY
+    }
     IDENTITY_ROLES ||--o{ IDENTITY_ROLE_CLAIMS : "FK_IDENTITY_ROLE_CLAIMS_ROLE"
     DEPARTMENTS o|--o{ IDENTITY_USERS : "FK_IDENTITY_USERS_DEPARTMENT"
     IDENTITY_USERS ||--o{ IDENTITY_USER_CLAIMS : "FK_IDENTITY_USER_CLAIMS_USER"

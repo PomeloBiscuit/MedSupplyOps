@@ -56,7 +56,7 @@ public sealed partial class ItemBarcodeWebTests
             Assert.Contains("autofocus", page, StringComparison.Ordinal);
             Assert.Contains("這個條碼沒有對應的品項", await missing.Content.ReadAsStringAsync(), StringComparison.Ordinal);
             _output.WriteLine($"T3 畫面訊息：{missingMessage}");
-            _output.WriteLine("T3 JS 防退化：失敗路徑只更新 barcode-scan-result；數量、儲位與其他表單欄位不在清除路徑。 ");
+            _output.WriteLine("T3 JS 防退化：失敗路徑只更新 barcode-scan-result；數量、儲藏位置與其他表單欄位不在清除路徑。 ");
             _output.WriteLine($"T3 GS1：itemId={itemId}; expiry={foundJson.GetProperty("expiryDate").GetString()}; lot={foundJson.GetProperty("lotNumber").GetString()}");
         }
         finally

@@ -121,10 +121,11 @@ public sealed partial class BilingualMasterDataWebTests
         var inventoryHtml = await GetDecodedAsync(client, "/Inventory");
         Assert.Contains(">Sterile Examination Gloves</td>", inventoryHtml, StringComparison.Ordinal);
         Assert.DoesNotContain(">Sterile Examination Gloves（無菌檢查手套）</td>", inventoryHtml, StringComparison.Ordinal);
-        Assert.Contains("中央庫房-A01", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("Central Warehouse A01", inventoryHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("中央庫房-A01", inventoryHtml, StringComparison.Ordinal);
 
         _output.WriteLine("T4 Users/Edit department option: DEP-ER — Emergency Department（急診）");
-        _output.WriteLine("T4 Inventory item cell: Sterile Examination Gloves; storage location remains 中央庫房-A01");
+        _output.WriteLine("T4 Inventory item cell: Sterile Examination Gloves; storage location: Central Warehouse A01");
     }
 
     [Fact]

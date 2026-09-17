@@ -1,7 +1,7 @@
 namespace MedSupplyOps.Domain.Inventory;
 
 /// <summary>
-/// 庫存批次：「某品項 + 某批號 + 某效期 + 某儲位」的一筆庫存。數量掛在這裡，不掛在品項上。
+/// 庫存批次：「某品項 + 某批號 + 某效期 + 某儲藏位置」的一筆庫存。數量掛在這裡，不掛在品項上。
 /// （對應 docs/requirements.md 的名詞定義）
 /// </summary>
 public sealed class StockLot

@@ -16,7 +16,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 ///
 /// 只驗 UI 字串（頁面標題、區塊標題、表頭、欄位標籤、按鈕、空狀態文字、說明文字），
 /// UI 字串與主檔資料分開驗：雙語主檔資料由 <see cref="BilingualMasterDataWebTests"/> 驗證；
-/// 批號、儲位、駁回原因等使用者輸入仍不屬於這份翻譯清單（儲位並且刻意維持現場原文）。
+/// 批號、駁回原因等使用者輸入仍不屬於這份翻譯清單；儲藏位置主檔資料另由雙語測試驗證。
 /// </summary>
 public sealed partial class EnglishLocalizationTests : IClassFixture<RequisitionFlowTests.RequisitionWebApplicationFactory>
 {
@@ -32,7 +32,7 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         "更新後，目前裝置會重新簽入，其他裝置的既有登入會失效。",
         "庫存總覽", "料號", "品名", "規格", "單位", "可用量", "安全存量",
         "展開批次明細（", "請選擇品項", "尚未選擇品項。", "查詢基準日", "基準日：",
-        "近效期批次", "批號", "效期", "儲位", "N 天內到期", "此條件下沒有仍有數量的近效期批次。",
+        "近效期批次", "批號", "效期", "儲藏位置", "N 天內到期", "此條件下沒有仍有數量的近效期批次。",
         "依狀態、科室與建立日期查詢請領單。", "請領單列表", "建立日起", "建立日迄",
         "依目前篩選條件顯示", "沒有符合條件的請領單。",
         "送審時間", "核准時間", "駁回原因", "行號", "品項代碼", "請領數量",
@@ -44,7 +44,11 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         "維護可供請領與入庫使用的品項主檔。", "更新品項名稱、規格與安全存量。",
         "建立可供請領與入庫使用的品項主檔。", "計量單位建立後不可修改",
         "編輯品項", "停用品項",
-        "批號與儲位會自動去除首尾空白並轉成大寫。",
+        "批號會自動去除首尾空白並轉成大寫；儲藏位置請從主檔選擇。",
+        "儲藏位置管理", "維護入庫可選擇的儲藏位置主檔。", "新增儲藏位置", "儲藏位置主檔",
+        "代碼與名稱建立後不可修改", "儲藏位置代碼", "儲藏位置名稱", "目前沒有可管理的儲藏位置。",
+        "編輯英文名稱", "停用儲藏位置", "建立入庫可選擇的儲藏位置。",
+        "編輯儲藏位置", "只能更新英文名稱；代碼與原文名稱建立後不可修改。", "請選擇儲藏位置",
         "條碼", "條碼不可超過 64 個字。", "顯示條碼", "條碼圖形：", "目前已存檔的條碼",
         "此條碼無法以 Code 128 呈現", "列印", "掃描條碼", "請掃描條碼後按 Enter",
         "查詢條碼中…", "已帶入品項：", "條碼查詢失敗，請稍後再試。",
@@ -81,6 +85,8 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         { "/Requisitions/Create", TestIdentitySeeder.RequesterEmail },
         { "/Items", TestIdentitySeeder.StorekeeperEmail },
         { "/Items/Create", TestIdentitySeeder.StorekeeperEmail },
+        { "/StorageLocations", TestIdentitySeeder.StorekeeperEmail },
+        { "/StorageLocations/Create", TestIdentitySeeder.StorekeeperEmail },
         { "/Users", TestIdentitySeeder.AdministratorEmail },
         { "/Users/Create", TestIdentitySeeder.AdministratorEmail },
         { "/Receiving", TestIdentitySeeder.StorekeeperEmail },
@@ -163,6 +169,19 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
 
         AssertNoLeakedChinese($"/Items/Edit/{itemId}", html);
         _output.WriteLine($"T4 /Items/Edit/{itemId}: 無未翻譯字串");
+    }
+
+    [Fact]
+    public async Task Storage_location_edit_in_English_does_not_leak_untranslated_Chinese_UI_strings()
+    {
+        using var client = CreateEnglishClient();
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+
+        var locationId = await GetSeedStorageLocationIdAsync();
+        var html = await (await client.GetAsync($"/StorageLocations/Edit/{locationId}")).Content.ReadAsStringAsync();
+
+        AssertNoLeakedChinese($"/StorageLocations/Edit/{locationId}", html);
+        _output.WriteLine($"T4 /StorageLocations/Edit/{locationId}: 無未翻譯字串");
     }
 
     [Fact]
@@ -291,6 +310,13 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         return await connection.QuerySingleAsync<string>(
             "SELECT id FROM identity_users WHERE normalized_email = :email",
             new { email = email.ToUpperInvariant() });
+    }
+
+    private static async Task<long> GetSeedStorageLocationIdAsync()
+    {
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        return await connection.QuerySingleAsync<long>(
+            "SELECT location_id FROM storage_locations WHERE location_code = 'CENTRAL-A01' AND is_deleted = 0");
     }
 
     private static async Task<long> CreatePendingRequisitionAsync(HttpClient client)

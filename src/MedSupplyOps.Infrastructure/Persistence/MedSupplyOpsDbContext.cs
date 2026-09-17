@@ -35,6 +35,8 @@ public sealed class MedSupplyOpsDbContext : DbContext
 
     public DbSet<Department> Departments => Set<Department>();
 
+    public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
+
     public DbSet<StockLot> StockLots => Set<StockLot>();
 
     public DbSet<Requisition> Requisitions => Set<Requisition>();

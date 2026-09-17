@@ -39,7 +39,7 @@ public sealed class InventoryController : Controller
                 cancellationToken: cancellationToken);
             itemDetails.Add(new InventoryItemDetailsViewModel(
                 summary.ForCulture(CultureInfo.CurrentUICulture),
-                availability.Lots,
+                availability.Lots.Select(lot => lot.ForCulture(CultureInfo.CurrentUICulture)).ToList(),
                 $"{summary.ItemCode} — {BilingualText.Option(summary.ItemName, summary.ItemNameEn)}"));
         }
 

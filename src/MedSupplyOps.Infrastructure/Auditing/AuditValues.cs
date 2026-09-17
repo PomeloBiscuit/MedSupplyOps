@@ -5,6 +5,7 @@ namespace MedSupplyOps.Infrastructure.Auditing;
 public static class AuditValues
 {
     public const string ItemEntity = "Item";
+    public const string StorageLocationEntity = "StorageLocation";
     public const string RequisitionEntity = "Requisition";
     public const string StockLotEntity = "StockLot";
     public const string UserEntity = "User";

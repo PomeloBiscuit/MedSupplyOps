@@ -88,7 +88,7 @@ Docker 會直接改寫 iptables/WinNAT，Windows 防火牆規則擋不住它，
 
 1. **首頁營運儀表板**：待審核、待發料、30 天內到期、低於安全存量、已過期仍在庫，
    加上「今日待發料佇列」與最近異動。每張卡片都可以點進對應清單。
-2. **入庫**：選品項、輸入批號、效期、數量與儲位。
+2. **入庫**：選品項、輸入批號、效期與數量，並從啟用中的主檔選擇儲藏位置。
    也可以直接用掃描槍掃條碼（掃描槍就是鍵盤，掃完會自動送出）：一般條碼帶出品項；
    GS1 條碼另外帶出批號與效期，並標示「來自條碼」，人工仍可覆寫。
    **解析不出來就明確拒絕，不猜**——醫材的效期錯了，FEFO 就會把過期品排到前面。
@@ -98,6 +98,7 @@ Docker 會直接改寫 iptables/WinNAT，Windows 防火牆規則擋不住它，
 5. **發料**：對已核准的單按發料，系統以 FEFO 自動配批並寫入配批明細。
    任何一行數量不足，**整張單失敗並回滾**，不做部分發料。
 6. **品項管理**：清單、新增與編輯品項（含條碼）；可開啟 Code 128 大圖供掃描與列印。
+7. **儲藏位置管理**：清單、新增與修改英文名稱；停用由管理員執行。
 
 ### 管理員
 
@@ -162,13 +163,14 @@ Domain 不知道資料庫存在，所以它的規則能被獨立驗證。
 Schema 是**手寫 DDL**（不是 EF Core migration 產生的），放在 `db/migrations`，
 由容器啟動時依序套用，版本記錄在 `SCHEMA_VERSIONS`（該表不屬於資料模型，不進 ER 圖）。
 
-### 業務資料表（7 張）
+### 業務資料表（8 張）
 
 | 資料表 | 職責 |
 |---|---|
 | `DEPARTMENTS` | 科室主檔。同時是請領單的歸屬，以及請領人列級授權的範圍依據 |
 | `ITEMS` | 品項主檔：料號、品名、規格、單位、安全存量。軟刪除（停用） |
-| `STOCK_LOTS` | 庫存批次：批號、效期、數量、儲位。**FEFO 配批的來源** |
+| `STORAGE_LOCATIONS` | 儲藏位置主檔：唯一 ASCII 代碼、原文／英文名稱、軟刪除狀態 |
+| `STOCK_LOTS` | 庫存批次：批號、效期、數量、儲藏位置。**FEFO 配批的來源** |
 | `REQUISITIONS` | 請領單主檔：單號、科室、狀態、駁回原因、各階段時間戳 |
 | `REQUISITION_LINES` | 請領單明細：品項與數量。**拆成明細表才做得到整張單的原子發料** |
 | `ISSUE_ALLOCATIONS` | 發料配批：哪一行、從哪一批、扣了多少。配批結果可逐筆追溯 |
@@ -350,6 +352,17 @@ erDiagram
         timestamp UPDATED_AT
         varchar UPDATED_BY
     }
+    STORAGE_LOCATIONS {
+        number LOCATION_ID PK
+        varchar LOCATION_CODE
+        varchar NAME
+        varchar NAME_EN
+        number IS_DELETED
+        timestamp DELETED_AT
+        varchar DELETED_BY
+        timestamp CREATED_AT
+        varchar CREATED_BY
+    }
     IDENTITY_ROLES ||--o{ IDENTITY_ROLE_CLAIMS : "FK_IDENTITY_ROLE_CLAIMS_ROLE"
     DEPARTMENTS o|--o{ IDENTITY_USERS : "FK_IDENTITY_USERS_DEPARTMENT"
     IDENTITY_USERS ||--o{ IDENTITY_USER_CLAIMS : "FK_IDENTITY_USER_CLAIMS_USER"
@@ -365,6 +378,9 @@ erDiagram
     ITEMS ||--o{ STOCK_LOTS : "FK_STOCK_LOTS_ITEM"
 ```
 <!-- ER-DIAGRAM:END -->
+
+`STORAGE_LOCATIONS` 在圖中刻意是沒有關聯線的獨立表：本階段以名稱 `LEFT JOIN` 顯示雙語名稱，
+但 `STOCK_LOTS.STORAGE_LOCATION` 仍保留文字欄位且不加外鍵；後續若要改外鍵，須先清理歷史資料並改寫測試。
 
 這張圖**不是手畫的**，也不是畫一次就放著：
 它由 `scripts/generate-er-diagram.ps1` 從 Oracle 的資料字典（`user_tables` / `user_tab_columns` /

@@ -59,6 +59,9 @@ public sealed class SeedDataEncodingTests
             UNION ALL
             SELECT lot_number || ':storage_location' FROM stock_lots
              WHERE INSTR(storage_location, UNISTR('\FFFD')) > 0
+            UNION ALL
+            SELECT location_code || ':name' FROM storage_locations
+             WHERE INSTR(name, UNISTR('\FFFD')) > 0
             """);
 
         var list = offenders.ToList();
@@ -159,11 +162,11 @@ public sealed class SeedDataEncodingTests
             """
             SELECT COUNT(*) FROM user_tab_comments
             WHERE comments IS NOT NULL
-              AND table_name IN ('ITEMS', 'STOCK_LOTS', 'REQUISITION_LINES', 'ISSUE_ALLOCATIONS', 'AUDIT_LOGS')
+              AND table_name IN ('ITEMS', 'STOCK_LOTS', 'STORAGE_LOCATIONS', 'REQUISITION_LINES', 'ISSUE_ALLOCATIONS', 'AUDIT_LOGS')
               AND LENGTHB(comments) > LENGTH(comments)
             """);
 
         // LENGTHB > LENGTH 代表內容確實含多位元組字元（中文），不是被換成 ASCII 佔位字串。
-        Assert.Equal(5, documented);
+        Assert.Equal(6, documented);
     }
 }

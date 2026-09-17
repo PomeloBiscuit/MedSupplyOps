@@ -11,6 +11,8 @@ public static class AuthorizationPolicies
     public const string FhirRead = nameof(FhirRead);
     public const string ItemManage = nameof(ItemManage);
     public const string ItemDeactivate = nameof(ItemDeactivate);
+    public const string StorageLocationManage = nameof(StorageLocationManage);
+    public const string StorageLocationDeactivate = nameof(StorageLocationDeactivate);
     public const string UserManage = nameof(UserManage);
     public const string StockReceive = nameof(StockReceive);
 }
