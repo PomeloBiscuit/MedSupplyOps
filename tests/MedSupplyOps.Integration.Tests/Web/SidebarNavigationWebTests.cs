@@ -31,7 +31,7 @@ public sealed partial class SidebarNavigationWebTests
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Theory]
-    [InlineData("expanded", "data-sidebar-width=\"248\"", "MedSupplyOps", "mso-sidebar-expanded")]
+    [InlineData("expanded", "data-sidebar-width=\"216\"", "MedSupplyOps", "mso-sidebar-expanded")]
     [InlineData("compact", "data-sidebar-width=\"64\"", "data-bs-toggle=\"tooltip\"", "mso-sidebar-compact")]
     [InlineData("hidden", "mso-navigation-offcanvas", "導覽", "mso-compact-header")]
     public async Task Sidebar_cookie_renders_the_requested_server_side_state(
@@ -55,6 +55,108 @@ public sealed partial class SidebarNavigationWebTests
         }
 
         _output.WriteLine($"T1 {state}: {Fragment(html, requiredClass)}");
+    }
+
+    [Theory]
+    [InlineData("expanded")]
+    [InlineData("compact")]
+    [InlineData("hidden")]
+    public async Task Every_sidebar_state_renders_exactly_one_user_menu_and_never_places_it_in_the_compact_header(string state)
+    {
+        using var client = CreateSidebarClient(state);
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+
+        var html = await GetHtmlAsync(client, "/");
+        var menuCount = Regex.Count(html, "class=\"dropup mso-user-menu\"");
+        var compactHeader = Regex.Match(
+            html,
+            "<header class=\"mso-compact-header\">(?<content>.*?)</header>",
+            RegexOptions.Singleline);
+
+        Assert.Equal(1, menuCount);
+        if (compactHeader.Success)
+        {
+            Assert.DoesNotContain("mso-user-menu", compactHeader.Groups["content"].Value, StringComparison.Ordinal);
+        }
+
+        _output.WriteLine($"T1 {state}: mso-user-menu={menuCount}; compact-header-menu={(compactHeader.Success && compactHeader.Groups["content"].Value.Contains("mso-user-menu", StringComparison.Ordinal) ? 1 : 0)}");
+    }
+
+    [Fact]
+    public async Task Hidden_sidebar_for_no_role_user_keeps_offcanvas_logout_without_function_navigation()
+    {
+        using var client = CreateSidebarClient("hidden");
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.NoRoleEmail);
+
+        var html = await GetHtmlAsync(client, "/");
+
+        Assert.Contains("data-bs-target=\"#mso-navigation-offcanvas\"", html, StringComparison.Ordinal);
+        Assert.Contains("id=\"mso-navigation-offcanvas\"", html, StringComparison.Ordinal);
+        Assert.Contains("action=\"/Account/Logout\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("mso-sidebar-link", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<nav", html, StringComparison.Ordinal);
+        _output.WriteLine($"T2 no-role/hidden trigger: {Fragment(html, "data-bs-target=\"#mso-navigation-offcanvas\"")}");
+        _output.WriteLine($"T2 no-role/hidden logout: {Fragment(html, "action=\"/Account/Logout\"")}");
+        _output.WriteLine("T2 no-role/hidden navigation links: 0");
+    }
+
+    [Theory]
+    [InlineData("216px;background:url(x)", 216)]
+    [InlineData("abc", 216)]
+    [InlineData("-5", 180)]
+    [InlineData("99999", 360)]
+    [InlineData("", 216)]
+    public async Task Sidebar_width_cookie_is_parsed_as_a_clamped_integer_before_css_output(string cookieValue, int expectedWidth)
+    {
+        using var client = CreateSidebarClient("expanded", cookieValue);
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+
+        var html = await GetHtmlAsync(client, "/");
+        var expectedStyle = $"style=\"--mso-sidebar-width: {expectedWidth}px;\"";
+        var expectedData = $"data-sidebar-width=\"{expectedWidth}\"";
+
+        Assert.Contains(expectedStyle, html, StringComparison.Ordinal);
+        Assert.Contains(expectedData, html, StringComparison.Ordinal);
+        Assert.DoesNotContain("background:url", html, StringComparison.Ordinal);
+        _output.WriteLine($"T3 cookie='{cookieValue}': {expectedStyle} {expectedData}");
+    }
+
+    [Fact]
+    public async Task Expanded_sidebar_exposes_an_accessible_resizer_but_compact_sidebar_does_not()
+    {
+        using var expanded = CreateSidebarClient("expanded", "232");
+        using var compact = CreateSidebarClient("compact", "232");
+        await WebAuthTestHelpers.LoginAsync(expanded, TestIdentitySeeder.StorekeeperEmail);
+        await WebAuthTestHelpers.LoginAsync(compact, TestIdentitySeeder.StorekeeperEmail);
+
+        var expandedHtml = await GetHtmlAsync(expanded, "/");
+        var compactHtml = await GetHtmlAsync(compact, "/");
+
+        Assert.Contains("data-mso-sidebar-resizer", expandedHtml, StringComparison.Ordinal);
+        Assert.Contains("role=\"separator\"", expandedHtml, StringComparison.Ordinal);
+        Assert.Contains("aria-orientation=\"vertical\"", expandedHtml, StringComparison.Ordinal);
+        Assert.Contains("aria-valuenow=\"232\"", expandedHtml, StringComparison.Ordinal);
+        Assert.Contains("aria-valuemin=\"180\"", expandedHtml, StringComparison.Ordinal);
+        Assert.Contains("aria-valuemax=\"360\"", expandedHtml, StringComparison.Ordinal);
+        Assert.Contains("tabindex=\"0\"", expandedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-mso-sidebar-resizer", compactHtml, StringComparison.Ordinal);
+        _output.WriteLine($"T5 resizer: {Fragment(expandedHtml, "data-mso-sidebar-resizer")}");
+        _output.WriteLine("T5 compact resizer: absent");
+    }
+
+    [Fact]
+    public async Task User_menu_uses_fixed_dropup_and_offcanvas_keeps_its_footer_outside_the_scrolling_navigation()
+    {
+        using var client = CreateSidebarClient("hidden");
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+
+        var html = await GetHtmlAsync(client, "/");
+
+        Assert.Contains("class=\"dropup mso-user-menu\"", html, StringComparison.Ordinal);
+        Assert.Contains("data-bs-popper-config='{\"strategy\":\"fixed\"}'", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"mso-offcanvas-navigation\"", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"mso-sidebar-user mso-offcanvas-user\"", html, StringComparison.Ordinal);
+        _output.WriteLine($"T6 offcanvas menu: {Fragment(html, "data-bs-popper-config")}");
     }
 
     /// <summary>
@@ -327,12 +429,13 @@ public sealed partial class SidebarNavigationWebTests
         }
     }
 
-    private HttpClient CreateSidebarClient(string state)
+    private HttpClient CreateSidebarClient(string state, string? width = null)
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var widthCookie = width is null ? string.Empty : $"; mso-sidebar-width={width}";
         client.DefaultRequestHeaders.TryAddWithoutValidation(
             "Cookie",
-            $"mso-navigation-layout=sidebar; mso-sidebar-state={state}");
+            $"mso-navigation-layout=sidebar; mso-sidebar-state={state}{widthCookie}");
         return client;
     }
 

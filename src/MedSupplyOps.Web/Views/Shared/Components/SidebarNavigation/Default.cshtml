@@ -21,21 +21,13 @@
 @if (isHidden)
 {
     <header class="mso-compact-header">
-        @* 沒有任何角色的帳號沒有導覽項目；連觸發鈕一起不渲染，
-           免得打開一個空白面板。登出仍在右上角的使用者選單裡。 *@
-        @if (Model.HasRole)
-        {
-                <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="@L["開啟導覽"]">
+        <button class="btn mso-navigation-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mso-navigation-offcanvas" aria-controls="mso-navigation-offcanvas" aria-label="@L["開啟導覽"]">
             <partial name="_NavigationIcon" model='"menu"' />
             <span>@L["導覽"]</span>
         </button>
-        }
         <a class="mso-compact-brand" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
-        <partial name="_SidebarUserMenu" model="Model" />
     </header>
-    @if (Model.HasRole)
-    {
-        <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label">
+    <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label" data-sidebar-width="@Model.SidebarWidth" style="--mso-sidebar-width: @(Model.SidebarWidth)px;">
         <div class="offcanvas-header">
             <span class="offcanvas-title" id="mso-navigation-offcanvas-label">MedSupplyOps</span>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="@L["關閉"]"></button>
@@ -43,47 +35,45 @@
         <div class="offcanvas-body d-flex flex-column">
             @if (Model.HasRole)
             {
-                <nav aria-label="@L["主要導覽"]">
-                    <div class="mso-sidebar-group-title">@L["作業"]</div>
-                    <div class="mso-sidebar-links">
-                        @foreach (var item in navItems)
-                        {
-                            var isCurrent = controller == item.Controller && action == item.Action;
-                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)">
-                                <partial name="_NavigationIcon" model="item.Icon" />
-                                <span>@item.Name</span>
-                                @if (item.Badge is not null)
-                                {
-                                    <span class="mso-nav-badge" data-testid="nav-@(item.Icon)-badge">@item.Badge</span>
-                                }
-                            </a>
-                        }
-                        @if (isAdministrator)
-                        {
-                            var isCurrent = controller == "Items" && action == "Index";
-                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"items"' /><span>@L["品項管理"]</span></a>
-                            var isUsersCurrent = controller == "Users";
-                            <a class="mso-sidebar-link @(isUsersCurrent ? "is-current" : null)" asp-controller="Users" asp-action="Index" aria-current="@(isUsersCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"users"' /><span>@L["使用者管理"]</span></a>
-                        }
-                        @if (canReceiveStock)
-                        {
-                            var isCurrent = controller == "Receiving" && action == "Index";
-                            <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"receive"' /><span>@L["入庫"]</span></a>
-                        }
-                    </div>
-                </nav>
+                <div class="mso-offcanvas-navigation">
+                    <nav aria-label="@L["主要導覽"]">
+                        <div class="mso-sidebar-group-title">@L["作業"]</div>
+                        <div class="mso-sidebar-links">
+                            @foreach (var item in navItems)
+                            {
+                                var isCurrent = controller == item.Controller && action == item.Action;
+                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="@item.Controller" asp-action="@item.Action" aria-current="@(isCurrent ? "page" : null)">
+                                    <partial name="_NavigationIcon" model="item.Icon" />
+                                    <span>@item.Name</span>
+                                    @if (item.Badge is not null)
+                                    {
+                                        <span class="mso-nav-badge" data-testid="nav-@(item.Icon)-badge">@item.Badge</span>
+                                    }
+                                </a>
+                            }
+                            @if (isAdministrator)
+                            {
+                                var isCurrent = controller == "Items" && action == "Index";
+                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"items"' /><span>@L["品項管理"]</span></a>
+                                var isUsersCurrent = controller == "Users";
+                                <a class="mso-sidebar-link @(isUsersCurrent ? "is-current" : null)" asp-controller="Users" asp-action="Index" aria-current="@(isUsersCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"users"' /><span>@L["使用者管理"]</span></a>
+                            }
+                            @if (canReceiveStock)
+                            {
+                                var isCurrent = controller == "Receiving" && action == "Index";
+                                <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Receiving" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"receive"' /><span>@L["入庫"]</span></a>
+                            }
+                        </div>
+                    </nav>
+                </div>
             }
-            @* ★ 這裡原本也放一個使用者選單，於是完全收合時畫面上同時有兩個：
-               細列右上角一個、offcanvas 底部一個，兩者同時可見（offcanvas 是覆蓋層，
-               細列仍在後面）。而且 offcanvas 底部那個展開後會被 offcanvas 的寬度裁掉，
-               彈出選單出現自己的捲軸。細列已經有使用者選單了，這裡不再重複。 *@
+            <div class="mso-sidebar-user mso-offcanvas-user"><partial name="_SidebarUserMenu" model="Model" /></div>
         </div>
     </div>
-    }
 }
 else
 {
-    <aside class="mso-sidebar @(isCompact ? "mso-sidebar-compact" : "mso-sidebar-expanded")" data-sidebar-state="@Model.State" data-sidebar-width="@(isCompact ? "64" : "248")">
+    <aside class="mso-sidebar @(isCompact ? "mso-sidebar-compact" : "mso-sidebar-expanded")" data-sidebar-state="@Model.State" data-sidebar-width="@(isCompact ? 64 : Model.SidebarWidth)" style="--mso-sidebar-width: @(Model.SidebarWidth)px;">
         <div class="mso-sidebar-brand-row">
             <a class="mso-sidebar-brand" asp-controller="Home" asp-action="Index">@(isCompact ? "MS" : "MedSupplyOps")</a>
             <button class="btn mso-sidebar-toggle" type="button" data-mso-sidebar-toggle aria-expanded="@(isCompact ? "false" : "true")" aria-label="@(isCompact ? L["展開側欄"] : L["收合側欄"])" title="@(isCompact ? L["展開側欄"] : L["收合側欄"])">
@@ -126,5 +116,9 @@ else
             </nav>
         }
         <div class="mso-sidebar-user"><partial name="_SidebarUserMenu" model="Model" /></div>
+        @if (!isCompact)
+        {
+            <div class="mso-sidebar-resizer" role="separator" aria-label="@L["拖曳調整寬度"]" aria-orientation="vertical" aria-valuenow="@Model.SidebarWidth" aria-valuemin="180" aria-valuemax="360" tabindex="0" title="@L["拖曳調整寬度"]" data-mso-sidebar-resizer data-default-width="216"></div>
+        }
     </aside>
 }
