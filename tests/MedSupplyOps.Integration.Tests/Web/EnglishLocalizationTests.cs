@@ -37,6 +37,9 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         "依目前篩選條件顯示", "沒有符合條件的請領單。",
         "送審時間", "核准時間", "駁回原因", "行號", "品項代碼", "請領數量",
         "發料配批明細", "明細行", "發料數量", "發料動作", "審核動作",
+        "登入狀態已失效，請重新登入。", "您沒有查看這張請領單的權限。",
+        "找不到這張請領單，可能已被刪除或您無權查看。",
+        "無法載入請領單詳情，請重新整理後再試。", "網路連線失敗，請檢查連線後再試。",
         "品項主檔", "料號建立後不可修改", "目前沒有可管理的品項。",
         "維護可供請領與入庫使用的品項主檔。", "更新品項名稱、規格與安全存量。",
         "建立可供請領與入庫使用的品項主檔。", "計量單位建立後不可修改",
@@ -186,9 +189,14 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
         {
             id = await CreatePendingRequisitionAsync(client);
             var html = await (await client.GetAsync($"/Requisitions/Details/{id}")).Content.ReadAsStringAsync();
+            var panelResponse = await client.GetAsync($"/Requisitions/DetailsPanel/{id}?returnUrl=%2FRequisitions");
+            var panelHtml = await panelResponse.Content.ReadAsStringAsync();
 
             AssertNoLeakedChinese($"/Requisitions/Details/{id}", html);
+            Assert.Equal(HttpStatusCode.OK, panelResponse.StatusCode);
+            AssertNoLeakedChinese($"/Requisitions/DetailsPanel/{id}", panelHtml);
             _output.WriteLine($"T4 /Requisitions/Details/{id}: 無未翻譯字串");
+            _output.WriteLine($"T6 /Requisitions/DetailsPanel/{id}: 無未翻譯字串");
         }
         finally
         {

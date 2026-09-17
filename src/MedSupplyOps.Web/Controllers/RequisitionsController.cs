@@ -258,10 +258,41 @@ public sealed class RequisitionsController : Controller
     [Authorize(Policy = AuthorizationPolicies.RequisitionRead)]
     public async Task<IActionResult> Details(long id, CancellationToken cancellationToken)
     {
+        var result = await LoadRequisitionDetailsAsync(id, returnUrl: null, cancellationToken);
+        if (result.IsForbidden)
+        {
+            return Forbid();
+        }
+
+        return result.Model is null ? NotFound() : View(result.Model);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.RequisitionRead)]
+    public async Task<IActionResult> DetailsPanel(
+        long id,
+        string? returnUrl,
+        CancellationToken cancellationToken)
+    {
+        var safeReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : Url.Action(nameof(Index));
+        var result = await LoadRequisitionDetailsAsync(id, safeReturnUrl, cancellationToken);
+        if (result.IsForbidden)
+        {
+            return Forbid();
+        }
+
+        return result.Model is null ? NotFound() : PartialView("_DetailsPanel", result.Model);
+    }
+
+    private async Task<RequisitionDetailsLoadResult> LoadRequisitionDetailsAsync(
+        long id,
+        string? returnUrl,
+        CancellationToken cancellationToken)
+    {
         var departmentScope = await _departmentScopeResolver.ResolveAsync(User, _currentUser.Actor);
         if (departmentScope.IsRestricted && departmentScope.DepartmentId is null)
         {
-            return Forbid();
+            return new RequisitionDetailsLoadResult(IsForbidden: true, Model: null);
         }
 
         var header = await (
@@ -286,13 +317,7 @@ public sealed class RequisitionsController : Controller
 
         if (header is null)
         {
-            if (departmentScope.IsRestricted &&
-                await _dbContext.Requisitions.AsNoTracking().AnyAsync(requisition => requisition.Id == id, cancellationToken))
-            {
-                return Forbid();
-            }
-
-            return NotFound();
+            return new RequisitionDetailsLoadResult(IsForbidden: false, Model: null);
         }
 
         var lineRows = await (
@@ -321,7 +346,7 @@ public sealed class RequisitionsController : Controller
         var issueAllocations = await _inventoryQueries
             .GetRequisitionIssueAllocationsAsync(id, cancellationToken);
 
-        return View(new RequisitionDetailsViewModel
+        return new RequisitionDetailsLoadResult(IsForbidden: false, new RequisitionDetailsViewModel
         {
             Id = header.Id,
             RequisitionNo = header.RequisitionNo,
@@ -345,13 +370,14 @@ public sealed class RequisitionsController : Controller
                     allocation.Quantity))
                 .ToList(),
             CanRetryIssue = TempData["IssueRetryAvailable"] is true,
+            ReturnUrl = returnUrl,
         });
     }
 
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.RequisitionIssue)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Issue(long id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Issue(long id, string? returnUrl, CancellationToken cancellationToken)
     {
         var asOf = _businessCalendar.Today;
         var result = await _stockIssueService.IssueRequisitionAsync(id, asOf, _currentUser.Actor, cancellationToken);
@@ -359,7 +385,7 @@ public sealed class RequisitionsController : Controller
         if (result.IsSuccess)
         {
             TempData["SuccessMessage"] = "請領單已發料，請核對下列配批明細。";
-            return RedirectToAction(nameof(Details), new { id });
+            return RedirectAfterSuccessfulAction(id, returnUrl);
         }
 
         switch (result.FailureReason)
@@ -400,7 +426,11 @@ public sealed class RequisitionsController : Controller
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.RequisitionReview)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Approve(long id, long rowVersion, CancellationToken cancellationToken)
+    public async Task<IActionResult> Approve(
+        long id,
+        long rowVersion,
+        string? returnUrl,
+        CancellationToken cancellationToken)
     {
         var requisition = await _dbContext.Requisitions.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (requisition is null)
@@ -443,7 +473,7 @@ public sealed class RequisitionsController : Controller
         }
 
         TempData["SuccessMessage"] = "請領單已核准。";
-        return RedirectToAction(nameof(Details), new { id });
+        return RedirectAfterSuccessfulAction(id, returnUrl);
     }
 
     [HttpPost]
@@ -453,6 +483,7 @@ public sealed class RequisitionsController : Controller
         long id,
         long rowVersion,
         string? rejectionReason,
+        string? returnUrl,
         CancellationToken cancellationToken)
     {
         var requisition = await _dbContext.Requisitions.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -511,7 +542,19 @@ public sealed class RequisitionsController : Controller
         }
 
         TempData["SuccessMessage"] = "請領單已駁回。";
-        return RedirectToAction(nameof(Details), new { id });
+        return RedirectAfterSuccessfulAction(id, returnUrl);
+    }
+
+    private IActionResult RedirectAfterSuccessfulAction(long id, string? returnUrl)
+    {
+        if (returnUrl is null)
+        {
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        return Url.IsLocalUrl(returnUrl)
+            ? LocalRedirect(returnUrl)
+            : RedirectToAction(nameof(Index));
     }
 
     private async Task PopulateCreateOptionsAsync(
@@ -568,5 +611,7 @@ public sealed class RequisitionsController : Controller
 
         return false;
     }
+
+    private sealed record RequisitionDetailsLoadResult(bool IsForbidden, RequisitionDetailsViewModel? Model);
 
 }
