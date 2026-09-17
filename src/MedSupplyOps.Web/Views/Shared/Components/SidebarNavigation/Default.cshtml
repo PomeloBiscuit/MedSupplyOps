@@ -27,7 +27,7 @@
         </button>
         <a class="mso-compact-brand" asp-controller="Home" asp-action="Index">MedSupplyOps</a>
     </header>
-    <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label" data-sidebar-width="@Model.SidebarWidth" style="--mso-sidebar-width: @(Model.SidebarWidth)px;">
+    <div class="offcanvas offcanvas-start mso-navigation-offcanvas" tabindex="-1" id="mso-navigation-offcanvas" aria-labelledby="mso-navigation-offcanvas-label" data-sidebar-width="@Model.SidebarWidth">
         <div class="offcanvas-header">
             <span class="offcanvas-title" id="mso-navigation-offcanvas-label">MedSupplyOps</span>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="@L["關閉"]"></button>
@@ -69,11 +69,13 @@
             }
             <div class="mso-sidebar-user mso-offcanvas-user"><partial name="_SidebarUserMenu" model="Model" /></div>
         </div>
+        @* 往左拖就關閉 offcanvas。要打開照舊按「導覽」——關著的時候畫面上沒有可以拖的邊。 *@
+        <div class="mso-sidebar-drag-handle" role="separator" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" aria-valuetext="@L["已展開"]" aria-label="@L["往左拖曳以關閉導覽"]" title="@L["往左拖曳以關閉導覽"]" tabindex="0" data-mso-sidebar-drag data-mso-sidebar-target="close"></div>
     </div>
 }
 else
 {
-    <aside class="mso-sidebar @(isCompact ? "mso-sidebar-compact" : "mso-sidebar-expanded")" data-sidebar-state="@Model.State" data-sidebar-width="@(isCompact ? 64 : Model.SidebarWidth)" style="--mso-sidebar-width: @(Model.SidebarWidth)px;">
+    <aside class="mso-sidebar @(isCompact ? "mso-sidebar-compact" : "mso-sidebar-expanded")" data-sidebar-state="@Model.State" data-sidebar-width="@Model.SidebarWidth">
         <div class="mso-sidebar-brand-row">
             <a class="mso-sidebar-brand" asp-controller="Home" asp-action="Index">@(isCompact ? "MS" : "MedSupplyOps")</a>
             <button class="btn mso-sidebar-toggle" type="button" data-mso-sidebar-toggle aria-expanded="@(isCompact ? "false" : "true")" aria-label="@(isCompact ? L["展開側欄"] : L["收合側欄"])" title="@(isCompact ? L["展開側欄"] : L["收合側欄"])">
@@ -116,9 +118,11 @@ else
             </nav>
         }
         <div class="mso-sidebar-user"><partial name="_SidebarUserMenu" model="Model" /></div>
-        @if (!isCompact)
-        {
-            <div class="mso-sidebar-resizer" role="separator" aria-label="@L["拖曳調整寬度"]" aria-orientation="vertical" aria-valuenow="@Model.SidebarWidth" aria-valuemin="180" aria-valuemax="360" tabindex="0" title="@L["拖曳調整寬度"]" data-mso-sidebar-resizer data-default-width="216"></div>
+        @* ★ 拖曳手勢：展開時往左拖 → 收合成圖示列；圖示列時往右拖 → 展開。
+           寬度本身固定，不提供連續調寬。 *@
+        @{
+            var dragLabel = isCompact ? L["往右拖曳以展開側欄"] : L["往左拖曳以收合側欄"];
         }
+        <div class="mso-sidebar-drag-handle" role="separator" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@(isCompact ? 0 : 100)" aria-valuetext="@(isCompact ? L["已收合"] : L["已展開"])" aria-label="@dragLabel" title="@dragLabel" tabindex="0" data-mso-sidebar-drag data-mso-sidebar-target="@(isCompact ? "expanded" : "compact")"></div>
     </aside>
 }

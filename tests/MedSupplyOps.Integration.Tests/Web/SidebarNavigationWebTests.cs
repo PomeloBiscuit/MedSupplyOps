@@ -31,7 +31,7 @@ public sealed partial class SidebarNavigationWebTests
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Theory]
-    [InlineData("expanded", "data-sidebar-width=\"216\"", "MedSupplyOps", "mso-sidebar-expanded")]
+    [InlineData("expanded", "data-sidebar-width=\"180\"", "MedSupplyOps", "mso-sidebar-expanded")]
     [InlineData("compact", "data-sidebar-width=\"64\"", "data-bs-toggle=\"tooltip\"", "mso-sidebar-compact")]
     [InlineData("hidden", "mso-navigation-offcanvas", "導覽", "mso-compact-header")]
     public async Task Sidebar_cookie_renders_the_requested_server_side_state(
@@ -100,48 +100,95 @@ public sealed partial class SidebarNavigationWebTests
         _output.WriteLine("T2 no-role/hidden navigation links: 0");
     }
 
+    /// <summary>
+    /// 寬度固定：展開 180px、圖示列 64px。任何寬度 cookie（包括想塞 CSS 的值）都不得影響輸出。
+    /// 第一版曾把寬度 cookie 輸出到 style 屬性（有夾整數，但仍是一條不需要的輸入路徑）；
+    /// 使用者要的是拖曳收合／展開，不是調寬，所以整條路徑拿掉，並用這條測試確認它真的不在了。
+    /// </summary>
     [Theory]
-    [InlineData("216px;background:url(x)", 216)]
-    [InlineData("abc", 216)]
-    [InlineData("-5", 180)]
-    [InlineData("99999", 360)]
-    [InlineData("", 216)]
-    public async Task Sidebar_width_cookie_is_parsed_as_a_clamped_integer_before_css_output(string cookieValue, int expectedWidth)
+    [InlineData("expanded", "216px;background:url(x)", 180)]
+    [InlineData("expanded", "99999", 180)]
+    [InlineData("expanded", "-5", 180)]
+    [InlineData("compact", "300", 64)]
+    public async Task Sidebar_width_is_fixed_and_ignores_any_width_cookie(string state, string cookieValue, int expectedWidth)
     {
-        using var client = CreateSidebarClient("expanded", cookieValue);
+        using var client = CreateSidebarClient(state, cookieValue);
         await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
 
         var html = await GetHtmlAsync(client, "/");
-        var expectedStyle = $"style=\"--mso-sidebar-width: {expectedWidth}px;\"";
-        var expectedData = $"data-sidebar-width=\"{expectedWidth}\"";
 
-        Assert.Contains(expectedStyle, html, StringComparison.Ordinal);
-        Assert.Contains(expectedData, html, StringComparison.Ordinal);
+        Assert.Contains($"data-sidebar-width=\"{expectedWidth}\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("--mso-sidebar-width", html, StringComparison.Ordinal);
         Assert.DoesNotContain("background:url", html, StringComparison.Ordinal);
-        _output.WriteLine($"T3 cookie='{cookieValue}': {expectedStyle} {expectedData}");
+        _output.WriteLine($"state={state} cookie='{cookieValue}' → data-sidebar-width={expectedWidth}，沒有 inline 寬度。");
     }
 
+    /// <summary>
+    /// ★ 拖曳手勢：展開時往左拖收合、圖示列時往右拖展開。兩種狀態都要有把手，
+    /// 而且把手必須指向「另一個」狀態——指錯方向的話，使用者怎麼拖都不會動。
+    /// </summary>
     [Fact]
-    public async Task Expanded_sidebar_exposes_an_accessible_resizer_but_compact_sidebar_does_not()
+    public async Task Expanded_and_compact_sidebars_expose_a_drag_handle_toward_the_other_state()
     {
-        using var expanded = CreateSidebarClient("expanded", "232");
-        using var compact = CreateSidebarClient("compact", "232");
+        using var expanded = CreateSidebarClient("expanded");
+        using var compact = CreateSidebarClient("compact");
         await WebAuthTestHelpers.LoginAsync(expanded, TestIdentitySeeder.StorekeeperEmail);
         await WebAuthTestHelpers.LoginAsync(compact, TestIdentitySeeder.StorekeeperEmail);
 
-        var expandedHtml = await GetHtmlAsync(expanded, "/");
-        var compactHtml = await GetHtmlAsync(compact, "/");
+        var expandedHandle = HandleTag(await GetHtmlAsync(expanded, "/"));
+        var compactHandle = HandleTag(await GetHtmlAsync(compact, "/"));
 
-        Assert.Contains("data-mso-sidebar-resizer", expandedHtml, StringComparison.Ordinal);
-        Assert.Contains("role=\"separator\"", expandedHtml, StringComparison.Ordinal);
-        Assert.Contains("aria-orientation=\"vertical\"", expandedHtml, StringComparison.Ordinal);
-        Assert.Contains("aria-valuenow=\"232\"", expandedHtml, StringComparison.Ordinal);
-        Assert.Contains("aria-valuemin=\"180\"", expandedHtml, StringComparison.Ordinal);
-        Assert.Contains("aria-valuemax=\"360\"", expandedHtml, StringComparison.Ordinal);
-        Assert.Contains("tabindex=\"0\"", expandedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-mso-sidebar-resizer", compactHtml, StringComparison.Ordinal);
-        _output.WriteLine($"T5 resizer: {Fragment(expandedHtml, "data-mso-sidebar-resizer")}");
-        _output.WriteLine("T5 compact resizer: absent");
+        foreach (var handle in new[] { expandedHandle, compactHandle })
+        {
+            Assert.Contains("role=\"separator\"", handle, StringComparison.Ordinal);
+            Assert.Contains("aria-orientation=\"vertical\"", handle, StringComparison.Ordinal);
+            Assert.Contains("tabindex=\"0\"", handle, StringComparison.Ordinal);
+            Assert.Contains("aria-label=", handle, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("data-mso-sidebar-target=\"compact\"", expandedHandle, StringComparison.Ordinal);
+        Assert.Contains("aria-valuenow=\"100\"", expandedHandle, StringComparison.Ordinal);
+        Assert.Contains("data-mso-sidebar-target=\"expanded\"", compactHandle, StringComparison.Ordinal);
+        Assert.Contains("aria-valuenow=\"0\"", compactHandle, StringComparison.Ordinal);
+        _output.WriteLine($"展開態把手：{expandedHandle}");
+        _output.WriteLine($"圖示列把手：{compactHandle}");
+    }
+
+    private static string HandleTag(string html)
+    {
+        var match = Regex.Match(html, "<div class=\"mso-sidebar-drag-handle\"[^>]*>");
+        Assert.True(match.Success, "找不到側欄的拖曳把手。");
+        return match.Value;
+    }
+
+    /// <summary>
+    /// ★ 完全收合（offcanvas）：寬度固定 180px，往左拖就關閉。
+    ///
+    /// offcanvas 的寬度規則曾經寫成 <c>width: …</c>，被 Bootstrap 的 <c>.offcanvas.offcanvas-start</c>
+    /// （權重較高）蓋掉，瀏覽器實測 computed width 從側欄改版起一直是 400px——這裡寫的寬度一次都沒生效過。
+    /// 伺服器端測試算不出 computed style，所以守 CSS 原始碼：寬度必須透過 Bootstrap 自己讀的
+    /// <c>--bs-offcanvas-width</c> 設定，不可以再直接寫 <c>width:</c>。見 L-040。
+    /// </summary>
+    [Fact]
+    public async Task Hidden_sidebar_offcanvas_has_a_close_drag_handle_and_its_width_goes_through_the_bootstrap_variable()
+    {
+        using var client = CreateSidebarClient("hidden");
+        await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
+        var html = await GetHtmlAsync(client, "/");
+
+        var start = html.IndexOf("id=\"mso-navigation-offcanvas\"", StringComparison.Ordinal);
+        Assert.True(start > 0, "完全收合狀態找不到 offcanvas。");
+        var offcanvas = html[html.LastIndexOf("<div", start, StringComparison.Ordinal)..];
+        var handle = HandleTag(offcanvas);
+        Assert.Contains("data-mso-sidebar-target=\"close\"", handle, StringComparison.Ordinal);
+
+        var css = await File.ReadAllTextAsync(FindRepositoryFile("src/MedSupplyOps.Web/wwwroot/css/site.css"));
+        var rule = Regex.Match(css, @"\.mso-navigation-offcanvas\s*\{([^}]*)\}");
+        Assert.True(rule.Success, "site.css 找不到 .mso-navigation-offcanvas 規則。");
+        Assert.Contains("--bs-offcanvas-width: min(180px", rule.Groups[1].Value, StringComparison.Ordinal);
+        Assert.DoesNotMatch(@"(^|[;\s])width\s*:", rule.Groups[1].Value);
+        _output.WriteLine($"offcanvas 把手：{handle}");
+        _output.WriteLine($"offcanvas 寬度規則：{rule.Value}");
     }
 
     [Fact]

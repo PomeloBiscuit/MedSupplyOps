@@ -16,7 +16,6 @@
   <data name="主要導覽" xml:space="preserve"><value>Main navigation</value></data>
   <data name="導覽" xml:space="preserve"><value>Navigation</value></data>
   <data name="作業" xml:space="preserve"><value>Operations</value></data>
-  <data name="拖曳調整寬度" xml:space="preserve"><value>Drag to resize</value></data>
   <data name="個人資料" xml:space="preserve"><value>Profile</value></data>
   <data name="變更密碼" xml:space="preserve"><value>Change password</value></data>
   <data name="版面風格" xml:space="preserve"><value>Theme</value></data>
@@ -355,4 +354,9 @@
   <data name="無法解析條碼。" xml:space="preserve"><value>The barcode could not be parsed.</value></data>
   <data name="這個條碼沒有對應的品項" xml:space="preserve"><value>No item is associated with this barcode</value></data>
   <data name="搜尋料號、品名或條碼" xml:space="preserve"><value>Search by item code, name, or barcode</value></data>
+  <data name="已展開" xml:space="preserve"><value>Expanded</value></data>
+  <data name="已收合" xml:space="preserve"><value>Collapsed</value></data>
+  <data name="往左拖曳以收合側欄" xml:space="preserve"><value>Drag left to collapse the sidebar</value></data>
+  <data name="往右拖曳以展開側欄" xml:space="preserve"><value>Drag right to expand the sidebar</value></data>
+  <data name="往左拖曳以關閉導覽" xml:space="preserve"><value>Drag left to close navigation</value></data>
 </root>
