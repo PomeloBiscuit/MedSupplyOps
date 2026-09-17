@@ -1,3 +1,4 @@
+using System.Globalization;
 using MedSupplyOps.Domain.Requisitions;
 using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Localization;
@@ -15,6 +16,10 @@ namespace MedSupplyOps.Web.ViewComponents;
 /// <summary>左側導覽的單一請求讀取模型；角標只在這裡計算一次，避免展開／收折版重複查詢。</summary>
 public sealed class SidebarNavigationViewComponent : ViewComponent
 {
+    private const int DefaultSidebarWidth = 216;
+    private const int MinimumSidebarWidth = 180;
+    private const int MaximumSidebarWidth = 360;
+
     private readonly MedSupplyOpsDbContext _dbContext;
     private readonly InventoryQueries _inventoryQueries;
     private readonly BusinessCalendar _businessCalendar;
@@ -47,8 +52,10 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
         var displayName = user is null
             ? actor
             : BilingualText.Resolve(user.DisplayName, user.DisplayNameEn) ?? actor;
+        var sidebarWidth = ParseSidebarWidth(HttpContext.Request.Cookies["mso-sidebar-width"]);
         var model = new SidebarNavigationViewModel(
             normalizedState,
+            sidebarWidth,
             hasRole,
             displayName,
             user?.Email ?? actor,
@@ -84,6 +91,16 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
         return View(model);
     }
 
+    private static int ParseSidebarWidth(string? cookieValue)
+    {
+        if (!int.TryParse(cookieValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var width))
+        {
+            return DefaultSidebarWidth;
+        }
+
+        return Math.Clamp(width, MinimumSidebarWidth, MaximumSidebarWidth);
+    }
+
     private static string RoleName(System.Security.Claims.ClaimsPrincipal user)
         => user.IsInRole(ApplicationRoles.Administrator) ? "管理員"
             : user.IsInRole(ApplicationRoles.Storekeeper) ? "庫管員"
@@ -96,9 +113,10 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
 
 public sealed class SidebarNavigationViewModel
 {
-    public SidebarNavigationViewModel(string state, bool hasRole, string displayName, string email, string roleName, string initial)
+    public SidebarNavigationViewModel(string state, int sidebarWidth, bool hasRole, string displayName, string email, string roleName, string initial)
     {
         State = state;
+        SidebarWidth = sidebarWidth;
         HasRole = hasRole;
         DisplayName = displayName;
         Email = email;
@@ -107,6 +125,7 @@ public sealed class SidebarNavigationViewModel
     }
 
     public string State { get; }
+    public int SidebarWidth { get; }
     public bool HasRole { get; }
     public string DisplayName { get; }
     public string Email { get; }
