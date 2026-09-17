@@ -11,12 +11,17 @@
         <h1 class="h2 mb-1">@L["庫存查詢"]</h1>
         <p class="text-muted mb-0">@L["基準日："]@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</p>
     </div>
-    <form method="get" class="d-flex align-items-end gap-2">
+    <form method="get" class="d-flex flex-wrap align-items-end gap-2">
+        <div>
+            <label class="form-label mb-1" for="search">@L["搜尋料號、品名或條碼"]</label>
+            <input class="form-control" id="search" name="search" value="@Model.Search" maxlength="200" />
+        </div>
         <div>
             <label class="form-label mb-1" for="asOf">@L["查詢基準日"]</label>
             <input class="form-control" id="asOf" name="asOf" type="date" value="@Model.AsOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
         </div>
-        <button class="btn btn-outline-primary" type="submit">@L["更新"]</button>
+        <button class="btn btn-outline-primary" type="submit">@L["搜尋"]</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">@L["清除"]</a>
     </form>
 </div>
 

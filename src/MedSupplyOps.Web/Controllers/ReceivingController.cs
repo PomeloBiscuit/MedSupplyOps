@@ -1,3 +1,5 @@
+using System.Globalization;
+using MedSupplyOps.Domain.Barcodes;
 using MedSupplyOps.Infrastructure.Localization;
 using MedSupplyOps.Infrastructure.Persistence;
 using MedSupplyOps.Infrastructure.Services;
@@ -7,6 +9,7 @@ using MedSupplyOps.Web.Models.Receiving;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace MedSupplyOps.Web.Controllers;
 
@@ -15,15 +18,18 @@ public sealed class ReceivingController : Controller
     private readonly MedSupplyOpsDbContext _dbContext;
     private readonly StockReceivingService _stockReceivingService;
     private readonly BusinessCalendar _businessCalendar;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
     public ReceivingController(
         MedSupplyOpsDbContext dbContext,
         StockReceivingService stockReceivingService,
-        BusinessCalendar businessCalendar)
+        BusinessCalendar businessCalendar,
+        IStringLocalizer<SharedResource> localizer)
     {
         _dbContext = dbContext;
         _stockReceivingService = stockReceivingService;
         _businessCalendar = businessCalendar;
+        _localizer = localizer;
     }
 
     [HttpGet]
@@ -37,6 +43,44 @@ public sealed class ReceivingController : Controller
         };
         await PopulateItemsAsync(model, cancellationToken);
         return View(model);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.StockReceive)]
+    public async Task<IActionResult> LookupBarcode(string? value, CancellationToken cancellationToken)
+    {
+        var scannedValue = value?.Trim();
+        if (string.IsNullOrEmpty(scannedValue))
+        {
+            return BadRequest(new { message = _localizer["無法解析條碼。"].Value });
+        }
+
+        Gs1BarcodeData? gs1 = null;
+        if (Gs1BarcodeParser.IsGs1Candidate(scannedValue))
+        {
+            if (!Gs1BarcodeParser.TryParse(scannedValue, out gs1))
+            {
+                return BadRequest(new { message = _localizer["無法解析條碼。"].Value });
+            }
+        }
+
+        var itemBarcode = gs1?.Gtin ?? scannedValue;
+        var item = await _dbContext.Items.AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => !candidate.IsDeleted && candidate.Barcode == itemBarcode,
+                cancellationToken);
+        if (item is null)
+        {
+            return NotFound(new { message = _localizer["這個條碼沒有對應的品項"].Value });
+        }
+
+        return Json(new
+        {
+            itemId = item.Id,
+            itemLabel = $"{item.Code} {BilingualText.Option(item.Name, item.NameEn)}",
+            expiryDate = gs1?.ExpiryDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            lotNumber = gs1?.LotNumber,
+        });
     }
 
     [HttpPost]

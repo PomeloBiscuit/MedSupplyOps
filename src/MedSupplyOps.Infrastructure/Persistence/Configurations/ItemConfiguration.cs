@@ -26,6 +26,7 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(x => x.Id).HasColumnName("ITEM_ID").ValueGeneratedOnAdd();
 
         builder.Property(x => x.Code).HasColumnName("ITEM_CODE").HasMaxLength(32).IsRequired();
+        builder.Property(x => x.Barcode).HasColumnName("BARCODE").HasMaxLength(64);
         builder.Property(x => x.Name).HasColumnName("ITEM_NAME").HasMaxLength(200).IsRequired();
         builder.Property(x => x.NameEn).HasColumnName("ITEM_NAME_EN").HasMaxLength(200);
         builder.Property(x => x.Specification).HasColumnName("SPECIFICATION").HasMaxLength(400);
