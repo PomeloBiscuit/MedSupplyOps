@@ -382,6 +382,76 @@ a:hover {
   white-space: nowrap;
 }
 
+.mso-barcode-print-area {
+    overflow-x: auto;
+    padding: 1rem;
+    color: #000;
+    background: #fff;
+}
+
+.mso-barcode-svg {
+    display: block;
+    width: 100%;
+    min-width: 36rem;
+    height: auto;
+    color: #000;
+}
+
+.mso-barcode-svg rect {
+    fill: currentColor;
+}
+
+.mso-barcode-svg text {
+    fill: currentColor;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+
+    .mso-barcode-modal.show,
+    .mso-barcode-modal.show .modal-dialog,
+    .mso-barcode-modal.show .modal-content,
+    .mso-barcode-modal.show .modal-body,
+    .mso-barcode-modal.show .mso-barcode-print-area,
+    .mso-barcode-modal.show .mso-barcode-print-area * {
+        visibility: visible !important;
+    }
+
+    .mso-barcode-modal.show {
+        position: static !important;
+        display: block !important;
+        overflow: visible !important;
+    }
+
+    .mso-barcode-modal.show .modal-dialog {
+        max-width: none;
+        margin: 0;
+    }
+
+    .mso-barcode-modal.show .modal-content {
+        border: 0;
+    }
+
+    .mso-barcode-modal.show .modal-header,
+    .mso-barcode-modal.show .modal-footer {
+        display: none !important;
+    }
+
+    .mso-barcode-modal.show .modal-body,
+    .mso-barcode-modal.show .mso-barcode-print-area {
+        padding: 0;
+    }
+
+    .mso-barcode-svg {
+        min-width: 0;
+    }
+}
+
 /* 清單首欄固定為識別欄時，未額外加 class 的舊連結也維持等寬與截斷。 */
 .mso-data-table tbody td:first-child,
 .mso-data-table tbody td:first-child a {

@@ -213,7 +213,7 @@ public sealed partial class PreferencesAndIssueQueueWebTests : IClassFixture<Req
             var lateIndex = keeperHtml.IndexOf(lateNo, StringComparison.Ordinal);
             Assert.True(earlyIndex >= 0 && earlyIndex < middleIndex && middleIndex < lateIndex);
             Assert.Contains("data-testid=\"approved-issue-queue\"", keeperHtml, StringComparison.Ordinal);
-            Assert.DoesNotContain("品項管理", keeperHtml, StringComparison.Ordinal);
+            Assert.Contains("品項管理", keeperHtml, StringComparison.Ordinal);
 
             using var requesterClient = CreateHttpsClient();
             await WebAuthTestHelpers.LoginAsync(requesterClient, TestIdentitySeeder.RequesterEmail);
@@ -222,7 +222,7 @@ public sealed partial class PreferencesAndIssueQueueWebTests : IClassFixture<Req
             Assert.DoesNotContain(earlyNo, requesterHtml, StringComparison.Ordinal);
 
             _output.WriteLine($"B-T3 庫管員佇列實際順序：{earlyNo}（09:00）→ {middleNo}（10:00）→ {lateNo}（11:00）。");
-            _output.WriteLine("B-T3 請領人首頁沒有 approved-issue-queue，也沒有上述跨科室單號；庫管員導覽沒有品項管理。");
+            _output.WriteLine("B-T3 請領人首頁沒有 approved-issue-queue，也沒有上述跨科室單號；庫管員導覽有品項管理。");
         }
         finally
         {

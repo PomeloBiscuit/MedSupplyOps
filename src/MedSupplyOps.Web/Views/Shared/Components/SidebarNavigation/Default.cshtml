@@ -5,6 +5,7 @@
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     var action = ViewContext.RouteData.Values["action"]?.ToString();
     var isAdministrator = User.IsInRole(ApplicationRoles.Administrator);
+    var canManageItems = User.IsInRole(ApplicationRoles.Storekeeper) || isAdministrator;
     var canReceiveStock = User.IsInRole(ApplicationRoles.Storekeeper) || User.IsInRole(ApplicationRoles.Administrator);
     var isCompact = Model.State == "compact";
     var isHidden = Model.State == "hidden";
@@ -51,10 +52,13 @@
                                     }
                                 </a>
                             }
-                            @if (isAdministrator)
+                            @if (canManageItems)
                             {
                                 var isCurrent = controller == "Items" && action == "Index";
                                 <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"items"' /><span>@L["品項管理"]</span></a>
+                            }
+                            @if (isAdministrator)
+                            {
                                 var isUsersCurrent = controller == "Users";
                                 <a class="mso-sidebar-link @(isUsersCurrent ? "is-current" : null)" asp-controller="Users" asp-action="Index" aria-current="@(isUsersCurrent ? "page" : null)"><partial name="_NavigationIcon" model='"users"' /><span>@L["使用者管理"]</span></a>
                             }
@@ -102,10 +106,13 @@ else
                             }
                         </a>
                     }
-                    @if (isAdministrator)
+                    @if (canManageItems)
                     {
                         var isCurrent = controller == "Items" && action == "Index";
                         <a class="mso-sidebar-link @(isCurrent ? "is-current" : null)" asp-controller="Items" asp-action="Index" aria-current="@(isCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? L["品項管理"].Value : null)"><partial name="_NavigationIcon" model='"items"' />@if (!isCompact) { <span>@L["品項管理"]</span> }</a>
+                    }
+                    @if (isAdministrator)
+                    {
                         var isUsersCurrent = controller == "Users";
                         <a class="mso-sidebar-link @(isUsersCurrent ? "is-current" : null)" asp-controller="Users" asp-action="Index" aria-current="@(isUsersCurrent ? "page" : null)" data-bs-toggle="@(isCompact ? "tooltip" : null)" data-bs-placement="@(isCompact ? "right" : null)" title="@(isCompact ? L["使用者管理"].Value : null)"><partial name="_NavigationIcon" model='"users"' />@if (!isCompact) { <span>@L["使用者管理"]</span> }</a>
                     }

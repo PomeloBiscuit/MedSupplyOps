@@ -24,6 +24,13 @@
             <label asp-for="Barcode" class="form-label"></label>
             <input asp-for="Barcode" class="form-control" maxlength="64" autocomplete="off" />
             <span asp-validation-for="Barcode" class="text-danger"></span>
+            @if (!string.IsNullOrEmpty(Model.PersistedBarcode))
+            {
+                <div class="mt-3" data-testid="persisted-barcode">
+                    <div class="form-text mb-2">@L["目前已存檔的條碼"]</div>
+                    <partial name="_Code128Barcode" model="Model.PersistedBarcode" />
+                </div>
+            }
         </div>
         <div class="col-md-6">
             <label asp-for="Name" class="form-label"></label>

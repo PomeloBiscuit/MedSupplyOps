@@ -1,4 +1,6 @@
+using MedSupplyOps.Web.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
@@ -136,6 +138,47 @@ public sealed class AuthorizationMetadataTests
             Assert.True(byController.ContainsKey(controller), $"{controller} 不在端點列舉結果裡。");
             Assert.Contains(byController[controller], item => IsTaskOfActionResult(item.Descriptor.MethodInfo.ReturnType));
         }
+    }
+
+    [Fact]
+    public async Task Item_actions_use_maintenance_policy_except_destructive_deactivation()
+    {
+        _ = _factory.CreateClient();
+        var itemEndpoints = GetControllerEndpoints()
+            .Where(item => item.Descriptor.ControllerTypeInfo.Name == "ItemsController")
+            .OrderBy(item => item.Descriptor.MethodInfo.Name, StringComparer.Ordinal)
+            .ToList();
+        Assert.NotEmpty(itemEndpoints);
+
+        foreach (var endpoint in itemEndpoints)
+        {
+            var expectedPolicy = endpoint.Descriptor.MethodInfo.Name == "Disable"
+                ? AuthorizationPolicies.ItemDeactivate
+                : AuthorizationPolicies.ItemManage;
+            var policies = endpoint.Endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
+                .Select(data => data.Policy)
+                .Where(policy => !string.IsNullOrWhiteSpace(policy))
+                .Cast<string>()
+                .ToList();
+
+            Assert.Equal([expectedPolicy], policies);
+            _output.WriteLine($"{endpoint.Name} | {expectedPolicy}");
+        }
+
+        var provider = _factory.Services.GetRequiredService<IAuthorizationPolicyProvider>();
+        var manage = Assert.IsType<RolesAuthorizationRequirement>(Assert.Single(
+            (await provider.GetPolicyAsync(AuthorizationPolicies.ItemManage))!.Requirements
+                .OfType<RolesAuthorizationRequirement>()));
+        var deactivate = Assert.IsType<RolesAuthorizationRequirement>(Assert.Single(
+            (await provider.GetPolicyAsync(AuthorizationPolicies.ItemDeactivate))!.Requirements
+                .OfType<RolesAuthorizationRequirement>()));
+
+        Assert.Equal(
+            [ApplicationRoles.Administrator, ApplicationRoles.Storekeeper],
+            manage.AllowedRoles.Order(StringComparer.Ordinal));
+        Assert.Equal([ApplicationRoles.Administrator], deactivate.AllowedRoles);
+        _output.WriteLine("ItemManage | Administrator,Storekeeper");
+        _output.WriteLine("ItemDeactivate | Administrator");
     }
 
     /// <summary>

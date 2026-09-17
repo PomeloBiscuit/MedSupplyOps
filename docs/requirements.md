@@ -54,6 +54,9 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 ### 3.1 主檔
 - **FR-101** 品項主檔 CRUD：料號、品名、規格、單位、是否管制效期、是否管制批號、安全庫存量；
   品名、規格、單位另有選填英文欄位，英文未提供時顯示原文，搜尋同時比對原文與英文。
+  庫管員與管理員可清單／新增／編輯（`ItemManage`），但停用品項只限管理員（`ItemDeactivate`）。
+  停用會讓品項從請領與入庫流程消失，屬於破壞性操作；把日常維護與停用拆成兩個 Policy 是職責分離，
+  而且同時由畫面隱藏與伺服器端授權兩層落實。
 - **FR-102** 科室主檔 CRUD：科室代碼、名稱、是否啟用；名稱另有選填英文欄位，英文未提供時顯示原文。
 - **FR-103** 使用者管理：帳號、姓名、Email、角色、啟用狀態；顯示名稱另有選填英文欄位，
   英文未提供時顯示原文，搜尋同時比對原文與英文。
@@ -65,6 +68,15 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
   的滑動窗口決定世紀：年份必須落在「基準年 − 49 年」到「基準年 + 50 年」之間，基準年取業務日曆的今天。
   （前一版固定以 50 為樞紐，只在西元 2000 年剛好等於規範；在 2026 年會把 2050～2076 年到期的品項解成
   1950～1976 年，誤判為已過期而拒收。）
+  品項清單可開啟 Code 128 條碼大圖與瀏覽器列印，編輯頁顯示目前已存檔的條碼；圖形由
+  `MedSupplyOps.Domain` 的零套件、自寫 Code 128 編碼器產生（A／B／C、mod 103、10 模組留白），Razor 逐模組輸出 SVG。
+  正式程式不依賴條碼套件；開發期間只在測試專案以 ZXing.Net 獨立解碼交叉驗證並凍結黃金值，
+  待使用者用手機實掃確認後才移除該測試套件，保留黃金值、結構不變量與手算檢查碼測試。
+
+  **移除測試套件前的實機確認**：以庫管員或管理員開啟品項清單，選一筆 ASCII 條碼按
+  「顯示條碼」；把手機螢幕亮度調高並用手機條碼掃描 App 掃描畫面上的大圖；確認 App 讀出的每個字元
+  與品項條碼完全相同；再從編輯頁核對「目前已存檔的條碼」圖形。至少各驗一筆純數字（建議 14 碼 GTIN）
+  與一筆英數／連字號混合值。確認讀值無誤後，才移除 ZXing.Net。
 
 雙語主檔採「原文欄 + `_EN` 選填欄」，不建立 translations 表。語言選擇集中在
 `BilingualText`：表格只顯示依文化選出的單一值；下拉選單在兩者都有時顯示「目前語言（另一語言）」供核對。
@@ -223,10 +235,10 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 
 | 需求 | 狀態 | 實作位置 | 驗證 |
 |---|---|---|---|
-| **FR-101** | 部分實作 | 部分：`db/schema/V009__add_bilingual_master_data.sql`、`src/MedSupplyOps.Infrastructure/Localization/BilingualText.cs`、`src/MedSupplyOps.Web/Controllers/ItemsController.cs`、`src/MedSupplyOps.Web/Views/Items`（新增／編輯／停用、雙語欄位、原文／英文搜尋、料號正規化、停用守衛已完成；`TracksLot`／`TracksExpiry` 寫死 `true`，尚無可設定畫面） | `T1_English_item_display_silently_falls_back_then_uses_the_override`、`T2_views_cannot_select_language_from_persistence_English_properties`、`T3_item_and_user_search_match_English_columns`、`T5_disable_guards_stock_and_open_requisitions_then_allows_safe_reuse_of_code`、`T6_item_code_is_trimmed_and_uppercased_before_duplicate_check`、`T7_forged_edit_post_cannot_change_code_or_unit_but_can_change_name` |
+| **FR-101** | 部分實作 | 部分：`db/schema/V009__add_bilingual_master_data.sql`、`src/MedSupplyOps.Infrastructure/Localization/BilingualText.cs`、`src/MedSupplyOps.Web/Controllers/ItemsController.cs`、`src/MedSupplyOps.Web/Views/Items`、`AuthorizationPolicies.ItemManage`／`ItemDeactivate`（庫管員與管理員可新增／編輯，停用僅管理員；雙語欄位、搜尋、料號正規化、停用守衛已完成；`TracksLot`／`TracksExpiry` 寫死 `true`，尚無可設定畫面） | `Item_actions_use_maintenance_policy_except_destructive_deactivation`、`T8_direct_endpoint_requests_enforce_both_new_policies_for_every_role_and_verb`、`Storekeeper_sees_item_management_but_not_the_deactivation_button`、`T5_disable_guards_stock_and_open_requisitions_then_allows_safe_reuse_of_code`、`T6_item_code_is_trimmed_and_uppercased_before_duplicate_check`、`T7_forged_edit_post_cannot_change_code_or_unit_but_can_change_name` |
 | **FR-102** | 延後 | 未建立：無 `DepartmentsController` 或對應維護畫面；`V009__add_bilingual_master_data.sql` 已提供選填英文名稱，既有科室選單與表格可雙語顯示 | — |
 | **FR-103** | 已實作 | `src/MedSupplyOps.Web/Controllers/UsersController.cs`、`src/MedSupplyOps.Web/Views/Users`、`src/MedSupplyOps.Infrastructure/Localization/BilingualText.cs`、`AuthorizationPolicies.UserManage`（清單與原文／英文搜尋、角色／狀態篩選、雙語顯示名、新增、編輯、停用／啟用、一次性顯示重設密碼；Identity、最後管理員守衛、SecurityStamp、User audit。**Email 建立後不可修改**——它同時是登入帳號與稽核軌跡裡的身分，畫面兩處已標示） | `T3_item_and_user_search_match_English_columns`、`T4_English_department_dropdown_is_bilingual_while_inventory_table_is_single_language`、`T1_last_administrator_and_self_guards_block_all_four_direct_posts`、`T2_requester_and_storekeeper_are_denied_by_every_user_management_endpoint`、`T3_disabled_user_gets_generic_login_failure_then_can_login_after_enable`、`T4_reset_password_is_one_time_invalidates_old_password_and_session_and_audits_no_secret`、`T5_requester_without_department_is_rejected_on_create_and_edit`、`Create_edit_and_filters_persist_identity_values_and_audit_role_and_department_without_password` |
-| **FR-104** | 已實作 | `db/schema/V010__add_item_barcode.sql`、`src/MedSupplyOps.Domain/Barcodes/Gs1BarcodeParser.cs`、`src/MedSupplyOps.Web/Controllers/ItemsController.cs`、`src/MedSupplyOps.Web/Controllers/ReceivingController.cs`、`src/MedSupplyOps.Web/Views/Items`、`src/MedSupplyOps.Web/Views/Receiving/Index.cshtml`、`src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`（條碼 schema／唯一性、主檔維護與清單、鍵盤掃描與明確錯誤、GS1 嚴格解析與帶入、庫存搜尋、英文化皆已落地，因此不是「部分實作」） | `T1_valid_01_17_10_combination_returns_all_fields`、`T1_unknown_application_identifier_rejects_the_whole_barcode`、`T2_century_follows_the_GS1_sliding_window_around_the_reference_year`、`T3_missing_barcode_returns_the_exact_message_and_GS1_lookup_returns_autofill_values`、`T4_two_null_barcodes_coexist_but_duplicate_values_are_blocked_and_web_shows_a_clear_error`、`Inventory_search_matches_barcode_alongside_item_code_and_name`、`tests/js/receiving-barcode.test.js`、P13 |
+| **FR-104** | 已實作 | `db/schema/V010__add_item_barcode.sql`、`src/MedSupplyOps.Domain/Barcodes/Gs1BarcodeParser.cs`、`Code128BarcodeEncoder.cs`、`src/MedSupplyOps.Web/Views/Shared/_Code128Barcode.cshtml`、`src/MedSupplyOps.Web/Views/Items`、`ReceivingController.cs`、`InventoryQueries.cs`（條碼唯一性、主檔維護／搜尋、Code 128 SVG／列印、鍵盤掃描、GS1 嚴格解析與英文化皆已落地；正式程式零第三方條碼相依，ZXing.Net 僅留在測試專案，待手機實掃確認後移除） | `Code128ZxingCrossValidationTests`（34 筆）、`All_107_patterns_obey_Code_128_structural_invariants`、`Independently_verified_golden_module_sequences_remain_frozen`、`Checksum_examples_match_the_modulo_103_formula`、`Valid_saved_barcode_renders_svg_on_list_and_edit_while_empty_barcode_has_no_button`、`T6_non_ASCII_barcode_returns_200_and_shows_the_localized_explanation_on_list_and_edit`、`T7_barcode_Razor_files_do_not_use_Html_Raw`、P13 |
 | **FR-201** | 已實作 | `src/MedSupplyOps.Infrastructure/Services/StockReceivingService.cs` | `T1_receiving_uses_the_Taipei_business_date_at_the_utc_boundary`、`T2_same_lot_with_different_expiry_is_rejected_then_matching_expiry_adds_atomically`、`T3_two_concurrent_receipts_of_a_new_lot_wait_for_item_lock_then_merge_into_one_row`、`T4_item_lock_timeout_returns_explicit_result_without_writes_or_audit`、P10、P11 |
 | **FR-202** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`src/MedSupplyOps.Infrastructure/Localization/BilingualText.cs`（表格依文化顯示單一語言；`storage_location` 刻意維持現場原文） | `GetItemAvailabilityAsync_sums_usable_lots_and_keeps_all_lot_details_in_FEFO_order`、`GetAvailability_returns_camel_case_fields_and_MD_0001_values`、`T4_English_department_dropdown_is_bilingual_while_inventory_table_is_single_language` |
 | **FR-203** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`src/MedSupplyOps.Web/Controllers/InventoryController.cs`（`Expiring`） | `GetExpiringLotsAsync_returns_only_usable_lots_in_requested_window`、`GetExpiring_returns_camel_case_fields_and_usable_seed_lot_values` |
@@ -249,7 +261,7 @@ MedSupplyOps 是一套**醫材耗材的請領與庫存管理系統**：
 | **SEC-3** | 已實作 | Razor 預設自動編碼；全 repo 未使用 `Html.Raw` | `Inventory_page_html_encodes_item_names_and_removes_the_probe_item` |
 | **SEC-4** | 已實作 | `src/MedSupplyOps.Web/Controllers/AccountController.cs`（`SignInManager.PasswordSignInAsync` 登入成功後由 ASP.NET Core Identity 簽發全新驗證 Cookie） | `src/MedSupplyOps.Web/Controllers/AccountController.cs` |
 | **SEC-5** | 已實作 | `src/MedSupplyOps.Web/DevelopmentConnectionString.cs`（開發連線字串來自 gitignore 的 `.env`；正式環境走環境變數） | `.gitignore` |
-| **SEC-6** | 已實作 | `src/MedSupplyOps.Web/Program.cs`（`SetFallbackPolicy` 預設拒絕，逐一 `[Authorize(Policy = ...)]`） | `Every_routed_controller_action_is_explicitly_classified`、`Deliberately_public_list_has_no_stale_entries` |
+| **SEC-6** | 已實作 | `src/MedSupplyOps.Web/Program.cs`（`SetFallbackPolicy` 預設拒絕，逐一 `[Authorize(Policy = ...)]`；品項日常維護 `ItemManage` 與破壞性停用 `ItemDeactivate` 分離） | `Every_routed_controller_action_is_explicitly_classified`、`Deliberately_public_list_has_no_stale_entries`、`Item_actions_use_maintenance_policy_except_destructive_deactivation` |
 | **SEC-7** | 已實作 | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs`、`DashboardQueries.cs`、`FhirQueries.cs`（Dapper `CommandDefinition` 具名參數，逐處手寫 SQL 皆參數化） | `src/MedSupplyOps.Infrastructure/Queries/InventoryQueries.cs` |
 | **SEC-8** | 已實作 | `src/MedSupplyOps.Web/Program.cs`（`Lockout.MaxFailedAccessAttempts = 5`、`DefaultLockoutTimeSpan = 15 分鐘`） | `src/MedSupplyOps.Web/Program.cs` |
 | **NFR-1** | 已實作 | `docker-compose.yml`（Oracle Database Free 官方映像） | `docker-compose.yml` |

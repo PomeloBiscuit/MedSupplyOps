@@ -1,6 +1,10 @@
+@using MedSupplyOps.Web.Authorization
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService AuthorizationService
 @model MedSupplyOps.Web.Models.Items.ItemIndexViewModel
 @{
     ViewData["Title"] = L["品項管理"];
+    var canDeactivateItems = (await AuthorizationService.AuthorizeAsync(User, AuthorizationPolicies.ItemDeactivate)).Succeeded;
 }
 
 <div class="mso-page">
@@ -61,17 +65,26 @@
             {
                 <tr>
                     <td class="mso-code-cell">@item.Code</td>
-                    <td class="mso-code-cell">@item.Barcode</td>
+                    <td class="mso-code-cell">
+                        @if (!string.IsNullOrEmpty(item.Barcode))
+                        {
+                            <div class="mb-1">@item.Barcode</div>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#barcode-modal-@item.Id">@L["顯示條碼"]</button>
+                        }
+                    </td>
                     <td class="text-break mso-long-text">@item.Name</td>
                     <td class="text-break">@item.Specification</td>
                     <td>@item.UnitOfMeasure</td>
                     <td class="text-end">@item.SafetyStockQty.ToString("N0")</td>
                     <td class="text-nowrap">
                         <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@item.Id">@L["編輯品項"]</a>
-                        <form asp-action="Disable" asp-route-id="@item.Id" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <button class="btn btn-sm btn-outline-danger" type="submit">@L["停用品項"]</button>
-                        </form>
+                        @if (canDeactivateItems)
+                        {
+                            <form asp-action="Disable" asp-route-id="@item.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-sm btn-outline-danger" type="submit">@L["停用品項"]</button>
+                            </form>
+                        }
                     </td>
                 </tr>
             }
@@ -79,4 +92,29 @@
     </table>
 </div>
 </section>
+
+@foreach (var item in Model.Items.Where(item => !string.IsNullOrEmpty(item.Barcode)))
+{
+    <div class="modal fade mso-barcode-modal" id="barcode-modal-@item.Id" tabindex="-1" aria-labelledby="barcode-modal-title-@item.Id" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="barcode-modal-title-@item.Id">@L["條碼"] — @item.Code</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@L["關閉"]"></button>
+                </div>
+                <div class="modal-body">
+                    <partial name="_Code128Barcode" model="item.Barcode!" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-mso-print-barcode>@L["列印"]</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["關閉"]</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 </div>
+
+@section Scripts {
+    <script src="~/js/barcode-print.js" asp-append-version="true"></script>
+}
