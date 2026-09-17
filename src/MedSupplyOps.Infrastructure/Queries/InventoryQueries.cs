@@ -182,10 +182,20 @@ public sealed class InventoryQueries
     /// </summary>
     public async Task<IReadOnlyList<InventoryItem>> GetInventoryItemsAsync(
         DateOnly asOf,
+        string? search = null,
         DbTransaction? transaction = null,
         CancellationToken cancellationToken = default)
     {
         var usableLotPredicate = UsableLotPredicate.Replace("{0}", "l", StringComparison.Ordinal);
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        var searchPredicate = normalizedSearch is null
+            ? string.Empty
+            : """
+               AND (UPPER(i.item_code) LIKE UPPER(:searchPattern)
+                    OR UPPER(i.item_name) LIKE UPPER(:searchPattern)
+                    OR UPPER(i.item_name_en) LIKE UPPER(:searchPattern)
+                    OR i.barcode LIKE :searchPattern)
+              """;
         const string sqlTemplate = """
             SELECT i.item_id AS ItemId,
                    i.item_code AS ItemCode,
@@ -210,6 +220,7 @@ public sealed class InventoryQueries
             FROM items i
             LEFT JOIN stock_lots l ON l.item_id = i.item_id
             WHERE i.is_deleted = 0
+            {searchPredicate}
             GROUP BY i.item_id,
                      i.item_code,
                      i.item_name,
@@ -222,10 +233,14 @@ public sealed class InventoryQueries
             ORDER BY i.item_code, i.item_id
             """;
         var sql = sqlTemplate.Replace("{usableLotPredicate}", usableLotPredicate, StringComparison.Ordinal);
+        sql = sql.Replace("{searchPredicate}", searchPredicate, StringComparison.Ordinal);
 
         await EnsureOpenAsync(cancellationToken);
         var asOfDate = asOf.ToDateTime(TimeOnly.MinValue);
-        var command = new CommandDefinition(sql, new { asOf = asOfDate }, transaction, cancellationToken: cancellationToken);
+        object parameters = normalizedSearch is null
+            ? new { asOf = asOfDate }
+            : new { asOf = asOfDate, searchPattern = $"%{normalizedSearch}%" };
+        var command = new CommandDefinition(sql, parameters, transaction, cancellationToken: cancellationToken);
         return (await _connection.QueryAsync<InventoryItemRow>(command))
             .Select(row => new InventoryItem(
                 decimal.ToInt64(row.ItemId),

@@ -22,10 +22,14 @@ public sealed class InventoryController : Controller
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.InventoryRead)]
-    public async Task<IActionResult> Index(DateOnly? asOf, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(DateOnly? asOf, string? search, CancellationToken cancellationToken)
     {
         var effectiveAsOf = asOf ?? _businessCalendar.Today;
-        var summaries = await _inventoryQueries.GetInventoryItemsAsync(effectiveAsOf, cancellationToken: cancellationToken);
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        var summaries = await _inventoryQueries.GetInventoryItemsAsync(
+            effectiveAsOf,
+            normalizedSearch,
+            cancellationToken: cancellationToken);
         var itemDetails = new List<InventoryItemDetailsViewModel>(summaries.Count);
         foreach (var summary in summaries)
         {
@@ -39,7 +43,7 @@ public sealed class InventoryController : Controller
                 $"{summary.ItemCode} — {BilingualText.Option(summary.ItemName, summary.ItemNameEn)}"));
         }
 
-        return View(new InventoryIndexViewModel(effectiveAsOf, itemDetails));
+        return View(new InventoryIndexViewModel(effectiveAsOf, normalizedSearch, itemDetails));
     }
 
     [HttpGet]

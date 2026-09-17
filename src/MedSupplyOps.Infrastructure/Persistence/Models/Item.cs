@@ -16,6 +16,8 @@ public sealed class Item
 
     public string Code { get; set; } = string.Empty;
 
+    public string? Barcode { get; set; }
+
     public string Name { get; set; } = string.Empty;
 
     public string? NameEn { get; set; }

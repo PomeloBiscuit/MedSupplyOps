@@ -21,6 +21,22 @@
 
     <div class="row g-3">
         <div class="col-12">
+            <label class="form-label" for="barcode-scan">@L["掃描條碼"]</label>
+            <input class="form-control"
+                   id="barcode-scan"
+                   type="text"
+                   maxlength="128"
+                   autocomplete="off"
+                   autofocus
+                   placeholder="@L["請掃描條碼後按 Enter"]"
+                   data-lookup-url="@Url.Action("LookupBarcode", "Receiving")"
+                   data-text-looking-up="@L["查詢條碼中…"]"
+                   data-text-found="@L["已帶入品項：{0}"]"
+                   data-text-query-failed="@L["條碼查詢失敗，請稍後再試。"]" />
+            <div class="form-text">@L["掃描槍以鍵盤模式輸入；掃描完成後會送出 Enter。"]</div>
+            <output class="d-block mt-2" id="barcode-scan-result" aria-live="polite"></output>
+        </div>
+        <div class="col-12">
             <label asp-for="ItemId" class="form-label"></label>
             <select asp-for="ItemId" class="form-select">
                 <option value="0">@L["請選擇品項"]</option>
@@ -33,11 +49,13 @@
         </div>
         <div class="col-md-6">
             <label asp-for="LotNumber" class="form-label"></label>
+            <span class="badge text-bg-info d-none barcode-origin" id="lot-number-barcode-origin">@L["來自條碼"]</span>
             <input asp-for="LotNumber" class="form-control" maxlength="64" autocomplete="off" />
             <span asp-validation-for="LotNumber" class="text-danger"></span>
         </div>
         <div class="col-md-6">
             <label asp-for="ExpiryDate" class="form-label"></label>
+            <span class="badge text-bg-info d-none barcode-origin" id="expiry-date-barcode-origin">@L["來自條碼"]</span>
             <input asp-for="ExpiryDate" class="form-control" type="date" />
             <span asp-validation-for="ExpiryDate" class="text-danger"></span>
         </div>
@@ -62,4 +80,5 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/receiving-barcode.js" asp-append-version="true"></script>
 }

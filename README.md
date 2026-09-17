@@ -308,6 +308,7 @@ erDiagram
         varchar ITEM_NAME_EN
         varchar SPECIFICATION_EN
         varchar UNIT_OF_MEASURE_EN
+        varchar BARCODE
     }
     REQUISITIONS {
         number REQUISITION_ID PK

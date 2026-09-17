@@ -159,6 +159,16 @@ $probes = @(
         To          = 'return DepartmentScope.Unrestricted; // 探針 D8：沒有角色也不受限'
         Verify      = '探針 D8：沒有角色也不受限'
         TestProject = 'tests/MedSupplyOps.Integration.Tests'
+    },
+    @{
+        # GS1：未知 AI 必須讓整筆解析失敗。若改成略過，合法三段後面夾一段 (21)
+        # 仍會回傳看似完整的 GTIN／效期／批號，正是醫材條碼最危險的「部分採用」。
+        Name   = 'P13 GS1 遇到未知 AI 時改成略過並繼續解析'
+        Rule   = 'FR-104 GS1 不認得就整筆拒絕'
+        File   = "$domain/Barcodes/Gs1BarcodeParser.cs"
+        From   = "default:`r`n                    return false;"
+        To     = "default:`r`n                    continue; // 探針：忽略未知 AI"
+        Verify = 'continue; // 探針：忽略未知 AI'
     }
 )
 

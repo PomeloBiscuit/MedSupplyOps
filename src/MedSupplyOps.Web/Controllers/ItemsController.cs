@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Localization;
 using Oracle.ManagedDataAccess.Client;
 
 namespace MedSupplyOps.Web.Controllers;
@@ -24,11 +25,16 @@ public sealed class ItemsController : Controller
 
     private readonly MedSupplyOpsDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
-    public ItemsController(MedSupplyOpsDbContext dbContext, ICurrentUser currentUser)
+    public ItemsController(
+        MedSupplyOpsDbContext dbContext,
+        ICurrentUser currentUser,
+        IStringLocalizer<SharedResource> localizer)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
+        _localizer = localizer;
     }
 
     [HttpGet]
@@ -41,6 +47,7 @@ public sealed class ItemsController : Controller
         {
             query = query.Where(item =>
                 item.Code.Contains(normalizedSearch) ||
+                (item.Barcode != null && item.Barcode.Contains(normalizedSearch)) ||
                 item.Name.Contains(normalizedSearch) ||
                 (item.NameEn != null && item.NameEn.Contains(normalizedSearch)) ||
                 (item.Specification != null && item.Specification.Contains(normalizedSearch)) ||
@@ -59,6 +66,7 @@ public sealed class ItemsController : Controller
             Items = items.Select(item => new ItemListRowViewModel(
                 item.Id,
                 item.Code,
+                item.Barcode,
                 BilingualText.Resolve(item.Name, item.NameEn) ?? item.Name,
                 BilingualText.Resolve(item.Specification, item.SpecificationEn),
                 BilingualText.Resolve(item.UnitOfMeasure, item.UnitOfMeasureEn) ?? item.UnitOfMeasure,
@@ -78,6 +86,7 @@ public sealed class ItemsController : Controller
         // ★ 只重新驗證被正規化過的欄位；不可以 ModelState.Clear()，那會吞掉數字欄的綁定錯誤（L-028）。
         Normalize(model);
         ModelState.Remove(nameof(model.Code));
+        ModelState.Remove(nameof(model.Barcode));
         ModelState.Remove(nameof(model.Name));
         ModelState.Remove(nameof(model.EnglishName));
         ModelState.Remove(nameof(model.Specification));
@@ -98,9 +107,17 @@ public sealed class ItemsController : Controller
             return View(model);
         }
 
+        if (model.Barcode is not null && await _dbContext.Items.AsNoTracking()
+            .AnyAsync(item => item.Barcode == model.Barcode, cancellationToken))
+        {
+            AddDuplicateBarcodeError(model.Barcode);
+            return View(model);
+        }
+
         var item = new Item
         {
             Code = model.Code,
+            Barcode = model.Barcode,
             Name = model.Name,
             NameEn = model.EnglishName,
             Specification = model.Specification,
@@ -135,6 +152,12 @@ public sealed class ItemsController : Controller
             AddDuplicateCodeError(model.Code);
             return View(model);
         }
+        catch (DbUpdateException exception) when (ContainsConstraint(exception, "UX_ITEMS_BARCODE"))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            AddDuplicateBarcodeError(model.Barcode!);
+            return View(model);
+        }
 
         TempData["SuccessMessage"] = $"品項 {item.Code} 已新增。";
         return RedirectToAction(nameof(Index));
@@ -150,6 +173,7 @@ public sealed class ItemsController : Controller
             {
                 Id = item.Id,
                 Code = item.Code,
+                Barcode = item.Barcode,
                 Name = item.Name,
                 EnglishName = item.NameEn,
                 Specification = item.Specification,
@@ -168,11 +192,12 @@ public sealed class ItemsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(
         long id,
-        [Bind("Name,EnglishName,Specification,EnglishSpecification,EnglishUnitOfMeasure,SafetyStockQty")] EditItemViewModel model,
+        [Bind("Barcode,Name,EnglishName,Specification,EnglishSpecification,EnglishUnitOfMeasure,SafetyStockQty")] EditItemViewModel model,
         CancellationToken cancellationToken)
     {
         // ★ 同 Create：安全存量送空白或非數字時，Clear() 會讓它變成 0 寫進資料庫（L-028）。
         Normalize(model);
+        ModelState.Remove(nameof(model.Barcode));
         ModelState.Remove(nameof(model.Name));
         ModelState.Remove(nameof(model.EnglishName));
         ModelState.Remove(nameof(model.Specification));
@@ -197,7 +222,15 @@ public sealed class ItemsController : Controller
             return View(model);
         }
 
+        if (model.Barcode is not null && await _dbContext.Items.AsNoTracking()
+            .AnyAsync(candidate => candidate.Id != item.Id && candidate.Barcode == model.Barcode, cancellationToken))
+        {
+            AddDuplicateBarcodeError(model.Barcode);
+            return View(model);
+        }
+
         var oldValue = ItemAuditJson(item);
+        item.Barcode = model.Barcode;
         item.Name = model.Name;
         item.NameEn = model.EnglishName;
         item.Specification = model.Specification;
@@ -206,18 +239,27 @@ public sealed class ItemsController : Controller
         item.SafetyStockQty = model.SafetyStockQty;
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-        _dbContext.AuditLogs.Add(new AuditLog
+        try
         {
-            EntityType = AuditValues.ItemEntity,
-            EntityId = item.Id.ToString(CultureInfo.InvariantCulture),
-            Action = AuditValues.UpdateAction,
-            Actor = _currentUser.Actor,
-            OccurredAt = DateTime.UtcNow,
-            OldValue = oldValue,
-            NewValue = ItemAuditJson(item),
-        });
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+            _dbContext.AuditLogs.Add(new AuditLog
+            {
+                EntityType = AuditValues.ItemEntity,
+                EntityId = item.Id.ToString(CultureInfo.InvariantCulture),
+                Action = AuditValues.UpdateAction,
+                Actor = _currentUser.Actor,
+                OccurredAt = DateTime.UtcNow,
+                OldValue = oldValue,
+                NewValue = ItemAuditJson(item),
+            });
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (ContainsConstraint(exception, "UX_ITEMS_BARCODE"))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            AddDuplicateBarcodeError(model.Barcode!);
+            return View(model);
+        }
 
         TempData["SuccessMessage"] = $"品項 {item.Code} 已更新。";
         return RedirectToAction(nameof(Index));
@@ -306,9 +348,13 @@ public sealed class ItemsController : Controller
     private void AddDuplicateCodeError(string code)
         => ModelState.AddModelError(nameof(CreateItemViewModel.Code), $"料號 {code} 已存在。");
 
+    private void AddDuplicateBarcodeError(string barcode)
+        => ModelState.AddModelError(nameof(CreateItemViewModel.Barcode), _localizer["條碼 {0} 已存在。", barcode]);
+
     private static void Normalize(CreateItemViewModel model)
     {
         model.Code = NormalizeKey(model.Code);
+        model.Barcode = NormalizeOptional(model.Barcode);
         model.Name = (model.Name ?? string.Empty).Trim();
         model.EnglishName = NormalizeOptional(model.EnglishName);
         model.Specification = NormalizeOptional(model.Specification);
@@ -319,6 +365,7 @@ public sealed class ItemsController : Controller
 
     private static void Normalize(EditItemViewModel model)
     {
+        model.Barcode = NormalizeOptional(model.Barcode);
         model.Name = (model.Name ?? string.Empty).Trim();
         model.EnglishName = NormalizeOptional(model.EnglishName);
         model.Specification = NormalizeOptional(model.Specification);
@@ -334,6 +381,7 @@ public sealed class ItemsController : Controller
     private static string ItemAuditJson(Item item) => AuditValues.ToJson(new
     {
         item.Code,
+        item.Barcode,
         item.Name,
         item.NameEn,
         item.Specification,

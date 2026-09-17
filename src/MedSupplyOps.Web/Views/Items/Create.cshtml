@@ -21,6 +21,11 @@
             <span asp-validation-for="Code" class="text-danger"></span>
         </div>
         <div class="col-md-6">
+            <label asp-for="Barcode" class="form-label"></label>
+            <input asp-for="Barcode" class="form-control" maxlength="64" autocomplete="off" />
+            <span asp-validation-for="Barcode" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
             <label asp-for="Name" class="form-label"></label>
             <input asp-for="Name" class="form-control" maxlength="200" />
             <span asp-validation-for="Name" class="text-danger"></span>

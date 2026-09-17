@@ -44,6 +44,7 @@
         <thead>
             <tr>
                 <th scope="col">@L["料號"]</th>
+                <th scope="col">@L["條碼"]</th>
                 <th scope="col">@L["名稱"]</th>
                 <th scope="col">@L["規格"]</th>
                 <th scope="col">@L["單位"]</th>
@@ -54,12 +55,13 @@
         <tbody>
             @if (Model.Items.Count == 0)
             {
-                <tr><td colspan="6" class="mso-empty-state text-center">@L["目前沒有可管理的品項。"]</td></tr>
+                <tr><td colspan="7" class="mso-empty-state text-center">@L["目前沒有可管理的品項。"]</td></tr>
             }
             @foreach (var item in Model.Items)
             {
                 <tr>
                     <td class="mso-code-cell">@item.Code</td>
+                    <td class="mso-code-cell">@item.Barcode</td>
                     <td class="text-break mso-long-text">@item.Name</td>
                     <td class="text-break">@item.Specification</td>
                     <td>@item.UnitOfMeasure</td>
