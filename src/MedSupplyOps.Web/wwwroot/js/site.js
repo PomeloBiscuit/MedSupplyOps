@@ -15,7 +15,6 @@ function cycleMsoSidebar() {
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-bs-toggle='tooltip']").forEach((element) => new bootstrap.Tooltip(element));
   document.querySelectorAll("[data-mso-sidebar-toggle]").forEach((button) => button.addEventListener("click", cycleMsoSidebar));
-  initializeSidebarResizer();
   document.querySelectorAll("[data-mso-preference]").forEach((input) => input.addEventListener("change", () => {
     if (!input.checked) return;
     setMsoPreference(input.dataset.msoPreference, input.value);
@@ -80,78 +79,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeAccountDialog(accountDialog);
   });
 });
-
-function initializeSidebarResizer() {
-  const handle = document.querySelector("[data-mso-sidebar-resizer]");
-  const sidebar = handle?.closest(".mso-sidebar-expanded");
-  if (!(handle instanceof HTMLElement) || !(sidebar instanceof HTMLElement)) return;
-
-  const minimum = Number(handle.getAttribute("aria-valuemin"));
-  const maximum = Number(handle.getAttribute("aria-valuemax"));
-  const defaultWidth = Number(handle.dataset.defaultWidth);
-  const isWideViewport = () => window.matchMedia("(min-width: 992px)").matches;
-  const clamp = (width) => Math.min(maximum, Math.max(minimum, Math.round(width)));
-  const currentWidth = () => clamp(Number(handle.getAttribute("aria-valuenow")) || defaultWidth);
-  const applyWidth = (width) => {
-    const next = clamp(width);
-    sidebar.style.setProperty("--mso-sidebar-width", `${next}px`);
-    sidebar.dataset.sidebarWidth = String(next);
-    handle.setAttribute("aria-valuenow", String(next));
-    return next;
-  };
-  const saveWidth = (width) => setMsoPreference("mso-sidebar-width", String(width));
-
-  let pointerId = null;
-  let pointerStartX = 0;
-  let widthAtPointerStart = currentWidth();
-
-  handle.addEventListener("pointerdown", (event) => {
-    if (!isWideViewport() || event.button !== 0) return;
-    event.preventDefault();
-    pointerId = event.pointerId;
-    pointerStartX = event.clientX;
-    widthAtPointerStart = currentWidth();
-    handle.setPointerCapture(pointerId);
-    handle.classList.add("is-dragging");
-    document.body.classList.add("mso-sidebar-resizing");
-  });
-
-  handle.addEventListener("pointermove", (event) => {
-    if (event.pointerId !== pointerId) return;
-    applyWidth(widthAtPointerStart + event.clientX - pointerStartX);
-  });
-
-  handle.addEventListener("pointerup", (event) => {
-    if (event.pointerId !== pointerId) return;
-    const width = applyWidth(widthAtPointerStart + event.clientX - pointerStartX);
-    handle.releasePointerCapture(pointerId);
-    pointerId = null;
-    handle.classList.remove("is-dragging");
-    document.body.classList.remove("mso-sidebar-resizing");
-    saveWidth(width);
-  });
-
-  handle.addEventListener("pointercancel", (event) => {
-    if (event.pointerId !== pointerId) return;
-    applyWidth(widthAtPointerStart);
-    pointerId = null;
-    handle.classList.remove("is-dragging");
-    document.body.classList.remove("mso-sidebar-resizing");
-  });
-
-  handle.addEventListener("keydown", (event) => {
-    if (!isWideViewport() || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
-    event.preventDefault();
-    const delta = event.key === "ArrowLeft" ? -16 : 16;
-    saveWidth(applyWidth(currentWidth() + delta));
-  });
-
-  handle.addEventListener("dblclick", (event) => {
-    if (!isWideViewport()) return;
-    event.preventDefault();
-    saveWidth(applyWidth(defaultWidth));
-  });
-}
 
 function initializeAccountDialog(root) {
   root.querySelectorAll("[data-mso-password-toggle]").forEach((button) => button.addEventListener("click", () => {

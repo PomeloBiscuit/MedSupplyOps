@@ -701,7 +701,7 @@ html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
 .mso-app-shell-hidden { flex-direction: column; }
 
 /* 側欄寬度由伺服器端驗證過的偏好值設定；內容與使用者選單可以跨出欄界。 */
-.mso-sidebar { position: relative; display: flex; overflow: visible; flex: 0 0 var(--mso-sidebar-width, 216px); flex-direction: column; min-height: 100vh; background: var(--mso-navy); color: #fff; }
+.mso-sidebar { position: relative; display: flex; overflow: visible; flex: 0 0 180px; flex-direction: column; min-height: 100vh; background: var(--mso-navy); color: #fff; }
 
 /* 半收折態依規格保留 64px 圖示列。 */
 .mso-sidebar-compact { flex-basis: 64px; align-items: center; padding: .875rem 0; }
@@ -802,12 +802,15 @@ html[data-mso-theme="contrast"] .text-danger { color: #a20000 !important; }
 /* 圖示列收起文字以維持 64px 欄寬。 */
 .mso-sidebar-compact .mso-user-summary, .mso-sidebar-compact .mso-user-chevron { display: none; }
 
-/* 展開態右緣提供 8px 命中區；焦點與 hover 只強調中央細線。 */
-.mso-sidebar-resizer { position: absolute; top: 0; right: -4px; bottom: 0; z-index: 1030; width: 8px; cursor: col-resize; touch-action: none; }
-.mso-sidebar-resizer::after { position: absolute; top: 0; right: 3px; bottom: 0; width: 2px; background: transparent; content: ""; transition: background-color .15s ease; }
-.mso-sidebar-resizer:hover::after, .mso-sidebar-resizer:focus-visible::after, .mso-sidebar-resizer.is-dragging::after { background: var(--mso-info); }
-.mso-sidebar-resizer:focus-visible { outline: 2px solid var(--mso-info); outline-offset: -2px; }
-body.mso-sidebar-resizing { cursor: col-resize; user-select: none; }
+/* 側欄右緣的拖曳把手：8px 命中區，只強調中央細線。
+   展開時往左拖收合、圖示列時往右拖展開、offcanvas 往左拖關閉；寬度本身固定。 */
+.mso-sidebar-drag-handle { position: absolute; top: 0; right: -4px; bottom: 0; z-index: 1030; width: 8px; cursor: ew-resize; touch-action: none; }
+.mso-sidebar-drag-handle::after { position: absolute; top: 0; right: 3px; bottom: 0; width: 2px; background: transparent; content: ""; transition: background-color .15s ease, width .15s ease; }
+.mso-sidebar-drag-handle:hover::after, .mso-sidebar-drag-handle:focus-visible::after, .mso-sidebar-drag-handle.is-dragging::after { background: var(--mso-info); }
+/* 拖過門檻時線條加粗，告訴使用者「現在放開就會切換」。 */
+.mso-sidebar-drag-handle.is-armed::after { width: 4px; right: 2px; background: var(--mso-warning); }
+.mso-sidebar-drag-handle:focus-visible { outline: 2px solid var(--mso-info); outline-offset: -2px; }
+body.mso-sidebar-dragging { cursor: ew-resize; user-select: none; }
 
 /* 內容區自動延伸並讓全站頁尾位於同一版面欄，而非側欄之下。 */
 .mso-app-content { display: flex; min-width: 0; flex: 1; flex-direction: column; }
@@ -828,7 +831,10 @@ body.mso-sidebar-resizing { cursor: col-resize; user-select: none; }
 .mso-compact-brand { color: var(--mso-navy); font-size: .9375rem; font-weight: 700; text-decoration: none; }
 
 /* offcanvas 跟隨同一個寬度偏好，但在窄螢幕最多只佔 82vw。 */
-.mso-navigation-offcanvas { width: min(var(--mso-sidebar-width, 216px), 82vw); background: var(--mso-navy); color: #fff; }
+/* ★ 不能直接寫 width：Bootstrap 的 .offcanvas.offcanvas-start（兩個 class）權重比這裡高，
+   會以 width: var(--bs-offcanvas-width)（預設 400px）蓋掉。從側欄改版以來，這裡寫的寬度
+   一次都沒生效過——瀏覽器實測 computed width 一直是 400px。改設 Bootstrap 自己讀的變數。見 L-040。 */
+.mso-navigation-offcanvas { --bs-offcanvas-width: min(180px, 82vw); background: var(--mso-navy); color: #fff; }
 
 /* Bootstrap 顯示完成後明確移除 transform，讓 fixed Popper 以 viewport 為包含區塊。 */
 .mso-navigation-offcanvas.show:not(.hiding) { transform: none; }
@@ -865,7 +871,7 @@ body.mso-sidebar-resizing { cursor: col-resize; user-select: none; }
 
    使用者若偏好保留文字，偏好選單裡可以改成「上方導覽列」。 */
 @media (max-width: 991.98px) {
-  .mso-sidebar-resizer { display: none; }
+  .mso-sidebar .mso-sidebar-drag-handle { display: none; }
   .mso-sidebar-expanded { flex-basis: 64px; align-items: center; padding: .875rem 0; }
   .mso-sidebar-expanded .mso-sidebar-brand-row { flex-direction: column; padding: 0; gap: .5rem; }
   /* 64px 放不下「MedSupplyOps」，又不想用 ::before 假造一個字；直接讓品牌讓位，

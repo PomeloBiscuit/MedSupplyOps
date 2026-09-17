@@ -1,4 +1,3 @@
-using System.Globalization;
 using MedSupplyOps.Domain.Requisitions;
 using MedSupplyOps.Infrastructure.Identity;
 using MedSupplyOps.Infrastructure.Localization;
@@ -16,9 +15,10 @@ namespace MedSupplyOps.Web.ViewComponents;
 /// <summary>左側導覽的單一請求讀取模型；角標只在這裡計算一次，避免展開／收折版重複查詢。</summary>
 public sealed class SidebarNavigationViewComponent : ViewComponent
 {
-    private const int DefaultSidebarWidth = 216;
-    private const int MinimumSidebarWidth = 180;
-    private const int MaximumSidebarWidth = 360;
+    // ★ 寬度固定，不提供調寬。使用者要的是「拖曳手勢收合／展開」，不是連續調整寬度；
+    //   第一版做成可調寬（還存 cookie），是把參考介面上的「Drag to resize」照字面實作了。
+    private const int ExpandedSidebarWidth = 180;
+    private const int CompactSidebarWidth = 64;
 
     private readonly MedSupplyOpsDbContext _dbContext;
     private readonly InventoryQueries _inventoryQueries;
@@ -52,7 +52,7 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
         var displayName = user is null
             ? actor
             : BilingualText.Resolve(user.DisplayName, user.DisplayNameEn) ?? actor;
-        var sidebarWidth = ParseSidebarWidth(HttpContext.Request.Cookies["mso-sidebar-width"]);
+        var sidebarWidth = normalizedState == "compact" ? CompactSidebarWidth : ExpandedSidebarWidth;
         var model = new SidebarNavigationViewModel(
             normalizedState,
             sidebarWidth,
@@ -89,16 +89,6 @@ public sealed class SidebarNavigationViewComponent : ViewComponent
         }
 
         return View(model);
-    }
-
-    private static int ParseSidebarWidth(string? cookieValue)
-    {
-        if (!int.TryParse(cookieValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var width))
-        {
-            return DefaultSidebarWidth;
-        }
-
-        return Math.Clamp(width, MinimumSidebarWidth, MaximumSidebarWidth);
     }
 
     private static string RoleName(System.Security.Claims.ClaimsPrincipal user)
