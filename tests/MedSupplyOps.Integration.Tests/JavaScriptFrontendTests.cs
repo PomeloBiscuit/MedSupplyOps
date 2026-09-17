@@ -4,11 +4,15 @@ using Xunit.Abstractions;
 namespace MedSupplyOps.Integration.Tests;
 
 /// <summary>
-/// ★ 前端的競態邏輯（後發的可用量請求必須贏）寫在 <c>wwwroot/js</c>，C# 的測試碰不到它。
+/// ★ 前端邏輯（可用量的競態、掃描條碼的輸入處理）寫在 <c>wwwroot/js</c>，C# 的測試碰不到。
 ///
-/// 所以它有一支 Node 測試：<c>tests/js/requisition-availability.test.js</c>。
-/// 但**沒有人會跑的測試等於不存在** —— 它原本不在任何一道關卡裡，
-/// 誰把那段邏輯改壞都不會有紅燈。這支測試的唯一職責就是把它接進第二道關卡。
+/// 所以 <c>tests/js/</c> 底下有 Node 測試。但**沒有人會跑的測試等於不存在**——
+/// 這支測試的唯一職責就是把它們接進第二道關卡。
+///
+/// ★ 跑的是「<c>tests/js/</c> 底下所有 <c>*.test.js</c>」，不是寫死的檔名清單。
+///   第一版只寫死了一個檔名，後來新增的 <c>receiving-barcode.test.js</c> 就成了孤兒：
+///   它自己跑是綠的，但沒有任何關卡會去跑它。寫死清單等於要求每個新增測試的人
+///   都記得回來改這裡——那不會發生。
 ///
 /// ★ 環境沒有 Node 時：**明確標示跳過，而不是安靜地通過**。
 ///   README 只要求 .NET SDK 10 與 Docker（冷啟驗證也是照那兩項做的），
@@ -28,18 +32,27 @@ public sealed class JavaScriptFrontendTests
     public void Frontend_race_condition_tests_pass_when_node_is_available()
     {
         var repositoryRoot = FindRepositoryRoot();
-        var testFile = Path.Combine(repositoryRoot, "tests", "js", "requisition-availability.test.js");
-        Assert.True(File.Exists(testFile), $"找不到前端測試檔：{testFile}");
+        var testFiles = Directory.GetFiles(Path.Combine(repositoryRoot, "tests", "js"), "*.test.js")
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        // 至少要有目前已知的兩支。少於這個數字代表有人把測試搬走或改了副檔名，
+        // 而這條測試會在「零個檔案」時安靜地通過——那正是要防的事。
+        Assert.True(testFiles.Length >= 2, $"tests/js 底下只找到 {testFiles.Length} 支 *.test.js，預期至少 2 支。");
 
         if (!TryRun("node", "--version", repositoryRoot, out _, out _))
         {
             _output.WriteLine("★ 這台機器沒有 Node，前端競態測試被跳過 —— 這不是通過。");
             _output.WriteLine("  要驗證它，請安裝 Node 後重跑，或直接執行：");
-            _output.WriteLine("  node --test tests/js/requisition-availability.test.js");
+            _output.WriteLine("  node --test " + string.Join(" ", testFiles.Select(path => Path.GetRelativePath(repositoryRoot, path))));
             return;
         }
 
-        var succeeded = TryRun("node", $"--test \"{testFile}\"", repositoryRoot, out var output, out var exitCode);
+        // 逐一列出檔案路徑，不交給 node 自己展開目錄或萬用字元：
+        // Node 25 把目錄參數當成單一檔案處理會直接失敗，而萬用字元的展開又依殼層而異。
+        var arguments = "--test " + string.Join(" ", testFiles.Select(path => $"\"{path}\""));
+        var succeeded = TryRun("node", arguments, repositoryRoot, out var output, out var exitCode);
+        _output.WriteLine($"執行了 {testFiles.Length} 支前端測試檔：{string.Join("、", testFiles.Select(Path.GetFileName))}");
         _output.WriteLine(output);
         Assert.True(succeeded && exitCode == 0, $"前端競態測試失敗（exit {exitCode}）：{Environment.NewLine}{output}");
     }

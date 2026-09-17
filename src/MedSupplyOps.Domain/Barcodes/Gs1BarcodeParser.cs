@@ -26,10 +26,21 @@ public static class Gs1BarcodeParser
     }
 
     /// <summary>
-    /// 將 GS1 的兩位數年份轉成固定世紀：00–49 是 2000–2049，50–99 是 1950–1999。
-    /// 固定樞紐不依賴執行當下年份，確保同一個醫材條碼永遠得到相同效期。
+    /// 解析 GS1 的 (01)／(17)／(10)。
+    ///
+    /// ★ (17) 效期是 YYMMDD，沒有世紀。GS1 General Specifications §7.12 規定的是
+    ///   「以當年為基準、往前 49 年到往後 50 年」的滑動窗口，**不是**固定在某一年的樞紐。
+    ///
+    ///   前一版用固定樞紐（00–49 → 2000–2049、50–99 → 1950–1999），理由是
+    ///   「不依賴執行當下年份，同一個條碼永遠得到相同效期」。但那個規則只在西元 2000 年
+    ///   剛好等於規範；在 2026 年，YY = 50–76 會被解成 1950–1976，差一百年 ——
+    ///   一批 2050 年到期的貨會被判成已過期而拒收。而且錯的範圍每年都在擴大。
+    ///   滑動窗口對一個條碼在其產品壽命內（前後約 50 年）的解讀是穩定的，
+    ///   「決定性」的顧慮在實務上不成立。
+    ///
+    ///   基準日由呼叫端傳入（取自 BusinessCalendar），這個函式本身仍是純函式、不讀時鐘。
     /// </summary>
-    public static bool TryParse(string? value, out Gs1BarcodeData? result)
+    public static bool TryParse(string? value, DateOnly referenceDate, out Gs1BarcodeData? result)
     {
         result = null;
         if (string.IsNullOrWhiteSpace(value))
@@ -63,7 +74,7 @@ public static class Gs1BarcodeParser
                     gtin = element.Value;
                     break;
                 case "17":
-                    if (expiryDate is not null || !TryParseExpiry(element.Value, out var parsedExpiry))
+                    if (expiryDate is not null || !TryParseExpiry(element.Value, referenceDate.Year, out var parsedExpiry))
                     {
                         return false;
                     }
@@ -184,7 +195,7 @@ public static class Gs1BarcodeParser
         return true;
     }
 
-    private static bool TryParseExpiry(string value, out DateOnly expiryDate)
+    private static bool TryParseExpiry(string value, int referenceYear, out DateOnly expiryDate)
     {
         expiryDate = default;
         if (value.Length != 6 || !IsAsciiDigits(value))
@@ -193,7 +204,7 @@ public static class Gs1BarcodeParser
         }
 
         var twoDigitYear = int.Parse(value.AsSpan(0, 2), CultureInfo.InvariantCulture);
-        var year = twoDigitYear <= 49 ? 2000 + twoDigitYear : 1900 + twoDigitYear;
+        var year = ResolveCentury(twoDigitYear, referenceYear);
         var month = int.Parse(value.AsSpan(2, 2), CultureInfo.InvariantCulture);
         var day = int.Parse(value.AsSpan(4, 2), CultureInfo.InvariantCulture);
         return DateOnly.TryParseExact(
@@ -202,6 +213,26 @@ public static class Gs1BarcodeParser
             CultureInfo.InvariantCulture,
             DateTimeStyles.None,
             out expiryDate);
+    }
+
+    /// <summary>
+    /// GS1 §7.12：年份必須落在 [基準年 − 49, 基準年 + 50]。
+    /// 先放進基準年的世紀，超出上界就退一個世紀、低於下界就進一個世紀。
+    /// </summary>
+    private static int ResolveCentury(int twoDigitYear, int referenceYear)
+    {
+        var candidate = referenceYear / 100 * 100 + twoDigitYear;
+        if (candidate > referenceYear + 50)
+        {
+            return candidate - 100;
+        }
+
+        if (candidate < referenceYear - 49)
+        {
+            return candidate + 100;
+        }
+
+        return candidate;
     }
 
     private static bool IsAsciiDigits(string value) => value.All(char.IsAsciiDigit);

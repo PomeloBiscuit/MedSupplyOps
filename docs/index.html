@@ -85,8 +85,8 @@ footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
     這份作品想回答的不是「用了哪些技術」，而是 —— <strong style="color:var(--ink)">你怎麼知道它是對的？</strong>
   </p>
   <div class="facts">
-    <div class="fact"><b>211</b><span>條測試，整合測試全部跑真實 Oracle</span></div>
-    <div class="fact"><b>12+5</b><span>支鑑別力探針（程式碼／資料庫層）</span></div>
+    <div class="fact"><b>249</b><span>條測試，整合測試全部跑真實 Oracle</span></div>
+    <div class="fact"><b>13+5</b><span>支鑑別力探針（程式碼／資料庫層）</span></div>
     <div class="fact"><b>6</b><span>道關卡，每次提交全跑</span></div>
   </div>
   <p style="margin-top:26px">
@@ -112,7 +112,7 @@ footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
   <p>所以這個專案的重點是：<strong>為每一條這樣的規則，設計一個能區分對錯的驗證</strong>。</p>
   <h3>六道關卡，每次提交都全跑</h3>
   <pre><code>dotnet build   MedSupplyOps.slnx     # 編譯 + 分析器（警告即錯誤）
-dotnet test    MedSupplyOps.slnx     # 211 條測試
+dotnet test    MedSupplyOps.slnx     # 249 條測試
 dotnet format  --verify-no-changes   # 格式與命名
 scripts/mutation-probe.ps1           # ★ 鑑別力探針：證明測試真的測得到
 scripts/generate-er-diagram.ps1 -Check   # ★ ER 圖漂移檢查
@@ -143,6 +143,7 @@ scripts/check-db-clean.ps1           # ★ 測試不得在資料庫留下殘留<
       <tr><td>P10 入庫拿掉品項列的鎖</td><td>同品項的新批號入庫必須序列化</td><td>2 條</td></tr>
       <tr><td>P11 入庫的過期判定差一天</td><td>效期當天仍可入庫</td><td>1 條</td></tr>
       <tr><td>P12 首頁「沒有角色」的範圍改回「不受限」</td><td>沒有角色的帳號不得看到全院資料</td><td>1 條</td></tr>
+      <tr><td>P13 GS1 遇到不認得的應用識別碼時改成略過</td><td>不認得就整筆拒絕，不可部分採用</td><td>1 條</td></tr>
     </tbody>
   </table>
   <p>
