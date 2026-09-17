@@ -31,7 +31,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 211 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 249 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mutation-probe.ps1                # ★ 鑑別力探針
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-er-diagram.ps1 -Check    # ★ ER 圖漂移檢查
@@ -62,6 +62,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 | **P10 入庫拿掉品項列的 `FOR UPDATE`** | **同品項的新批號入庫必須序列化** | **2 條變紅** |
 | **P11 入庫的過期判定 `<` 改成 `<=`** | **效期當天仍可入庫** | **1 條變紅** |
 | **P12 首頁「沒有角色」的範圍改回「不受限」** | **沒有任何角色的帳號不得看到全院資料** | **1 條變紅** |
+| **P13 GS1 遇到不認得的應用識別碼時改成略過並繼續解析** | **FR-104 不認得就整筆拒絕，不可部分採用** | **1 條變紅** |
 
 另有 5 支**資料庫層**探針（直接寫入壞資料，確認被限制條件擋下）：
 負數庫存 → `ORA-02290`；不存在的狀態值 → `ORA-02290`；已駁回但無原因 → `ORA-02290`；
@@ -205,8 +206,8 @@ EF Core 對映到它，不是反過來。三個 Oracle 專屬的決定：
 ## 專案數字
 
 ```
-211 條測試（Domain 48 + Integration 163，整合測試全部跑真實 Oracle）
-12 支程式碼探針 + 5 支資料庫探針 + ER 圖與需求追溯漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
+249 條測試（Domain 71 + Integration 178，整合測試全部跑真實 Oracle；另有 2 支前端 Node 測試由整合測試代跑）
+13 支程式碼探針 + 5 支資料庫探針 + ER 圖與需求追溯漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```
 

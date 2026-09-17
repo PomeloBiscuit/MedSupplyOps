@@ -58,7 +58,7 @@ public sealed class ReceivingController : Controller
         Gs1BarcodeData? gs1 = null;
         if (Gs1BarcodeParser.IsGs1Candidate(scannedValue))
         {
-            if (!Gs1BarcodeParser.TryParse(scannedValue, out gs1))
+            if (!Gs1BarcodeParser.TryParse(scannedValue, _businessCalendar.Today, out gs1))
             {
                 return BadRequest(new { message = _localizer["無法解析條碼。"].Value });
             }
