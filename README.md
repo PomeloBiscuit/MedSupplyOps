@@ -2,7 +2,7 @@
 
 醫材耗材的**請領與庫存管理系統**。C# / ASP.NET Core MVC + Web API / Oracle。
 
-三種角色（請領人、庫管員、管理員）、14 張資料表、FEFO 先到期先出自動配批、
+三種角色（請領人、庫管員、管理員）、15 張資料表、FEFO 先到期先出自動配批、
 只增不改不刪的稽核軌跡。介面支援繁體中文與英文、亮色／暗色／高對比主題。
 
 ---
@@ -207,9 +207,7 @@ ASP.NET Core Identity 的標準結構，同樣手寫 DDL。
 
 每一項的完整理由見 [`docs/requirements.md`](docs/requirements.md) §4 與 §7。
 
----
-
-## 關聯綱目
+### 實體關係圖（從 Oracle 資料字典自動產生）
 
 <!-- ER-DIAGRAM:BEGIN 本區塊由 scripts/generate-er-diagram.ps1 從 Oracle 資料字典產生，請勿手動編輯 -->
 ```mermaid
@@ -396,6 +394,131 @@ erDiagram
 包含你正在看的這一份。文件不會偷偷過期。
 
 同一份內容也存成 [`docs/diagrams/schema.mmd`](docs/diagrams/schema.mmd)。
+
+---
+
+## ER 圖（Chen 記法）
+
+這張概念圖用矩形表示實體、菱形表示關聯、圓形表示代表性屬性；屬性名稱後的 `*`
+表示主鍵。關聯兩端的 `1`、`N`、`M` 則標示基數，完整欄位仍以後面的關聯綱目為準。
+
+「配發」是 M:N 關聯：一筆請領明細可能要跨數個批次，依先到期先出湊足數量；同一批次也可能
+分給多筆明細。「配發數量」既不單獨屬於請領明細，也不單獨屬於批次，它描述的是「這筆明細
+從這個批次拿了幾個」，所以掛在「配發」關聯上。
+
+<!-- CHEN-DIAGRAM:BEGIN -->
+```mermaid
+flowchart LR
+    DEPARTMENT["科室"]
+    USER["使用者"]
+    ROLE["角色"]
+    ITEM["品項"]
+    LOCATION["儲藏位置"]
+    LOT["批次"]
+    REQUISITION["請領單"]
+    LINE["請領明細"]
+    AUDIT["稽核紀錄"]
+
+    R_BELONGS{"隸屬"}
+    R_ASSIGNS{"擔任"}
+    R_SUBMITS{"提出"}
+    R_CONTAINS{"包含"}
+    R_REQUESTS{"請領"}
+    R_HOLDS{"持有"}
+    R_STORED_AT{"存放於"}
+    R_ALLOCATES{"配發"}
+    R_LEAVES{"留下"}
+
+    DEPARTMENT ---|"1"| R_BELONGS
+    R_BELONGS ---|"N"| USER
+    USER ---|"M"| R_ASSIGNS
+    R_ASSIGNS ---|"N"| ROLE
+    DEPARTMENT ---|"1"| R_SUBMITS
+    R_SUBMITS ---|"N"| REQUISITION
+    REQUISITION ---|"1"| R_CONTAINS
+    R_CONTAINS ---|"N"| LINE
+    LINE ---|"N"| R_REQUESTS
+    R_REQUESTS ---|"1"| ITEM
+    ITEM ---|"1"| R_HOLDS
+    R_HOLDS ---|"N"| LOT
+    LOT ---|"N"| R_STORED_AT
+    R_STORED_AT ---|"1"| LOCATION
+    LINE ---|"M"| R_ALLOCATES
+    R_ALLOCATES ---|"N"| LOT
+    USER ---|"1"| R_LEAVES
+    R_LEAVES ---|"N"| AUDIT
+
+    DEPARTMENT --- A_DEPARTMENT_ID(("科室編號*"))
+    DEPARTMENT --- A_DEPARTMENT_CODE(("科室代碼"))
+    DEPARTMENT --- A_DEPARTMENT_NAME(("科室名稱"))
+    USER --- A_USER_ID(("使用者編號*"))
+    USER --- A_USER_NAME(("帳號"))
+    USER --- A_DISPLAY_NAME(("顯示名稱"))
+    USER --- A_EMPLOYEE_NO(("員工編號"))
+    ROLE --- A_ROLE_ID(("角色編號*"))
+    ROLE --- A_ROLE_NAME(("角色名稱"))
+    ITEM --- A_ITEM_ID(("品項編號*"))
+    ITEM --- A_ITEM_CODE(("料號"))
+    ITEM --- A_ITEM_NAME(("品名"))
+    ITEM --- A_SAFETY_STOCK(("安全存量"))
+    ITEM --- A_BARCODE(("條碼"))
+    LOCATION --- A_LOCATION_ID(("位置編號*"))
+    LOCATION --- A_LOCATION_CODE(("位置代碼"))
+    LOCATION --- A_LOCATION_NAME(("位置名稱"))
+    LOT --- A_LOT_ID(("批次編號*"))
+    LOT --- A_LOT_NUMBER(("批號"))
+    LOT --- A_EXPIRY_DATE(("效期"))
+    LOT --- A_LOT_QUANTITY(("數量"))
+    REQUISITION --- A_REQUISITION_ID(("請領單編號*"))
+    REQUISITION --- A_REQUISITION_NO(("單號"))
+    REQUISITION --- A_STATUS(("狀態"))
+    REQUISITION --- A_REJECTION_REASON(("駁回原因"))
+    LINE --- A_LINE_ID(("明細編號*"))
+    LINE --- A_LINE_NO(("行號"))
+    LINE --- A_REQUESTED_QUANTITY(("請領數量"))
+    AUDIT --- A_AUDIT_ID(("稽核編號*"))
+    AUDIT --- A_ACTION(("動作"))
+    AUDIT --- A_OCCURRED_AT(("發生時間"))
+    AUDIT --- A_VALUES(("異動前後值"))
+    R_ALLOCATES --- A_ALLOCATED_QUANTITY(("配發數量"))
+```
+<!-- CHEN-DIAGRAM:END -->
+
+> **概念關聯與實體外鍵的差異：**「存放於」與「留下」在概念上成立，但實體設計刻意不做外鍵。
+> 批次以名稱對應儲藏位置，原因記在 [`docs/requirements.md`](docs/requirements.md) 的 FR-105 附近；
+> 稽核紀錄則以帳號文字保存操作者，即使帳號停用，紀錄仍能完整保留。因此下一節的關聯綱目中，
+> 這兩條關聯沒有箭頭；這是刻意的設計，不是漏畫。
+
+Chen 圖是人工維護的概念模型，以下對照表由整合測試和 Oracle 資料字典交叉檢查，避免概念名稱或
+資料表在演進時悄悄脫節。
+
+<!-- CONCEPT-TABLE:BEGIN -->
+| 概念 | 資料表 |
+|---|---|
+| 科室 | `DEPARTMENTS` |
+| 使用者 | `IDENTITY_USERS` |
+| 角色 | `IDENTITY_ROLES` |
+| 擔任（關聯） | `IDENTITY_USER_ROLES` |
+| 品項 | `ITEMS` |
+| 儲藏位置 | `STORAGE_LOCATIONS` |
+| 批次 | `STOCK_LOTS` |
+| 請領單 | `REQUISITIONS` |
+| 請領明細 | `REQUISITION_LINES` |
+| 配發（關聯） | `ISSUE_ALLOCATIONS` |
+| 稽核紀錄 | `AUDIT_LOGS` |
+| —（Identity 標準表，本系統未使用） | `IDENTITY_USER_CLAIMS`、`IDENTITY_USER_LOGINS`、`IDENTITY_USER_TOKENS`、`IDENTITY_ROLE_CLAIMS` |
+<!-- CONCEPT-TABLE:END -->
+
+---
+
+## 關聯綱目
+
+這張圖把上面的 ER 圖落成實際資料表：每一列是一張表，每個格子是一個欄位，底線標示主鍵，
+箭頭從外鍵欄位指向它參照的主鍵；實線、虛線與點線分別呈現外鍵的刪除規則。這張圖和前面的
+鴉爪式實體關係圖都由 `scripts/generate-er-diagram.ps1` 從 Oracle 資料字典自動產生，並由
+`-Check` 關卡逐位元組比對，因此不會和資料庫結構脫節。
+
+![關聯綱目](docs/diagrams/relational-schema.svg)
 
 ---
 
