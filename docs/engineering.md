@@ -31,7 +31,7 @@
 
 ```bash
 dotnet build MedSupplyOps.slnx --nologo                                    # 編譯 + 型別檢查 + 分析器（警告即錯誤）
-dotnet test  MedSupplyOps.slnx --nologo                                    # 249 條測試
+dotnet test  MedSupplyOps.slnx --nologo                                    # 334 條測試
 dotnet format MedSupplyOps.slnx --verify-no-changes --verbosity minimal    # 格式與命名
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mutation-probe.ps1                # ★ 鑑別力探針
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-er-diagram.ps1 -Check    # ★ ER 圖漂移檢查
@@ -45,7 +45,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 > **不能區分「修前」與「修後」的驗證，等於沒有驗證。**
 
 測試全綠只代表「測試沒有失敗」，**不代表「測試測得到那件事」**。
-所以 [`scripts/mutation-probe.ps1`](scripts/mutation-probe.ps1) 會自動把實作**故意改壞 12 次**，
+所以 [`scripts/mutation-probe.ps1`](scripts/mutation-probe.ps1) 會自動把實作**故意改壞 13 次**，
 每次確認對應的測試變紅，再還原並複驗回到基線：
 
 | 探針 | 對應規則 | 結果 |
@@ -72,7 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 只有它能證明「**不該擋的沒有誤擋**」。少了它，一個「永遠拒絕」的索引也會讓前四支全過。
 
 **探針抓到過的真問題**（不是理論上的）：
-我寫過一條叫「決定性測試」的測試，探針把它要驗的排序鍵整條拿掉之後，**48 條測試依然全綠** ——
+我寫過一條叫「決定性測試」的測試，探針把它要驗的排序鍵整條拿掉之後，**當時的測試依然全綠** ——
 因為測試資料剛好讓兩種排序鍵給出相同答案。那條測試從頭到尾沒有在測它宣稱要測的東西，
 而且**光讀測試碼是看不出來的**。
 
@@ -206,7 +206,7 @@ EF Core 對映到它，不是反過來。三個 Oracle 專屬的決定：
 ## 專案數字
 
 ```
-249 條測試（Domain 71 + Integration 178，整合測試全部跑真實 Oracle；另有 2 支前端 Node 測試由整合測試代跑）
+334 條測試（Domain 120 + Integration 214，整合測試全部跑真實 Oracle；另有 2 支前端 Node 測試由整合測試代跑）
 13 支程式碼探針 + 5 支資料庫探針 + ER 圖與需求追溯漂移關卡 + 啟動煙霧測試 + 資料庫殘留檢查
 端點授權涵蓋檢查（讀執行期 metadata）+ 資料字典編碼檢查 + 備份還原演練
 ```

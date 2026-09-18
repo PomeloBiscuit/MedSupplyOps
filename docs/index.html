@@ -85,7 +85,7 @@ footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
     這份作品想回答的不是「用了哪些技術」，而是 —— <strong style="color:var(--ink)">你怎麼知道它是對的？</strong>
   </p>
   <div class="facts">
-    <div class="fact"><b>249</b><span>條測試，整合測試全部跑真實 Oracle</span></div>
+    <div class="fact"><b>334</b><span>條測試，整合測試全部跑真實 Oracle</span></div>
     <div class="fact"><b>13+5</b><span>支鑑別力探針（程式碼／資料庫層）</span></div>
     <div class="fact"><b>6</b><span>道關卡，每次提交全跑</span></div>
   </div>
@@ -112,7 +112,7 @@ footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
   <p>所以這個專案的重點是：<strong>為每一條這樣的規則，設計一個能區分對錯的驗證</strong>。</p>
   <h3>六道關卡，每次提交都全跑</h3>
   <pre><code>dotnet build   MedSupplyOps.slnx     # 編譯 + 分析器（警告即錯誤）
-dotnet test    MedSupplyOps.slnx     # 249 條測試
+dotnet test    MedSupplyOps.slnx     # 334 條測試
 dotnet format  --verify-no-changes   # 格式與命名
 scripts/mutation-probe.ps1           # ★ 鑑別力探針：證明測試真的測得到
 scripts/generate-er-diagram.ps1 -Check   # ★ ER 圖漂移檢查
@@ -126,7 +126,7 @@ scripts/check-db-clean.ps1           # ★ 測試不得在資料庫留下殘留<
   <p class="quote">不能區分「修前」與「修後」的驗證，等於沒有驗證。</p>
   <p>
     測試全綠只代表「測試沒有失敗」，不代表「測試測得到那件事」。
-    所以有一支腳本會自動把實作<strong>故意改壞 12 次</strong>，每次確認對應的測試變紅，再還原並複驗回到基線：
+    所以有一支腳本會自動把實作<strong>故意改壞 13 次</strong>，每次確認對應的測試變紅，再還原並複驗回到基線：
   </p>
   <table>
     <thead><tr><th>探針</th><th>對應規則</th><th>變紅</th></tr></thead>
@@ -138,8 +138,8 @@ scripts/check-db-clean.ps1           # ★ 測試不得在資料庫留下殘留<
       <tr><td>P5 狀態機偷開一條非法轉換</td><td>非法轉換須被拒絕</td><td>2 條</td></tr>
       <tr><td>P6 駁回不再要求填原因</td><td>駁回須填原因</td><td>1 條</td></tr>
       <tr><td>P7 拿掉發料的 <code>SELECT … FOR UPDATE</code></td><td>並發不得超發</td><td>3 條</td></tr>
-      <tr><td>P8 拿掉查詢服務的 DI 註冊</td><td>正式組裝必須完整</td><td>6 條</td></tr>
-      <tr><td>P9 整張單發料改成「跳過失敗的明細繼續」</td><td>整張單原子發料</td><td>5 條</td></tr>
+      <tr><td>P8 拿掉查詢服務的 DI 註冊</td><td>正式組裝必須完整</td><td>9 條</td></tr>
+      <tr><td>P9 整張單發料改成「跳過失敗的明細繼續」</td><td>整張單原子發料</td><td>6 條</td></tr>
       <tr><td>P10 入庫拿掉品項列的鎖</td><td>同品項的新批號入庫必須序列化</td><td>2 條</td></tr>
       <tr><td>P11 入庫的過期判定差一天</td><td>效期當天仍可入庫</td><td>1 條</td></tr>
       <tr><td>P12 首頁「沒有角色」的範圍改回「不受限」</td><td>沒有角色的帳號不得看到全院資料</td><td>1 條</td></tr>
@@ -153,7 +153,7 @@ scripts/check-db-clean.ps1           # ★ 測試不得在資料庫留下殘留<
   </p>
   <div class="note">
     <strong>探針抓到過的真問題。</strong>
-    專案裡有一條叫「決定性測試」的測試，探針把它要驗的排序鍵整條拿掉之後，48 條測試依然全綠 ——
+    專案裡有一條叫「決定性測試」的測試，探針把它要驗的排序鍵整條拿掉之後，當時的測試依然全綠 ——
     因為測試資料剛好讓兩種排序鍵給出相同答案。那條測試從頭到尾沒有在測它宣稱要測的東西，
     而且<strong>光讀測試碼是看不出來的</strong>。
   </div>

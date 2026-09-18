@@ -24,29 +24,32 @@ public sealed class InventoryQueriesTests
             new { itemCode = "MD-0001" });
 
         var result = await queries.GetItemAvailabilityAsync(itemId, Today);
+        var expectedAvailableQuantity = await connection.QuerySingleAsync<decimal>(
+            """
+            SELECT NVL(SUM(CASE
+                       WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN l.quantity
+                       ELSE 0
+                   END), 0)
+            FROM items i
+            LEFT JOIN stock_lots l ON l.item_id = i.item_id
+            WHERE i.item_id = :itemId
+              AND i.is_deleted = 0
+            """,
+            new { itemId, asOf = Today.ToDateTime(TimeOnly.MinValue) });
+        var expectedLotNumbers = await connection.QueryAsync<string>(
+            """
+            SELECT lot_number
+            FROM stock_lots
+            WHERE item_id = :itemId
+            ORDER BY expiry_date, lot_number, stock_lot_id
+            """,
+            new { itemId });
 
-        Assert.Equal(210, result.AvailableQuantity);
-        Assert.Equal(
-            ["GLO-EXPIRED-01", "GLO-FEFO-A", "GLO-FEFO-B", "GLO-FEFO-C", "GLO-FEFO-D"],
-            result.Lots.Select(lot => lot.LotNumber));
-        Assert.False(result.Lots[0].IsAvailable);
-        Assert.All(result.Lots.Skip(1), lot => Assert.True(lot.IsAvailable));
-
-        var lots = result.Lots
-            .Where(lot => lot.IsAvailable)
-            .Select(lot => new StockLot(
-                lot.StockLotId,
-                itemId,
-                lot.LotNumber,
-                lot.ExpiryDate,
-                lot.Quantity,
-                lot.StorageLocation));
-        var expectedFefo = FefoAllocator.Allocate(lots, 210, Today);
-
-        Assert.True(expectedFefo.IsSuccess);
-        Assert.Equal(
-            expectedFefo.Allocations.Select(allocation => allocation.LotNumber),
-            result.Lots.Where(lot => lot.IsAvailable).Select(lot => lot.LotNumber));
+        Assert.Equal(decimal.ToInt32(expectedAvailableQuantity), result.AvailableQuantity);
+        Assert.Equal(expectedLotNumbers, result.Lots.Select(lot => lot.LotNumber));
+        Assert.All(
+            result.Lots,
+            lot => Assert.Equal(lot.Quantity > 0 && lot.ExpiryDate >= Today, lot.IsAvailable));
     }
 
     [Fact]
@@ -56,19 +59,24 @@ public sealed class InventoryQueriesTests
         var queries = new InventoryQueries(connection);
 
         var result = await queries.GetExpiringLotsAsync(45, Today);
+        var expectedLotIds = await connection.QueryAsync<decimal>(
+            """
+            SELECT l.stock_lot_id
+            FROM stock_lots l
+            INNER JOIN items i ON i.item_id = l.item_id
+            WHERE i.is_deleted = 0
+              AND l.quantity > 0
+              AND l.expiry_date >= :asOf
+              AND l.expiry_date <= :expiresBy
+            ORDER BY l.expiry_date, l.lot_number, l.stock_lot_id
+            """,
+            new
+            {
+                asOf = Today.ToDateTime(TimeOnly.MinValue),
+                expiresBy = Today.AddDays(45).ToDateTime(TimeOnly.MinValue),
+            });
 
-        // ★ 斷言只針對種子資料（品號 MD-*），不對「整個資料庫的內容」下斷言。
-        //   這支查詢的語意本來就是「回傳所有 N 天內到期的批次」，
-        //   所以其他測試或使用者新增的資料出現在結果裡是**正確行為**，不是缺陷。
-        //   原本寫成整組相等，等於假設資料庫永遠只有種子資料 ——
-        //   任何人加一筆近效期的批次都會讓它變紅，而紅的原因跟這支查詢無關。
-        var seeded = result.Where(lot => lot.ItemCode.StartsWith("MD-", StringComparison.Ordinal)).ToList();
-        Assert.Equal(
-            ["GAUZE-01", "GLO-FEFO-A", "GLO-FEFO-B"],
-            seeded.Select(lot => lot.LotNumber));
-
-        // 這兩條仍然對「所有回傳結果」斷言 —— 它們檢查的是查詢自己的篩選條件，
-        // 不論資料庫裡有什麼，回傳的每一筆都必須符合。
+        Assert.Equal(expectedLotIds.Select(decimal.ToInt64), result.Select(lot => lot.StockLotId));
         Assert.All(result, lot => Assert.True(lot.Quantity > 0));
         Assert.All(result, lot => Assert.InRange(lot.ExpiryDate, Today, Today.AddDays(45)));
     }
@@ -80,13 +88,40 @@ public sealed class InventoryQueriesTests
         var queries = new InventoryQueries(connection);
 
         var result = await queries.GetItemsBelowSafetyStockAsync(Today);
+        var expected = (await connection.QueryAsync<ExpectedLowStockItem>(
+            """
+            SELECT i.item_id AS ItemId,
+                   i.item_code AS ItemCode,
+                   i.safety_stock_qty AS SafetyStockQuantity,
+                   NVL(SUM(CASE
+                       WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN l.quantity
+                       ELSE 0
+                   END), 0) AS AvailableQuantity
+            FROM items i
+            LEFT JOIN stock_lots l ON l.item_id = i.item_id
+            WHERE i.is_deleted = 0
+              AND i.item_code LIKE 'MD-%'
+            GROUP BY i.item_id, i.item_code, i.safety_stock_qty
+            HAVING NVL(SUM(CASE
+                       WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN l.quantity
+                       ELSE 0
+                   END), 0) < i.safety_stock_qty
+            ORDER BY i.item_code, i.item_id
+            """,
+            new { asOf = Today.ToDateTime(TimeOnly.MinValue) })).AsList();
+        var actual = result.Where(item => item.ItemCode.StartsWith("MD-", StringComparison.Ordinal)).ToList();
 
-        // 同上：只對種子資料斷言。這支查詢回傳的是全庫低於安全存量的品項，
-        // 其他測試造的品項出現在裡面並不是缺陷。
-        var seeded = result.Where(item => item.ItemCode.StartsWith("MD-", StringComparison.Ordinal)).ToList();
-        Assert.Equal(["MD-0002", "MD-0003"], seeded.Select(item => item.ItemCode));
-        Assert.Equal((100, 0), (seeded[0].SafetyStockQuantity, seeded[0].AvailableQuantity));
-        Assert.Equal((60, 20), (seeded[1].SafetyStockQuantity, seeded[1].AvailableQuantity));
+        Assert.Equal(
+            expected.Select(item => (
+                decimal.ToInt64(item.ItemId),
+                item.ItemCode,
+                decimal.ToInt32(item.SafetyStockQuantity),
+                decimal.ToInt32(item.AvailableQuantity))),
+            actual.Select(item => (
+                item.ItemId,
+                item.ItemCode,
+                item.SafetyStockQuantity,
+                item.AvailableQuantity)));
     }
 
     [Fact]
@@ -121,4 +156,12 @@ public sealed class InventoryQueriesTests
 
     private static DbTransaction GetDbTransaction(IDbContextTransaction transaction)
         => transaction.GetDbTransaction();
+
+    private sealed class ExpectedLowStockItem
+    {
+        public decimal ItemId { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
+        public decimal SafetyStockQuantity { get; set; }
+        public decimal AvailableQuantity { get; set; }
+    }
 }

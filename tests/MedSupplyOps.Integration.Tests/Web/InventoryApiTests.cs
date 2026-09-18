@@ -47,27 +47,62 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
         Assert.True(root.TryGetProperty("itemId", out var itemIdProperty));
         Assert.False(root.TryGetProperty("ItemId", out _));
         Assert.Equal(itemId, itemIdProperty.GetInt64());
-        Assert.Equal(210, root.GetProperty("availableQuantity").GetInt32());
-        Assert.Equal(await GetLotExpiryDateAsync("GLO-FEFO-A"), root.GetProperty("earliestUsableExpiry").GetString());
-        Assert.Equal("GLO-EXPIRED-01", root.GetProperty("lots")[0].GetProperty("lotNumber").GetString());
-        Assert.False(root.GetProperty("lots")[0].GetProperty("isAvailable").GetBoolean());
+        Assert.Equal(await GetAvailableQuantityAsync(itemId, Today), root.GetProperty("availableQuantity").GetInt32());
+        Assert.Equal(await GetEarliestUsableExpiryAsync(itemId, Today), root.GetProperty("earliestUsableExpiry").GetString());
+        var expiredLot = root.GetProperty("lots").EnumerateArray()
+            .Single(lot => lot.GetProperty("lotNumber").GetString() == "GLO-EXPIRED-01");
+        Assert.False(expiredLot.GetProperty("isAvailable").GetBoolean());
     }
 
     [Fact]
-    public async Task GetAvailability_keeps_zero_quantity_lot_but_excludes_it_from_MD_0003_availability()
+    public async Task GetAvailability_keeps_zero_quantity_lot_but_excludes_it_from_availability()
     {
-        var itemId = await GetItemIdAsync("MD-0003");
-        var response = await _client.GetAsync($"/api/items/{itemId}/availability?asOf={Today:yyyy-MM-dd}");
+        var itemCode = "ITEST-ZERO-" + Guid.NewGuid().ToString("N")[..10];
+        var lotNumber = "ITEST-ZERO-LOT-" + Guid.NewGuid().ToString("N")[..8];
+        var asOf = TestBusinessCalendar.Today;
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        var root = json.RootElement;
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO items (
+                item_code, item_name, specification, unit_of_measure,
+                tracks_lot, tracks_expiry, safety_stock_qty, created_by
+            ) VALUES (
+                :itemCode, '零數量批次測試品項', '測試規格', '件',
+                1, 1, 0, 'itest'
+            )
+            """,
+            new { itemCode });
+        var itemId = await GetItemIdAsync(itemCode);
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO stock_lots (
+                item_id, lot_number, expiry_date, quantity, storage_location, created_by
+            ) VALUES (
+                :itemId, :lotNumber, :expiryDate, 0, '中央庫房-A01', 'itest'
+            )
+            """,
+            new { itemId, lotNumber, expiryDate = asOf.AddDays(30).ToDateTime(TimeOnly.MinValue) });
 
-        Assert.Equal(20, root.GetProperty("availableQuantity").GetInt32());
-        var zeroLot = root.GetProperty("lots").EnumerateArray()
-            .Single(lot => lot.GetProperty("lotNumber").GetString() == "IVSET-ZERO-01");
-        Assert.Equal(0, zeroLot.GetProperty("quantity").GetInt32());
-        Assert.False(zeroLot.GetProperty("isAvailable").GetBoolean());
+        try
+        {
+            var response = await _client.GetAsync($"/api/items/{itemId}/availability?asOf={asOf:yyyy-MM-dd}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = json.RootElement;
+
+            Assert.Equal(0, root.GetProperty("availableQuantity").GetInt32());
+            var zeroLot = Assert.Single(root.GetProperty("lots").EnumerateArray());
+            Assert.Equal(lotNumber, zeroLot.GetProperty("lotNumber").GetString());
+            Assert.Equal(0, zeroLot.GetProperty("quantity").GetInt32());
+            Assert.False(zeroLot.GetProperty("isAvailable").GetBoolean());
+        }
+        finally
+        {
+            await connection.ExecuteAsync("DELETE FROM stock_lots WHERE item_id = :itemId", new { itemId });
+            await connection.ExecuteAsync("DELETE FROM items WHERE item_id = :itemId", new { itemId });
+        }
     }
 
     [Fact]
@@ -84,7 +119,7 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
         Assert.False(gloveLot.TryGetProperty("StockLotId", out _));
         Assert.Equal(JsonValueKind.Number, stockLotId.ValueKind);
         Assert.Equal("MD-0001", gloveLot.GetProperty("itemCode").GetString());
-        Assert.Equal(40, gloveLot.GetProperty("quantity").GetInt32());
+        Assert.Equal(await GetLotQuantityAsync("GLO-FEFO-A"), gloveLot.GetProperty("quantity").GetInt32());
         Assert.Equal(await GetLotExpiryDateAsync("GLO-FEFO-A"), gloveLot.GetProperty("expiryDate").GetString());
     }
 
@@ -137,6 +172,51 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
             "SELECT expiry_date FROM stock_lots WHERE lot_number = :lotNumber",
             new { lotNumber });
         return DateOnly.FromDateTime(expiryDate).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<int> GetLotQuantityAsync(string lotNumber)
+    {
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        return await connection.QuerySingleAsync<int>(
+            "SELECT quantity FROM stock_lots WHERE lot_number = :lotNumber",
+            new { lotNumber });
+    }
+
+    private static async Task<int> GetAvailableQuantityAsync(long itemId, DateOnly asOf)
+    {
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        var quantity = await connection.QuerySingleAsync<decimal>(
+            """
+            SELECT NVL(SUM(CASE
+                       WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN l.quantity
+                       ELSE 0
+                   END), 0)
+            FROM items i
+            LEFT JOIN stock_lots l ON l.item_id = i.item_id
+            WHERE i.item_id = :itemId
+              AND i.is_deleted = 0
+            """,
+            new { itemId, asOf = asOf.ToDateTime(TimeOnly.MinValue) });
+        return decimal.ToInt32(quantity);
+    }
+
+    private static async Task<string?> GetEarliestUsableExpiryAsync(long itemId, DateOnly asOf)
+    {
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        var expiryDate = await connection.QuerySingleAsync<DateTime?>(
+            """
+            SELECT MIN(l.expiry_date)
+            FROM items i
+            LEFT JOIN stock_lots l ON l.item_id = i.item_id
+            WHERE i.item_id = :itemId
+              AND i.is_deleted = 0
+              AND l.quantity > 0
+              AND l.expiry_date >= :asOf
+            """,
+            new { itemId, asOf = asOf.ToDateTime(TimeOnly.MinValue) });
+        return expiryDate is null
+            ? null
+            : DateOnly.FromDateTime(expiryDate.Value).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     public sealed class InventoryWebApplicationFactory : WebApplicationFactory<Program>
