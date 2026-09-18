@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="670" viewBox="0 0 980 670" role="img" aria-labelledby="title description">
+  <title id="title">MEDSUPPLY 帳號、權限與稽核關聯綱目</title>
+  <desc id="description">每列代表一張資料表；箭頭由外鍵指向被參照的主鍵；摘要格收起非鍵值的簿記欄位。</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 0 0 L 10 5 L 0 10 z" fill="#40566d"/></marker></defs>
+  <rect x="0" y="0" width="980" height="670" fill="#ffffff"/>
+  <g class="table" data-table="AUDIT_LOGS">
+    <rect x="82" y="28" width="190" height="34" fill="#e7eef6" stroke="#6f8295"/>
+    <text x="177" y="50" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="13" font-weight="700" fill="#162536">AUDIT_LOGS</text>
+    <rect x="290" y="28" width="120" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="350" y="50" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="700" fill="#162536">AUDIT_LOG_ID</text>
+    <line x1="308" y1="54" x2="392" y2="54" stroke="#162536" stroke-width="1"/>
+    <rect x="410" y="28" width="112" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="466" y="50" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">ENTITY_TYPE</text>
+    <rect x="522" y="28" width="96" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="570" y="50" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">ENTITY_ID</text>
+    <rect x="618" y="28" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="664" y="50" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">ACTION</text>
+    <rect x="710" y="28" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="756" y="50" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">ACTOR</text>
+    <rect x="802" y="28" width="112" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="858" y="50" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">OCCURRED_AT</text>
+    <rect x="290" y="74" width="96" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="338" y="96" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">OLD_VALUE</text>
+    <rect x="386" y="74" width="96" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="434" y="96" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">NEW_VALUE</text>
+  </g>
+  <g class="table" data-table="DEPARTMENTS">
+    <rect x="82" y="132" width="190" height="34" fill="#e7eef6" stroke="#6f8295"/>
+    <text x="177" y="154" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="13" font-weight="700" fill="#162536">DEPARTMENTS</text>
+    <rect x="290" y="132" width="128" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="354" y="154" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="700" fill="#162536">DEPARTMENT_ID</text>
+    <line x1="308" y1="158" x2="400" y2="158" stroke="#162536" stroke-width="1"/>
+    <rect x="418" y="132" width="144" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="490" y="154" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">DEPARTMENT_CODE</text>
+    <rect x="562" y="132" width="144" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="634" y="154" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">DEPARTMENT_NAME</text>
+    <rect x="706" y="132" width="96" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="754" y="154" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">IS_ACTIVE</text>
+    <rect x="802" y="132" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="848" y="154" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">NAME_EN</text>
+    <rect x="290" y="187" width="122" height="34" fill="#eef1f4" stroke="#8c9aa8"/>
+    <text x="351" y="209" text-anchor="middle" font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" font-size="12" font-style="italic" fill="#4c5d6c">＋ 稽核欄位</text>
+  </g>
+  <g class="table" data-table="IDENTITY_ROLES">
+    <rect x="82" y="245" width="190" height="34" fill="#e7eef6" stroke="#6f8295"/>
+    <text x="177" y="267" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="13" font-weight="700" fill="#162536">IDENTITY_ROLES</text>
+    <rect x="290" y="245" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="336" y="267" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="700" fill="#162536">ID</text>
+    <line x1="329" y1="271" x2="343" y2="271" stroke="#162536" stroke-width="1"/>
+    <rect x="382" y="245" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="428" y="267" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">NAME</text>
+    <rect x="474" y="245" width="146" height="34" fill="#eef1f4" stroke="#8c9aa8"/>
+    <text x="547" y="267" text-anchor="middle" font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" font-size="12" font-style="italic" fill="#4c5d6c">＋ Identity 內建欄位</text>
+  </g>
+  <g class="table" data-table="IDENTITY_USERS">
+    <rect x="82" y="312" width="190" height="34" fill="#e7eef6" stroke="#6f8295"/>
+    <text x="177" y="334" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="13" font-weight="700" fill="#162536">IDENTITY_USERS</text>
+    <rect x="290" y="312" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="336" y="334" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="700" fill="#162536">ID</text>
+    <line x1="329" y1="338" x2="343" y2="338" stroke="#162536" stroke-width="1"/>
+    <rect x="382" y="312" width="96" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="430" y="334" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">USER_NAME</text>
+    <rect x="478" y="312" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="524" y="334" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">EMAIL</text>
+    <rect x="570" y="312" width="120" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="630" y="334" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">DISPLAY_NAME</text>
+    <rect x="690" y="312" width="128" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="754" y="334" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">DEPARTMENT_ID</text>
+    <rect x="818" y="312" width="112" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="874" y="334" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">EMPLOYEE_NO</text>
+    <rect x="290" y="376" width="144" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="362" y="398" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="400" fill="#162536">DISPLAY_NAME_EN</text>
+    <rect x="434" y="376" width="146" height="34" fill="#eef1f4" stroke="#8c9aa8"/>
+    <text x="507" y="398" text-anchor="middle" font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" font-size="12" font-style="italic" fill="#4c5d6c">＋ Identity 內建欄位</text>
+  </g>
+  <g class="table" data-table="IDENTITY_USER_ROLES">
+    <rect x="82" y="434" width="190" height="34" fill="#e7eef6" stroke="#6f8295"/>
+    <text x="177" y="456" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="13" font-weight="700" fill="#162536">IDENTITY_USER_ROLES</text>
+    <rect x="290" y="434" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="336" y="456" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="700" fill="#162536">USER_ID</text>
+    <line x1="312" y1="460" x2="360" y2="460" stroke="#162536" stroke-width="1"/>
+    <rect x="382" y="434" width="92" height="34" fill="#ffffff" stroke="#8c9aa8"/>
+    <text x="428" y="456" text-anchor="middle" font-family="Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace" font-size="12" font-weight="700" fill="#162536">ROLE_ID</text>
+    <line x1="404" y1="460" x2="452" y2="460" stroke="#162536" stroke-width="1"/>
+  </g>
+  <g class="foreign-key" data-constraint="FK_IDENTITY_USERS_DEPARTMENT" data-source="IDENTITY_USERS.DEPARTMENT_ID" data-target="DEPARTMENTS.DEPARTMENT_ID" data-delete-rule="NO ACTION"><title>IDENTITY_USERS.DEPARTMENT_ID → DEPARTMENTS.DEPARTMENT_ID (NO ACTION)</title><path d="M 754 346 V 353 H 24 V 173 H 354 V 166" fill="none" stroke="#40566d" stroke-width="1.5" stroke-dasharray="8 6" marker-end="url(#arrow)"/></g>
+  <g class="foreign-key" data-constraint="FK_IDENTITY_USER_ROLES_ROLE" data-source="IDENTITY_USER_ROLES.ROLE_ID" data-target="IDENTITY_ROLES.ID" data-delete-rule="NO ACTION"><title>IDENTITY_USER_ROLES.ROLE_ID → IDENTITY_ROLES.ID (NO ACTION)</title><path d="M 428 468 V 475 H 38 V 286 H 336 V 279" fill="none" stroke="#40566d" stroke-width="1.5" stroke-dasharray="8 6" marker-end="url(#arrow)"/></g>
+  <g class="foreign-key" data-constraint="FK_IDENTITY_USER_ROLES_USER" data-source="IDENTITY_USER_ROLES.USER_ID" data-target="IDENTITY_USERS.ID" data-delete-rule="NO ACTION"><title>IDENTITY_USER_ROLES.USER_ID → IDENTITY_USERS.ID (NO ACTION)</title><path d="M 336 468 V 484 H 52 V 362 H 336 V 346" fill="none" stroke="#40566d" stroke-width="1.5" stroke-dasharray="8 6" marker-end="url(#arrow)"/></g>
+  <g class="legend" font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" fill="#263746">
+    <rect x="82" y="516" width="876" height="138" rx="6" fill="#f7f9fb" stroke="#c6d0da"/>
+    <line x1="100" y1="538" x2="147" y2="538" stroke="#40566d" stroke-width="2"/><text x="156" y="543" font-size="12">CASCADE</text>
+    <line x1="237" y1="538" x2="284" y2="538" stroke="#40566d" stroke-width="2" stroke-dasharray="8 6"/><text x="293" y="543" font-size="12">NO ACTION / RESTRICT</text>
+    <line x1="472" y1="538" x2="519" y2="538" stroke="#40566d" stroke-width="2" stroke-dasharray="2 5"/><text x="528" y="543" font-size="12">SET NULL</text><text x="642" y="543" font-size="12" font-weight="700">底線＝主鍵</text>
+    <text x="100" y="566" font-size="11">本 schema 沒有 ON DELETE CASCADE，所以所有箭頭都是虛線。</text>
+    <text x="100" y="588" font-size="11">稽核欄位：IS_DELETED、DELETED_AT、DELETED_BY、CREATED_AT、CREATED_BY、</text>
+    <text x="100" y="605" font-size="11">UPDATED_AT、UPDATED_BY、ROW_VERSION。</text>
+    <text x="100" y="627" font-size="11">Identity 內建欄位：NORMALIZED_*、EMAIL_CONFIRMED、PASSWORD_HASH、SECURITY_STAMP、CONCURRENCY_STAMP、</text>
+    <text x="100" y="644" font-size="11">PHONE_*、TWO_FACTOR_ENABLED、LOCKOUT_*、ACCESS_FAILED_COUNT。</text>
+  </g>
+</svg>

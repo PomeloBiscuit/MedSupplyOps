@@ -80,6 +80,65 @@ Docker 會直接改寫 iptables/WinNAT，Windows 防火牆規則擋不住它，
 
 ## 使用操作
 
+以下網站架構依實際 Controller、畫面標題與授權原則整理；括號標示可見角色。
+
+<!-- SITE-MAP:BEGIN -->
+```mermaid
+flowchart TB
+    MEDSUPPLYOPS["MedSupplyOps"] --> LOGIN["登入（所有訪客）"]
+    LOGIN --> REGISTER["註冊（所有訪客）"]
+    LOGIN --> DASHBOARD["首頁儀表板（依角色）"]
+
+    DASHBOARD --> INVENTORY["INVENTORY　庫存查詢（請領人／庫管員／管理員）"]
+    INVENTORY --> INVENTORY_INDEX["庫存查詢"]
+    INVENTORY --> INVENTORY_EXPIRING["效期預警"]
+
+    DASHBOARD --> REQUISITIONS["REQUISITIONS　請領單（請領人／庫管員／管理員）"]
+    REQUISITIONS --> REQUISITIONS_INDEX["請領單／請領單列表（全角色）"]
+    REQUISITIONS --> REQUISITIONS_CREATE["建立請領單（請領人／管理員）"]
+    REQUISITIONS --> REQUISITIONS_DETAILS["請領單詳情（全角色）"]
+    REQUISITIONS --> REQUISITIONS_REVIEW["審核動作：核准／駁回（庫管員／管理員）"]
+    REQUISITIONS --> REQUISITIONS_ISSUE["發料動作（庫管員／管理員）"]
+
+    DASHBOARD --> RECEIVING["RECEIVING　入庫（庫管員／管理員）"]
+    RECEIVING --> RECEIVING_INDEX["入庫／掃描條碼帶入"]
+
+    DASHBOARD --> ITEMS["ITEMS　品項管理（庫管員／管理員）"]
+    ITEMS --> ITEMS_INDEX["品項管理／品項主檔"]
+    ITEMS --> ITEMS_CREATE["新增品項"]
+    ITEMS --> ITEMS_EDIT["編輯品項"]
+    ITEMS --> ITEMS_BARCODE["條碼顯示與列印"]
+    ITEMS --> ITEMS_DISABLE["停用品項（僅管理員）"]
+
+    DASHBOARD --> STORAGELOCATIONS["STORAGELOCATIONS　儲藏位置管理（庫管員／管理員）"]
+    STORAGELOCATIONS --> STORAGELOCATIONS_INDEX["儲藏位置管理／儲藏位置主檔"]
+    STORAGELOCATIONS --> STORAGELOCATIONS_CREATE["新增儲藏位置"]
+    STORAGELOCATIONS --> STORAGELOCATIONS_EDIT["編輯儲藏位置／編輯英文名稱"]
+    STORAGELOCATIONS --> STORAGELOCATIONS_DISABLE["停用位置（僅管理員）"]
+
+    DASHBOARD --> USERS["USERS　使用者管理（僅管理員）"]
+    USERS --> USERS_INDEX["使用者管理／使用者清單"]
+    USERS --> USERS_CREATE["新增使用者"]
+    USERS --> USERS_EDIT["編輯使用者"]
+    USERS --> USERS_ENABLE["停用／啟用"]
+    USERS --> USERS_RESET["重設密碼／密碼已重設"]
+
+    DASHBOARD --> ACCOUNT["ACCOUNT　帳號（已登入使用者）"]
+    ACCOUNT --> ACCOUNT_PROFILE["個人資料"]
+    ACCOUNT --> ACCOUNT_PASSWORD["變更密碼"]
+    ACCOUNT --> ACCOUNT_LOGOUT["登出"]
+
+    DASHBOARD --> PREFERENCES["PREFERENCES　偏好設定（已登入使用者）"]
+    PREFERENCES --> PREFERENCES_CULTURE["語言"]
+    PREFERENCES --> PREFERENCES_TIMEZONE["顯示時區"]
+    PREFERENCES --> PREFERENCES_THEME["主題"]
+    PREFERENCES --> PREFERENCES_DENSITY["表格密度"]
+    PREFERENCES --> PREFERENCES_NAVIGATION["導覽版面"]
+
+    MEDSUPPLYOPS -. 非頁面 .-> INTEGRATIONS["Web API／FHIR 唯讀介接（庫管員／管理員）"]
+```
+<!-- SITE-MAP:END -->
+
 登入後的首頁會依角色顯示不同的工作儀表板 —— 它是工作起點，不是介紹頁。
 
 ### 請領人
@@ -399,98 +458,30 @@ erDiagram
 
 ## ER 圖（Chen 記法）
 
-這張概念圖用矩形表示實體、菱形表示關聯、圓形表示代表性屬性；屬性名稱後的 `*`
-表示主鍵。關聯兩端的 `1`、`N`、`M` 則標示基數，完整欄位仍以後面的關聯綱目為準。
+概念圖用矩形表示實體、菱形表示關聯、橢圓表示代表性屬性；屬性文字的底線表示主鍵。
+實體與關聯之間的雙線表示全部參與、單線表示部分參與，線旁的 `1`、`N`、`M` 表示基數。
+例如：每張請領單一定由某個科室提出，所以請領單那一側是雙線；科室可以一張單都沒提，所以是單線。
+完整欄位仍以後面的關聯綱目為準。
 
 「配發」是 M:N 關聯：一筆請領明細可能要跨數個批次，依先到期先出湊足數量；同一批次也可能
 分給多筆明細。「配發數量」既不單獨屬於請領明細，也不單獨屬於批次，它描述的是「這筆明細
 從這個批次拿了幾個」，所以掛在「配發」關聯上。
 
-<!-- CHEN-DIAGRAM:BEGIN -->
-```mermaid
-flowchart LR
-    DEPARTMENT["科室"]
-    USER["使用者"]
-    ROLE["角色"]
-    ITEM["品項"]
-    LOCATION["儲藏位置"]
-    LOT["批次"]
-    REQUISITION["請領單"]
-    LINE["請領明細"]
-    AUDIT["稽核紀錄"]
+### 請領與發料
 
-    R_BELONGS{"隸屬"}
-    R_ASSIGNS{"擔任"}
-    R_SUBMITS{"提出"}
-    R_CONTAINS{"包含"}
-    R_REQUESTS{"請領"}
-    R_HOLDS{"持有"}
-    R_STORED_AT{"存放於"}
-    R_ALLOCATES{"配發"}
-    R_LEAVES{"留下"}
+![請領與發料 Chen 概念模型](docs/diagrams/er-requisition.svg)
 
-    DEPARTMENT ---|"1"| R_BELONGS
-    R_BELONGS ---|"N"| USER
-    USER ---|"M"| R_ASSIGNS
-    R_ASSIGNS ---|"N"| ROLE
-    DEPARTMENT ---|"1"| R_SUBMITS
-    R_SUBMITS ---|"N"| REQUISITION
-    REQUISITION ---|"1"| R_CONTAINS
-    R_CONTAINS ---|"N"| LINE
-    LINE ---|"N"| R_REQUESTS
-    R_REQUESTS ---|"1"| ITEM
-    ITEM ---|"1"| R_HOLDS
-    R_HOLDS ---|"N"| LOT
-    LOT ---|"N"| R_STORED_AT
-    R_STORED_AT ---|"1"| LOCATION
-    LINE ---|"M"| R_ALLOCATES
-    R_ALLOCATES ---|"N"| LOT
-    USER ---|"1"| R_LEAVES
-    R_LEAVES ---|"N"| AUDIT
+### 帳號、權限與稽核
 
-    DEPARTMENT --- A_DEPARTMENT_ID(("科室編號*"))
-    DEPARTMENT --- A_DEPARTMENT_CODE(("科室代碼"))
-    DEPARTMENT --- A_DEPARTMENT_NAME(("科室名稱"))
-    USER --- A_USER_ID(("使用者編號*"))
-    USER --- A_USER_NAME(("帳號"))
-    USER --- A_DISPLAY_NAME(("顯示名稱"))
-    USER --- A_EMPLOYEE_NO(("員工編號"))
-    ROLE --- A_ROLE_ID(("角色編號*"))
-    ROLE --- A_ROLE_NAME(("角色名稱"))
-    ITEM --- A_ITEM_ID(("品項編號*"))
-    ITEM --- A_ITEM_CODE(("料號"))
-    ITEM --- A_ITEM_NAME(("品名"))
-    ITEM --- A_SAFETY_STOCK(("安全存量"))
-    ITEM --- A_BARCODE(("條碼"))
-    LOCATION --- A_LOCATION_ID(("位置編號*"))
-    LOCATION --- A_LOCATION_CODE(("位置代碼"))
-    LOCATION --- A_LOCATION_NAME(("位置名稱"))
-    LOT --- A_LOT_ID(("批次編號*"))
-    LOT --- A_LOT_NUMBER(("批號"))
-    LOT --- A_EXPIRY_DATE(("效期"))
-    LOT --- A_LOT_QUANTITY(("數量"))
-    REQUISITION --- A_REQUISITION_ID(("請領單編號*"))
-    REQUISITION --- A_REQUISITION_NO(("單號"))
-    REQUISITION --- A_STATUS(("狀態"))
-    REQUISITION --- A_REJECTION_REASON(("駁回原因"))
-    LINE --- A_LINE_ID(("明細編號*"))
-    LINE --- A_LINE_NO(("行號"))
-    LINE --- A_REQUESTED_QUANTITY(("請領數量"))
-    AUDIT --- A_AUDIT_ID(("稽核編號*"))
-    AUDIT --- A_ACTION(("動作"))
-    AUDIT --- A_OCCURRED_AT(("發生時間"))
-    AUDIT --- A_VALUES(("異動前後值"))
-    R_ALLOCATES --- A_ALLOCATED_QUANTITY(("配發數量"))
-```
-<!-- CHEN-DIAGRAM:END -->
+![帳號、權限與稽核 Chen 概念模型](docs/diagrams/er-identity.svg)
 
 > **概念關聯與實體外鍵的差異：**「存放於」與「留下」在概念上成立，但實體設計刻意不做外鍵。
 > 批次以名稱對應儲藏位置，原因記在 [`docs/requirements.md`](docs/requirements.md) 的 FR-105 附近；
 > 稽核紀錄則以帳號文字保存操作者，即使帳號停用，紀錄仍能完整保留。因此下一節的關聯綱目中，
 > 這兩條關聯沒有箭頭；這是刻意的設計，不是漏畫。
 
-Chen 圖是人工維護的概念模型，以下對照表由整合測試和 Oracle 資料字典交叉檢查，避免概念名稱或
-資料表在演進時悄悄脫節。
+Chen 圖由 [`docs/diagrams/conceptual-model.json`](docs/diagrams/conceptual-model.json) 的圖面規格產生，
+以下對照表由整合測試、圖面規格和 Oracle 資料字典交叉檢查，避免概念名稱或資料表在演進時悄悄脫節。
 
 <!-- CONCEPT-TABLE:BEGIN -->
 | 概念 | 資料表 |
@@ -518,7 +509,16 @@ Chen 圖是人工維護的概念模型，以下對照表由整合測試和 Oracl
 鴉爪式實體關係圖都由 `scripts/generate-er-diagram.ps1` 從 Oracle 資料字典自動產生，並由
 `-Check` 關卡逐位元組比對，因此不會和資料庫結構脫節。
 
-![關聯綱目](docs/diagrams/relational-schema.svg)
+### 請領與發料
+
+![請領與發料關聯綱目](docs/diagrams/relational-schema-requisition.svg)
+
+### 帳號、權限與稽核
+
+![帳號、權限與稽核關聯綱目](docs/diagrams/relational-schema-identity.svg)
+
+`IDENTITY_USER_CLAIMS`、`IDENTITY_USER_LOGINS`、`IDENTITY_USER_TOKENS`、
+`IDENTITY_ROLE_CLAIMS` 是本系統未使用的 Identity 標準表，因此不畫入關聯綱目。
 
 ---
 
