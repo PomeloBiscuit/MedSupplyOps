@@ -81,6 +81,7 @@ public sealed class SeedDataEncodingTests
             """
             SELECT item_code AS Code, LENGTH(item_name) AS Chars, LENGTHB(item_name) AS Bytes
             FROM items
+            WHERE created_by = 'seed'
             ORDER BY item_code
             """)).ToList();
 
@@ -100,7 +101,7 @@ public sealed class SeedDataEncodingTests
         // 所以這條測不出 BYTE/CHAR 的差別 —— 它測的是「種子資料裡真的有長中文名」，
         // 讓 BYTE 語意的問題在資料量長大時有機會提早現形。
         var longest = await connection.ExecuteScalarAsync<decimal>(
-            "SELECT MAX(LENGTH(item_name)) FROM items");
+            "SELECT MAX(LENGTH(item_name)) FROM items WHERE created_by = 'seed'");
 
         Assert.True(longest >= 15, $"最長的品項名稱只有 {longest} 個字，不足以驗證中文長度處理。");
     }

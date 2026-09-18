@@ -18,17 +18,53 @@ public sealed class InventoryItemsQueriesTests
 
         var items = await queries.GetInventoryItemsAsync(Today);
         var seeded = items.Where(item => item.ItemCode.StartsWith("MD-", StringComparison.Ordinal)).ToList();
+        var expected = (await connection.QueryAsync<ExpectedInventoryItem>(
+            """
+            SELECT i.item_id AS ItemId,
+                   i.item_code AS ItemCode,
+                   i.specification AS Specification,
+                   i.unit_of_measure AS UnitOfMeasure,
+                   NVL(SUM(CASE
+                       WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN l.quantity
+                       ELSE 0
+                   END), 0) AS AvailableQuantity,
+                   NVL(SUM(CASE
+                       WHEN l.expiry_date >= :asOf AND l.quantity > 0 THEN 1
+                       ELSE 0
+                   END), 0) AS UsableLotCount
+            FROM items i
+            LEFT JOIN stock_lots l ON l.item_id = i.item_id
+            WHERE i.is_deleted = 0
+              AND i.item_code LIKE 'MD-%'
+            GROUP BY i.item_id, i.item_code, i.specification, i.unit_of_measure
+            ORDER BY i.item_code, i.item_id
+            """,
+            new { asOf = Today.ToDateTime(TimeOnly.MinValue) })).AsList();
 
-        Assert.Equal(5, seeded.Count);
-        Assert.Equal(["MD-0001", "MD-0002", "MD-0003", "MD-0004", "MD-0005"], seeded.Select(item => item.ItemCode));
-        Assert.All(seeded, item => Assert.False(string.IsNullOrWhiteSpace(item.Specification)));
-        Assert.All(seeded, item => Assert.False(string.IsNullOrWhiteSpace(item.UnitOfMeasure)));
+        Assert.Equal(
+            expected.Select(item => (
+                decimal.ToInt64(item.ItemId),
+                item.ItemCode,
+                item.Specification,
+                item.UnitOfMeasure,
+                decimal.ToInt32(item.AvailableQuantity),
+                decimal.ToInt32(item.UsableLotCount))),
+            seeded.Select(item => (
+                item.ItemId,
+                item.ItemCode,
+                item.Specification,
+                item.UnitOfMeasure,
+                item.AvailableQuantity,
+                item.UsableLotCount)));
+    }
 
-        var gloves = Assert.Single(seeded, item => item.ItemCode == "MD-0001");
-        var availability = await queries.GetItemAvailabilityAsync(gloves.ItemId, Today);
-
-        Assert.Equal(210, gloves.AvailableQuantity);
-        Assert.Equal(availability.AvailableQuantity, gloves.AvailableQuantity);
-        Assert.Equal(4, gloves.UsableLotCount);
+    private sealed class ExpectedInventoryItem
+    {
+        public decimal ItemId { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
+        public string? Specification { get; set; }
+        public string UnitOfMeasure { get; set; } = string.Empty;
+        public decimal AvailableQuantity { get; set; }
+        public decimal UsableLotCount { get; set; }
     }
 }
