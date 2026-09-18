@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="900" viewBox="0 0 980 900" role="img" aria-labelledby="title description">
+  <title id="title">帳號、權限與稽核概念模型</title>
+  <desc id="description">Chen 記法：矩形為實體、菱形為關聯、橢圓為屬性、底線為主鍵、雙線為全部參與。</desc>
+  <rect x="0" y="0" width="980" height="900" fill="#ffffff"/>
+  <g fill="none" stroke="#4a5560" stroke-width="1.5">
+    <line data-name="屬性線 科室—科室編號" x1="124" y1="157" x2="72.15" y2="82.46"/>
+    <line data-name="屬性線 科室—科室代碼" x1="146" y1="157" x2="165.32" y2="82.92"/>
+    <line data-name="屬性線 科室—科室名稱" x1="168" y1="157" x2="259.93" y2="81.49"/>
+    <line data-name="屬性線 使用者—使用者編號" x1="566" y1="157" x2="453.87" y2="81.15"/>
+    <line data-name="屬性線 使用者—帳號" x1="590" y1="157" x2="557.72" y2="82.77"/>
+    <line data-name="屬性線 使用者—顯示名稱" x1="614" y1="157" x2="659.3" y2="82.58"/>
+    <line data-name="屬性線 使用者—員工編號" x1="640" y1="157" x2="773.47" y2="80.26"/>
+    <line data-name="屬性線 角色—角色編號" x1="591.24" y1="613" x2="526.79" y2="782.17"/>
+    <line data-name="屬性線 角色—角色名稱" x1="608.76" y1="613" x2="673.21" y2="782.17"/>
+    <line data-name="屬性線 稽核紀錄—稽核編號" x1="787" y1="400" x2="772" y2="400"/>
+    <line data-name="屬性線 稽核紀錄—動作" x1="913" y1="400" x2="922" y2="400"/>
+    <line data-name="屬性線 稽核紀錄—發生時間" x1="841.72" y1="423" x2="766.43" y2="632.14"/>
+    <line data-name="屬性線 稽核紀錄—異動前後值" x1="856.44" y1="423" x2="914.98" y2="632.07"/>
+    <line data-name="科室—隸屬 單線" x1="198" y1="180" x2="313" y2="180"/>
+    <line data-name="使用者—隸屬 單線" x1="542" y1="180" x2="407" y2="180"/>
+    <line data-name="使用者—擔任 單線" x1="600" y1="203" x2="600" y2="362"/>
+    <line data-name="角色—擔任 單線" x1="600" y1="567" x2="600" y2="418"/>
+    <line data-name="使用者—留下 單線" x1="658" y1="180" x2="753" y2="180"/>
+    <line data-name="稽核紀錄—留下 雙線 1" x1="841.85" y1="377.66" x2="802.68" y2="205.33"/>
+    <line data-name="稽核紀錄—留下 雙線 2" x1="847.7" y1="376.34" x2="808.53" y2="204"/>
+  </g>
+  <rect data-element="entity:DEPARTMENT" x="82" y="157" width="116" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:USER" x="542" y="157" width="116" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:ROLE" x="542" y="567" width="116" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:AUDIT_LOG" x="787" y="377" width="126" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:BELONGS" points="360,152 407,180 360,208 313,180" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:ASSIGNS" points="600,362 647,390 600,418 553,390" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:LEAVES" points="800,152 847,180 800,208 753,180" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_ID" cx="60" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_CODE" cx="170" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_NAME" cx="280" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:USER:USER_ID" cx="430" cy="65" rx="54" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:USER:USER_NAME" cx="550" cy="65" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:USER:DISPLAY_NAME" cx="670" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:USER:EMPLOYEE_NO" cx="800" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ROLE:ROLE_ID" cx="520" cy="800" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ROLE:ROLE_NAME" cx="680" cy="800" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:AUDIT_LOG:AUDIT_LOG_ID" cx="720" cy="400" rx="52" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:AUDIT_LOG:ACTION" cx="950" cy="400" rx="28" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:AUDIT_LOG:OCCURRED_AT" cx="760" cy="650" rx="52" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:AUDIT_LOG:VALUES" cx="920" cy="650" rx="56" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <g font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" text-anchor="middle" fill="#17212b">
+    <text x="140" y="185.25" font-size="15" font-weight="600">科室</text>
+    <text x="60" y="69.55" font-size="13" font-weight="400">科室編號</text>
+    <line data-primary-key="科室編號" x1="34" y1="72.55" x2="86" y2="72.55" stroke="#17212b" stroke-width="1"/>
+    <text x="170" y="69.55" font-size="13" font-weight="400">科室代碼</text>
+    <text x="280" y="69.55" font-size="13" font-weight="400">科室名稱</text>
+    <text x="600" y="185.25" font-size="15" font-weight="600">使用者</text>
+    <text x="430" y="69.55" font-size="13" font-weight="400">使用者編號</text>
+    <line data-primary-key="使用者編號" x1="397.5" y1="72.55" x2="462.5" y2="72.55" stroke="#17212b" stroke-width="1"/>
+    <text x="550" y="69.55" font-size="13" font-weight="400">帳號</text>
+    <text x="670" y="69.55" font-size="13" font-weight="400">顯示名稱</text>
+    <text x="800" y="69.55" font-size="13" font-weight="400">員工編號</text>
+    <text x="600" y="595.25" font-size="15" font-weight="600">角色</text>
+    <text x="520" y="804.55" font-size="13" font-weight="400">角色編號</text>
+    <line data-primary-key="角色編號" x1="494" y1="807.55" x2="546" y2="807.55" stroke="#17212b" stroke-width="1"/>
+    <text x="680" y="804.55" font-size="13" font-weight="400">角色名稱</text>
+    <text x="850" y="405.25" font-size="15" font-weight="600">稽核紀錄</text>
+    <text x="720" y="404.55" font-size="13" font-weight="400">稽核編號</text>
+    <line data-primary-key="稽核編號" x1="694" y1="407.55" x2="746" y2="407.55" stroke="#17212b" stroke-width="1"/>
+    <text x="950" y="404.55" font-size="13" font-weight="400">動作</text>
+    <text x="760" y="654.55" font-size="13" font-weight="400">發生時間</text>
+    <text x="920" y="654.55" font-size="13" font-weight="400">異動前後值</text>
+    <text x="360" y="185.25" font-size="15" font-weight="600">隸屬</text>
+    <text x="600" y="395.25" font-size="15" font-weight="600">擔任</text>
+    <text x="800" y="185.25" font-size="15" font-weight="600">留下</text>
+    <text x="230.2" y="198.55" font-size="13" font-weight="400">1</text>
+    <text x="504.2" y="170.55" font-size="13" font-weight="400">N</text>
+    <text x="586" y="252.07" font-size="13" font-weight="400">M</text>
+    <text x="614" y="529.83" font-size="13" font-weight="400">N</text>
+    <text x="684.6" y="198.55" font-size="13" font-weight="400">1</text>
+    <text x="847.457559222214" y="330.192381210742" font-size="13" font-weight="400">N</text>
+  </g>
+</svg>

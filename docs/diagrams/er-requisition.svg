@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="1160" viewBox="0 0 980 1160" role="img" aria-labelledby="title description">
+  <title id="title">請領與發料概念模型</title>
+  <desc id="description">Chen 記法：矩形為實體、菱形為關聯、橢圓為屬性、底線為主鍵、雙線為全部參與。</desc>
+  <rect x="0" y="0" width="980" height="1160" fill="#ffffff"/>
+  <g fill="none" stroke="#4a5560" stroke-width="1.5">
+    <line data-name="屬性線 科室—科室編號" x1="125" y1="157" x2="76.43" y2="82.52"/>
+    <line data-name="屬性線 科室—科室代碼" x1="147" y1="157" x2="169.55" y2="82.89"/>
+    <line data-name="屬性線 科室—科室名稱" x1="169" y1="157" x2="264.33" y2="81.39"/>
+    <line data-name="屬性線 請領單—請領單編號" x1="611" y1="157" x2="481.8" y2="80.8"/>
+    <line data-name="屬性線 請領單—單號" x1="635" y1="157" x2="586.43" y2="82.52"/>
+    <line data-name="屬性線 請領單—狀態" x1="659" y1="157" x2="688.03" y2="82.82"/>
+    <line data-name="屬性線 請領單—駁回原因" x1="688" y1="157" x2="813.73" y2="80.9"/>
+    <line data-name="屬性線 品項—品項編號" x1="122" y1="477" x2="63.52" y2="402.27"/>
+    <line data-name="屬性線 品項—料號" x1="143" y1="477" x2="152.65" y2="402.98"/>
+    <line data-name="屬性線 品項—品名" x1="164" y1="477" x2="242.51" y2="401.76"/>
+    <line data-name="屬性線 品項—安全存量" x1="127" y1="523" x2="84.97" y2="597.36"/>
+    <line data-name="屬性線 品項—條碼" x1="154" y1="523" x2="199.32" y2="597.45"/>
+    <line data-name="屬性線 請領明細—明細編號" x1="713" y1="479" x2="791.82" y2="452.73"/>
+    <line data-name="屬性線 請領明細—行號" x1="713" y1="500" x2="780" y2="500"/>
+    <line data-name="屬性線 請領明細—請領數量" x1="713" y1="521" x2="791.82" y2="547.27"/>
+    <line data-name="屬性線 批次—批次編號" x1="372.69" y1="943" x2="229.77" y2="1063.35"/>
+    <line data-name="屬性線 批次—批號" x1="389.94" y1="943" x2="337.77" y2="1062.24"/>
+    <line data-name="屬性線 批次—效期" x1="407.19" y1="943" x2="444.41" y2="1062.12"/>
+    <line data-name="屬性線 批次—數量" x1="424.44" y1="943" x2="552.23" y2="1063.28"/>
+    <line data-name="屬性線 儲藏位置—位置編號" x1="819.88" y1="943" x2="750.07" y2="1022.77"/>
+    <line data-name="屬性線 儲藏位置—位置代碼" x1="850.54" y1="943" x2="886.85" y2="1022.22"/>
+    <line data-name="屬性線 儲藏位置—位置名稱" x1="840" y1="943" x2="840" y2="1092"/>
+    <line data-name="科室—提出 單線" x1="198" y1="180" x2="313" y2="180"/>
+    <line data-name="請領單—提出 雙線 1" x1="587" y1="183" x2="407" y2="183"/>
+    <line data-name="請領單—提出 雙線 2" x1="587" y1="177" x2="407" y2="177"/>
+    <line data-name="請領單—包含 雙線 1" x1="653" y1="203" x2="653" y2="307"/>
+    <line data-name="請領單—包含 雙線 2" x1="647" y1="203" x2="647" y2="307"/>
+    <line data-name="請領明細—包含 雙線 1" x1="647" y1="477" x2="647" y2="363"/>
+    <line data-name="請領明細—包含 雙線 2" x1="653" y1="477" x2="653" y2="363"/>
+    <line data-name="請領明細—請領 雙線 1" x1="587" y1="503" x2="407" y2="503"/>
+    <line data-name="請領明細—請領 雙線 2" x1="587" y1="497" x2="407" y2="497"/>
+    <line data-name="品項—請領 單線" x1="198" y1="500" x2="313" y2="500"/>
+    <line data-name="品項—持有 單線" x1="140" y1="523" x2="140" y2="692"/>
+    <line data-name="批次—持有 雙線 1" x1="368.27" y1="899.38" x2="158.68" y2="738.16"/>
+    <line data-name="批次—持有 雙線 2" x1="371.93" y1="894.62" x2="162.34" y2="733.4"/>
+    <line data-name="請領明細—配發 單線" x1="650" y1="523" x2="650" y2="692"/>
+    <line data-name="批次—配發 單線" x1="428.75" y1="897" x2="629.94" y2="736.05"/>
+    <line data-name="關聯屬性線 配發—配發數量" x1="697" y1="720" x2="788" y2="720"/>
+    <line data-name="批次—存放於 雙線 1" x1="458" y1="917" x2="568" y2="917"/>
+    <line data-name="批次—存放於 雙線 2" x1="458" y1="923" x2="568" y2="923"/>
+    <line data-name="儲藏位置—存放於 單線" x1="777" y1="920" x2="672" y2="920"/>
+  </g>
+  <rect data-element="entity:DEPARTMENT" x="82" y="157" width="116" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:REQUISITION" x="587" y="157" width="126" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:ITEM" x="82" y="477" width="116" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:REQUISITION_LINE" x="587" y="477" width="126" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:STOCK_LOT" x="342" y="897" width="116" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <rect data-element="entity:STORAGE_LOCATION" x="777" y="897" width="126" height="46" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:SUBMITS" points="360,152 407,180 360,208 313,180" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:CONTAINS" points="650,307 697,335 650,363 603,335" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:REQUESTS" points="360,472 407,500 360,528 313,500" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:HOLDS" points="140,692 187,720 140,748 93,720" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:ALLOCATES" points="650,692 697,720 650,748 603,720" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <polygon data-element="relationship:STORED_AT" points="620,892 672,920 620,948 568,920" fill="#fff7df" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_ID" cx="65" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_CODE" cx="175" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_NAME" cx="285" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:REQUISITION:REQUISITION_ID" cx="455" cy="65" rx="56" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:REQUISITION:REQUISITION_NO" cx="575" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:REQUISITION:STATUS" cx="695" cy="65" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:REQUISITION:REJECTION_REASON" cx="840" cy="65" rx="56" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ITEM:ITEM_ID" cx="50" cy="385" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ITEM:ITEM_CODE" cx="155" cy="385" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ITEM:ITEM_NAME" cx="260" cy="385" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ITEM:SAFETY_STOCK" cx="75" cy="615" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ITEM:BARCODE" cx="210" cy="615" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:REQUISITION_LINE:REQUISITION_LINE_ID" cx="830" cy="440" rx="54" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:REQUISITION_LINE:LINE_NO" cx="830" cy="500" rx="50" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:REQUISITION_LINE:REQUESTED_QUANTITY" cx="830" cy="560" rx="54" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:STOCK_LOT:STOCK_LOT_ID" cx="210" cy="1080" rx="52" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:STOCK_LOT:LOT_NUMBER" cx="330" cy="1080" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:STOCK_LOT:EXPIRY_DATE" cx="450" cy="1080" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:STOCK_LOT:LOT_QUANTITY" cx="570" cy="1080" rx="48" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:STORAGE_LOCATION:LOCATION_ID" cx="735" cy="1040" rx="52" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:STORAGE_LOCATION:LOCATION_CODE" cx="895" cy="1040" rx="52" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:STORAGE_LOCATION:LOCATION_NAME" cx="840" cy="1110" rx="52" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <ellipse data-element="attribute:ALLOCATES:ALLOCATED_QUANTITY" cx="840" cy="720" rx="52" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
+  <g font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" text-anchor="middle" fill="#17212b">
+    <text x="140" y="185.25" font-size="15" font-weight="600">科室</text>
+    <text x="65" y="69.55" font-size="13" font-weight="400">科室編號</text>
+    <line data-primary-key="科室編號" x1="39" y1="72.55" x2="91" y2="72.55" stroke="#17212b" stroke-width="1"/>
+    <text x="175" y="69.55" font-size="13" font-weight="400">科室代碼</text>
+    <text x="285" y="69.55" font-size="13" font-weight="400">科室名稱</text>
+    <text x="650" y="185.25" font-size="15" font-weight="600">請領單</text>
+    <text x="455" y="69.55" font-size="13" font-weight="400">請領單編號</text>
+    <line data-primary-key="請領單編號" x1="422.5" y1="72.55" x2="487.5" y2="72.55" stroke="#17212b" stroke-width="1"/>
+    <text x="575" y="69.55" font-size="13" font-weight="400">單號</text>
+    <text x="695" y="69.55" font-size="13" font-weight="400">狀態</text>
+    <text x="840" y="69.55" font-size="13" font-weight="400">駁回原因</text>
+    <text x="140" y="505.25" font-size="15" font-weight="600">品項</text>
+    <text x="50" y="389.55" font-size="13" font-weight="400">品項編號</text>
+    <line data-primary-key="品項編號" x1="24" y1="392.55" x2="76" y2="392.55" stroke="#17212b" stroke-width="1"/>
+    <text x="155" y="389.55" font-size="13" font-weight="400">料號</text>
+    <text x="260" y="389.55" font-size="13" font-weight="400">品名</text>
+    <text x="75" y="619.55" font-size="13" font-weight="400">安全存量</text>
+    <text x="210" y="619.55" font-size="13" font-weight="400">條碼</text>
+    <text x="650" y="505.25" font-size="15" font-weight="600">請領明細</text>
+    <text x="830" y="444.55" font-size="13" font-weight="400">明細編號</text>
+    <line data-primary-key="明細編號" x1="804" y1="447.55" x2="856" y2="447.55" stroke="#17212b" stroke-width="1"/>
+    <text x="830" y="504.55" font-size="13" font-weight="400">行號</text>
+    <text x="830" y="564.55" font-size="13" font-weight="400">請領數量</text>
+    <text x="400" y="925.25" font-size="15" font-weight="600">批次</text>
+    <text x="210" y="1084.55" font-size="13" font-weight="400">批次編號</text>
+    <line data-primary-key="批次編號" x1="184" y1="1087.55" x2="236" y2="1087.55" stroke="#17212b" stroke-width="1"/>
+    <text x="330" y="1084.55" font-size="13" font-weight="400">批號</text>
+    <text x="450" y="1084.55" font-size="13" font-weight="400">效期</text>
+    <text x="570" y="1084.55" font-size="13" font-weight="400">數量</text>
+    <text x="840" y="925.25" font-size="15" font-weight="600">儲藏位置</text>
+    <text x="735" y="1044.55" font-size="13" font-weight="400">位置編號</text>
+    <line data-primary-key="位置編號" x1="709" y1="1047.55" x2="761" y2="1047.55" stroke="#17212b" stroke-width="1"/>
+    <text x="895" y="1044.55" font-size="13" font-weight="400">位置代碼</text>
+    <text x="840" y="1114.55" font-size="13" font-weight="400">位置名稱</text>
+    <text x="360" y="185.25" font-size="15" font-weight="600">提出</text>
+    <text x="650" y="340.25" font-size="15" font-weight="600">包含</text>
+    <text x="360" y="505.25" font-size="15" font-weight="600">請領</text>
+    <text x="140" y="725.25" font-size="15" font-weight="600">持有</text>
+    <text x="650" y="725.25" font-size="15" font-weight="600">配發</text>
+    <text x="840" y="724.55" font-size="13" font-weight="400">配發數量</text>
+    <text x="620" y="925.25" font-size="15" font-weight="600">存放於</text>
+    <text x="230.2" y="198.55" font-size="13" font-weight="400">1</text>
+    <text x="536.6" y="170.55" font-size="13" font-weight="400">N</text>
+    <text x="636" y="236.67" font-size="13" font-weight="400">1</text>
+    <text x="664" y="449.63" font-size="13" font-weight="400">N</text>
+    <text x="536.6" y="490.55" font-size="13" font-weight="400">N</text>
+    <text x="230.2" y="518.55" font-size="13" font-weight="400">1</text>
+    <text x="126" y="574.87" font-size="13" font-weight="400">1</text>
+    <text x="319.951643697459" y="845.3114895722" font-size="13" font-weight="400">N</text>
+    <text x="636" y="574.87" font-size="13" font-weight="400">M</text>
+    <text x="493.82865749503" y="867.415821868788" font-size="13" font-weight="400">N</text>
+    <text x="488.8" y="938.55" font-size="13" font-weight="400">N</text>
+    <text x="747.6" y="910.55" font-size="13" font-weight="400">1</text>
+  </g>
+</svg>

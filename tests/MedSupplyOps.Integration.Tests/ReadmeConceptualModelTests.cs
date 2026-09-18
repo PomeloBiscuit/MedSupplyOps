@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dapper;
 using Oracle.ManagedDataAccess.Client;
@@ -6,10 +7,10 @@ namespace MedSupplyOps.Integration.Tests;
 
 public sealed partial class ReadmeConceptualModelTests
 {
-    private const string ChenBegin = "<!-- CHEN-DIAGRAM:BEGIN -->";
-    private const string ChenEnd = "<!-- CHEN-DIAGRAM:END -->";
     private const string ConceptTableBegin = "<!-- CONCEPT-TABLE:BEGIN -->";
     private const string ConceptTableEnd = "<!-- CONCEPT-TABLE:END -->";
+    private const string SiteMapBegin = "<!-- SITE-MAP:BEGIN -->";
+    private const string SiteMapEnd = "<!-- SITE-MAP:END -->";
 
     [Fact]
     public async Task Concept_mapping_contains_every_database_table_exactly_once()
@@ -52,19 +53,61 @@ public sealed partial class ReadmeConceptualModelTests
     }
 
     [Fact]
-    public void Every_mapped_concept_appears_in_the_chen_diagram()
+    public void Every_mapped_concept_appears_in_the_conceptual_model_specification()
     {
         var readme = File.ReadAllText(FindRepositoryFile("README.md"));
-        var chenDiagram = ExtractMarkedBlock(readme, ChenBegin, ChenEnd);
         var mappings = ParseMappings(ExtractMarkedBlock(readme, ConceptTableBegin, ConceptTableEnd));
+        using var specification = JsonDocument.Parse(
+            File.ReadAllText(FindRepositoryFile("docs/diagrams/conceptual-model.json")));
+        var concepts = specification.RootElement.GetProperty("conceptualDiagrams")
+            .EnumerateObject()
+            .SelectMany(diagram =>
+                diagram.Value.GetProperty("entities").EnumerateArray()
+                    .Concat(diagram.Value.GetProperty("relationships").EnumerateArray()))
+            .Select(element => element.GetProperty("name").GetString())
+            .Where(name => name is not null)
+            .ToHashSet(StringComparer.Ordinal);
         var failures = new List<string>();
 
         foreach (var mapping in mappings.Where(mapping => !mapping.Concept.StartsWith('—')))
         {
             var concept = mapping.Concept.Replace("（關聯）", string.Empty, StringComparison.Ordinal).Trim();
-            if (!chenDiagram.Contains(concept, StringComparison.Ordinal))
+            if (!concepts.Contains(concept))
             {
-                failures.Add($"概念「{concept}」沒有出現在 Chen 圖的 Mermaid 區塊中。");
+                failures.Add($"概念「{concept}」沒有出現在圖面規格檔中。");
+            }
+        }
+
+        Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    [Fact]
+    public void Site_map_contains_every_page_controller()
+    {
+        var readme = File.ReadAllText(FindRepositoryFile("README.md"));
+        var siteMap = ExtractMarkedBlock(readme, SiteMapBegin, SiteMapEnd);
+        var nodeIds = SiteMapNodeRegex().Matches(siteMap)
+            .Select(match => match.Groups["id"].Value)
+            .ToHashSet(StringComparer.Ordinal);
+        var repositoryRoot = Path.GetDirectoryName(FindRepositoryFile("README.md"))!;
+        var controllersDirectory = Path.Combine(repositoryRoot, "src", "MedSupplyOps.Web", "Controllers");
+        var failures = new List<string>();
+
+        foreach (var path in Directory.EnumerateFiles(controllersDirectory, "*Controller.cs")
+                     .OrderBy(path => path, StringComparer.Ordinal))
+        {
+            var controllerName = Path.GetFileNameWithoutExtension(path);
+            if (controllerName.EndsWith("ApiController", StringComparison.Ordinal)
+                || controllerName is "FhirController" or "HomeController"
+                || !ControllerReturnsPageRegex().IsMatch(File.ReadAllText(path)))
+            {
+                continue;
+            }
+
+            var nodeId = controllerName[..^"Controller".Length].ToUpperInvariant();
+            if (!nodeIds.Contains(nodeId))
+            {
+                failures.Add($"會回傳頁面的 Controller {controllerName} 沒有網站架構圖節點 {nodeId}。");
             }
         }
 
@@ -124,6 +167,12 @@ public sealed partial class ReadmeConceptualModelTests
 
     [GeneratedRegex(@"`(?<table>[A-Z][A-Z0-9_]*)`")]
     private static partial Regex TableNameRegex();
+
+    [GeneratedRegex(@"(?<![A-Z0-9_])(?<id>[A-Z][A-Z0-9_]*)\s*\[")]
+    private static partial Regex SiteMapNodeRegex();
+
+    [GeneratedRegex(@"(?:return|=>)\s+View\s*\(")]
+    private static partial Regex ControllerReturnsPageRegex();
 
     private sealed record ConceptMapping(string Concept, IReadOnlyList<string> Tables);
 }

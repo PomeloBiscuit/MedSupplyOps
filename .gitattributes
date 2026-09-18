@@ -8,7 +8,7 @@
 *.png binary
 *.jpg binary
 *.ico binary
-docs/diagrams/relational-schema.svg text eol=lf
+docs/diagrams/*.svg text eol=lf
 
 # 在容器裡（Linux）執行的檔案一律 LF。
 # 這些檔案在 Windows 上被 checkout 成 CRLF 的話，會在容器內爆

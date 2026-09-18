@@ -207,85 +207,15 @@ flowchart TB
   <p class="kicker">04 — 資料庫</p>
   <h2>概念模型與實際結構</h2>
   <h3>概念模型（Chen 記法）</h3>
-  <p>矩形表示實體、菱形表示關聯、圓形表示代表性屬性；屬性名稱後的 <code>*</code> 表示主鍵，
-     關聯兩端的 <code>1</code>、<code>N</code>、<code>M</code> 表示基數。</p>
+  <p>矩形表示實體、菱形表示關聯、橢圓表示代表性屬性；屬性文字的底線表示主鍵。
+     實體與關聯間的雙線表示全部參與、單線表示部分參與，線旁的 <code>1</code>、<code>N</code>、<code>M</code> 表示基數。</p>
+  <p>每張請領單一定由某個科室提出，所以請領單那一側是雙線；科室可以一張單都沒提，所以是單線。</p>
   <p>「配發」是 M:N 關聯：一筆明細可能要跨數個批次，依先到期先出湊足數量；同一批次也可能
      分給多筆明細。「配發數量」描述的是這筆明細從這個批次拿了幾個，所以屬於關聯本身。</p>
-  <div class="mermaid">
-flowchart LR
-    DEPARTMENT["科室"]
-    USER["使用者"]
-    ROLE["角色"]
-    ITEM["品項"]
-    LOCATION["儲藏位置"]
-    LOT["批次"]
-    REQUISITION["請領單"]
-    LINE["請領明細"]
-    AUDIT["稽核紀錄"]
-
-    R_BELONGS{"隸屬"}
-    R_ASSIGNS{"擔任"}
-    R_SUBMITS{"提出"}
-    R_CONTAINS{"包含"}
-    R_REQUESTS{"請領"}
-    R_HOLDS{"持有"}
-    R_STORED_AT{"存放於"}
-    R_ALLOCATES{"配發"}
-    R_LEAVES{"留下"}
-
-    DEPARTMENT ---|"1"| R_BELONGS
-    R_BELONGS ---|"N"| USER
-    USER ---|"M"| R_ASSIGNS
-    R_ASSIGNS ---|"N"| ROLE
-    DEPARTMENT ---|"1"| R_SUBMITS
-    R_SUBMITS ---|"N"| REQUISITION
-    REQUISITION ---|"1"| R_CONTAINS
-    R_CONTAINS ---|"N"| LINE
-    LINE ---|"N"| R_REQUESTS
-    R_REQUESTS ---|"1"| ITEM
-    ITEM ---|"1"| R_HOLDS
-    R_HOLDS ---|"N"| LOT
-    LOT ---|"N"| R_STORED_AT
-    R_STORED_AT ---|"1"| LOCATION
-    LINE ---|"M"| R_ALLOCATES
-    R_ALLOCATES ---|"N"| LOT
-    USER ---|"1"| R_LEAVES
-    R_LEAVES ---|"N"| AUDIT
-
-    DEPARTMENT --- A_DEPARTMENT_ID(("科室編號*"))
-    DEPARTMENT --- A_DEPARTMENT_CODE(("科室代碼"))
-    DEPARTMENT --- A_DEPARTMENT_NAME(("科室名稱"))
-    USER --- A_USER_ID(("使用者編號*"))
-    USER --- A_USER_NAME(("帳號"))
-    USER --- A_DISPLAY_NAME(("顯示名稱"))
-    USER --- A_EMPLOYEE_NO(("員工編號"))
-    ROLE --- A_ROLE_ID(("角色編號*"))
-    ROLE --- A_ROLE_NAME(("角色名稱"))
-    ITEM --- A_ITEM_ID(("品項編號*"))
-    ITEM --- A_ITEM_CODE(("料號"))
-    ITEM --- A_ITEM_NAME(("品名"))
-    ITEM --- A_SAFETY_STOCK(("安全存量"))
-    ITEM --- A_BARCODE(("條碼"))
-    LOCATION --- A_LOCATION_ID(("位置編號*"))
-    LOCATION --- A_LOCATION_CODE(("位置代碼"))
-    LOCATION --- A_LOCATION_NAME(("位置名稱"))
-    LOT --- A_LOT_ID(("批次編號*"))
-    LOT --- A_LOT_NUMBER(("批號"))
-    LOT --- A_EXPIRY_DATE(("效期"))
-    LOT --- A_LOT_QUANTITY(("數量"))
-    REQUISITION --- A_REQUISITION_ID(("請領單編號*"))
-    REQUISITION --- A_REQUISITION_NO(("單號"))
-    REQUISITION --- A_STATUS(("狀態"))
-    REQUISITION --- A_REJECTION_REASON(("駁回原因"))
-    LINE --- A_LINE_ID(("明細編號*"))
-    LINE --- A_LINE_NO(("行號"))
-    LINE --- A_REQUESTED_QUANTITY(("請領數量"))
-    AUDIT --- A_AUDIT_ID(("稽核編號*"))
-    AUDIT --- A_ACTION(("動作"))
-    AUDIT --- A_OCCURRED_AT(("發生時間"))
-    AUDIT --- A_VALUES(("異動前後值"))
-    R_ALLOCATES --- A_ALLOCATED_QUANTITY(("配發數量"))
-  </div>
+  <h4>請領與發料</h4>
+  <img src="diagrams/er-requisition.svg" alt="請領與發料 Chen 概念模型" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
+  <h4>帳號、權限與稽核</h4>
+  <img src="diagrams/er-identity.svg" alt="帳號、權限與稽核 Chen 概念模型" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
   <div class="note warn">
     「存放於」與「留下」在概念上成立，但實體設計刻意不做外鍵：批次以名稱對應儲藏位置，
     稽核紀錄以帳號文字保存操作者。因此後面的關聯綱目中，這兩條關聯沒有箭頭。
@@ -306,9 +236,14 @@ flowchart LR
 
   <h3>關聯綱目（從 Oracle 資料字典自動產生）</h3>
   <p>每列是一張表、每格是一個欄位；底線表示主鍵，箭頭由外鍵指向被參照的主鍵，線型表示刪除規則。</p>
-  <div style="overflow-x:auto;margin:16px 0">
-    <img src="diagrams/relational-schema.svg" alt="關聯綱目" style="display:block;width:100%;min-width:1600px;height:auto">
-  </div>
+  <h4>請領與發料</h4>
+  <img src="diagrams/relational-schema-requisition.svg" alt="請領與發料關聯綱目" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
+  <h4>帳號、權限與稽核</h4>
+  <img src="diagrams/relational-schema-identity.svg" alt="帳號、權限與稽核關聯綱目" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
+  <p style="font-size:13.5px;color:var(--muted)">
+    IDENTITY_USER_CLAIMS、IDENTITY_USER_LOGINS、IDENTITY_USER_TOKENS、IDENTITY_ROLE_CLAIMS
+    是本系統未使用的 Identity 標準表，因此不畫入關聯綱目。
+  </p>
 
   <h3>三個 Oracle 專屬的決定</h3>
   <table>
