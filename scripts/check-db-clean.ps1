@@ -3,7 +3,7 @@
     確認整合測試沒有把資料留在示範資料庫裡。
 
 .DESCRIPTION
-    整合測試共用同一個 Oracle 容器，每一條都會建立自己的科室／品項／批次／請領單，
+    整合測試共用同一個 Oracle 容器，每一條都會建立自己的科室／品項／批次／儲藏位置／請領單，
     並在結束時刪掉（`created_by LIKE 'itest%'`／`actor LIKE 'itest%'` 是它們的標記）。
 
     identity_users 裡的 itest-* 帳號是測試夾具基礎設施，等同種子資料，刻意不列為殘留。
@@ -50,6 +50,7 @@ SET HEADING OFF
 SELECT 'items|' || item_code FROM items WHERE created_by LIKE '$TestMarker%'
 UNION ALL SELECT 'departments|' || department_code FROM departments WHERE created_by LIKE '$TestMarker%'
 UNION ALL SELECT 'stock_lots|' || lot_number FROM stock_lots WHERE created_by LIKE '$TestMarker%'
+UNION ALL SELECT 'storage_locations|' || location_code FROM storage_locations WHERE created_by LIKE '$TestMarker%'
 UNION ALL SELECT 'requisitions|' || requisition_no FROM requisitions WHERE created_by LIKE '$TestMarker%'
 UNION ALL SELECT 'audit_logs|' || entity_type || ':' || entity_id || ':' || action FROM audit_logs WHERE actor LIKE '$TestMarker%';
 EXIT
@@ -75,7 +76,7 @@ if ($leftovers.Count -eq 0) {
 Write-Host "整合測試在資料庫留下了 $($leftovers.Count) 筆資料（created_by / actor LIKE '$TestMarker%'）：" -ForegroundColor Red
 foreach ($row in $leftovers) {
     $parts = $row -split '\|', 2
-    Write-Host ("  {0,-16} {1}" -f $parts[0], $parts[1])
+    Write-Host ("  {0,-18} {1}" -f $parts[0], $parts[1])
 }
 Write-Host ''
 Write-Host '這通常代表某次測試失敗或被中斷，清理沒有跑完。' -ForegroundColor Yellow
@@ -105,6 +106,7 @@ DELETE FROM requisitions WHERE created_by LIKE '$TestMarker%';
 DELETE FROM issue_allocations WHERE stock_lot_id IN (
     SELECT stock_lot_id FROM stock_lots WHERE created_by LIKE '$TestMarker%');
 DELETE FROM stock_lots WHERE created_by LIKE '$TestMarker%';
+DELETE FROM storage_locations WHERE created_by LIKE '$TestMarker%';
 DELETE FROM items WHERE created_by LIKE '$TestMarker%';
 DELETE FROM departments WHERE created_by LIKE '$TestMarker%';
 COMMIT;
