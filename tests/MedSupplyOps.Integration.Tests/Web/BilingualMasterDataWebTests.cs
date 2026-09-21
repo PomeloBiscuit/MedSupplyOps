@@ -118,14 +118,49 @@ public sealed partial class BilingualMasterDataWebTests
         var userEditHtml = await GetDecodedAsync(client, $"/Users/Edit/{requesterId}");
         Assert.Contains("DEP-ER — Emergency Department（急診）", userEditHtml, StringComparison.Ordinal);
 
-        var inventoryHtml = await GetDecodedAsync(client, "/Inventory");
-        Assert.Contains(">Sterile Examination Gloves</td>", inventoryHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain(">Sterile Examination Gloves（無菌檢查手套）</td>", inventoryHtml, StringComparison.Ordinal);
-        Assert.Contains("Central Warehouse A01", inventoryHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("中央庫房-A01", inventoryHtml, StringComparison.Ordinal);
+        // 品項與儲藏位置自己建：種子資料的英文名稱可以在網站上改，不能拿來當固定的期望值。
+        var code = NewCode("T4");
+        const string englishName = "T4 Single-language Gloves";
+        var suffix = Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
+        var locationCode = $"ITBL-T4-{suffix}";
+        var locationName = $"測試庫房-T4-{suffix}";
+        var locationEnglishName = $"T4 Test Warehouse {suffix}";
+        var itemId = await InsertItemAsync(code, "T4 單語手套", englishName);
+        await connection.ExecuteAsync("""
+            INSERT INTO storage_locations (location_code, name, name_en, created_by)
+            VALUES (:locationCode, :locationName, :locationEnglishName, 'itest-bilingual')
+            """, new { locationCode, locationName, locationEnglishName });
+        await connection.ExecuteAsync("""
+            INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by)
+            VALUES (:itemId, :lotNumber, :expiryDate, 3, :locationName, 'itest-bilingual')
+            """, new
+        {
+            itemId,
+            lotNumber = locationCode,
+            expiryDate = TestBusinessCalendar.Today.AddDays(60).ToDateTime(TimeOnly.MinValue),
+            locationName,
+        });
+
+        try
+        {
+            var inventoryHtml = await GetDecodedAsync(client, $"/Inventory?search={Uri.EscapeDataString(code)}");
+            Assert.Contains($">{englishName}</td>", inventoryHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain($">{englishName}（T4 單語手套）</td>", inventoryHtml, StringComparison.Ordinal);
+            Assert.Contains(locationEnglishName, inventoryHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain(locationName, inventoryHtml, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await connection.ExecuteAsync("DELETE FROM stock_lots WHERE item_id = :itemId", new { itemId });
+            await connection.ExecuteAsync(
+                "DELETE FROM storage_locations WHERE location_code = :locationCode",
+                new { locationCode });
+            await connection.ExecuteAsync("COMMIT");
+            await DeleteItemAsync(itemId);
+        }
 
         _output.WriteLine("T4 Users/Edit department option: DEP-ER — Emergency Department（急診）");
-        _output.WriteLine("T4 Inventory item cell: Sterile Examination Gloves; storage location: Central Warehouse A01");
+        _output.WriteLine($"T4 Inventory item cell: {englishName}; storage location: {locationEnglishName}");
     }
 
     [Fact]

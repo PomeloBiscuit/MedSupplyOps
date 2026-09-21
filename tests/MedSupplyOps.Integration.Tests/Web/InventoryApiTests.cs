@@ -106,21 +106,71 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
     }
 
     [Fact]
-    public async Task GetExpiring_returns_camel_case_fields_and_usable_seed_lot_values()
+    public async Task GetExpiring_returns_camel_case_fields_and_usable_lot_values()
     {
-        var response = await _client.GetAsync($"/api/inventory/expiring?withinDays=30&asOf={Today:yyyy-MM-dd}");
+        // 批次自己建：種子批次的效期是從建庫那天起算的，建庫一個月後就不在「30 天內到期」的範圍裡。
+        var itemCode = "ITEST-EXP-" + Guid.NewGuid().ToString("N")[..10];
+        var lotPrefix = "ITEST-EXP-LOT-" + Guid.NewGuid().ToString("N")[..8];
+        var asOf = TestBusinessCalendar.Today;
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        var root = json.RootElement;
-        var gloveLot = root.EnumerateArray().Single(lot => lot.GetProperty("lotNumber").GetString() == "GLO-FEFO-A");
+        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO items (
+                item_code, item_name, specification, unit_of_measure,
+                tracks_lot, tracks_expiry, safety_stock_qty, created_by
+            ) VALUES (
+                :itemCode, '效期查詢測試品項', '測試規格', '件',
+                1, 1, 0, 'itest'
+            )
+            """,
+            new { itemCode });
+        var itemId = await GetItemIdAsync(itemCode);
 
-        Assert.True(gloveLot.TryGetProperty("stockLotId", out var stockLotId));
-        Assert.False(gloveLot.TryGetProperty("StockLotId", out _));
-        Assert.Equal(JsonValueKind.Number, stockLotId.ValueKind);
-        Assert.Equal("MD-0001", gloveLot.GetProperty("itemCode").GetString());
-        Assert.Equal(await GetLotQuantityAsync("GLO-FEFO-A"), gloveLot.GetProperty("quantity").GetInt32());
-        Assert.Equal(await GetLotExpiryDateAsync("GLO-FEFO-A"), gloveLot.GetProperty("expiryDate").GetString());
+        // 同一個品項放四批，只有「未過期、有量、落在 30 天內」的那一批該出現。
+        foreach (var (suffix, days, quantity) in new[] { ("OK", 10, 12), ("EXPIRED", -1, 5), ("LATER", 31, 5), ("ZERO", 5, 0) })
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO stock_lots (
+                    item_id, lot_number, expiry_date, quantity, storage_location, created_by
+                ) VALUES (
+                    :itemId, :lotNumber, :expiryDate, :quantity, 'ITEST-A01', 'itest'
+                )
+                """,
+                new
+                {
+                    itemId,
+                    lotNumber = $"{lotPrefix}-{suffix}",
+                    expiryDate = asOf.AddDays(days).ToDateTime(TimeOnly.MinValue),
+                    quantity,
+                });
+        }
+
+        try
+        {
+            var response = await _client.GetAsync($"/api/inventory/expiring?withinDays=30&asOf={asOf:yyyy-MM-dd}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var lot = Assert.Single(
+                json.RootElement.EnumerateArray(),
+                element => element.GetProperty("itemCode").GetString() == itemCode);
+
+            Assert.True(lot.TryGetProperty("stockLotId", out var stockLotId));
+            Assert.False(lot.TryGetProperty("StockLotId", out _));
+            Assert.Equal(JsonValueKind.Number, stockLotId.ValueKind);
+            Assert.Equal($"{lotPrefix}-OK", lot.GetProperty("lotNumber").GetString());
+            Assert.Equal(12, lot.GetProperty("quantity").GetInt32());
+            Assert.Equal(
+                asOf.AddDays(10).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                lot.GetProperty("expiryDate").GetString());
+        }
+        finally
+        {
+            await connection.ExecuteAsync("DELETE FROM stock_lots WHERE item_id = :itemId", new { itemId });
+            await connection.ExecuteAsync("DELETE FROM items WHERE item_id = :itemId", new { itemId });
+        }
     }
 
     [Fact]
@@ -163,23 +213,6 @@ public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.Inventor
         return await connection.QuerySingleAsync<long>(
             "SELECT item_id FROM items WHERE item_code = :itemCode",
             new { itemCode });
-    }
-
-    private static async Task<string> GetLotExpiryDateAsync(string lotNumber)
-    {
-        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
-        var expiryDate = await connection.QuerySingleAsync<DateTime>(
-            "SELECT expiry_date FROM stock_lots WHERE lot_number = :lotNumber",
-            new { lotNumber });
-        return DateOnly.FromDateTime(expiryDate).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-    }
-
-    private static async Task<int> GetLotQuantityAsync(string lotNumber)
-    {
-        await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
-        return await connection.QuerySingleAsync<int>(
-            "SELECT quantity FROM stock_lots WHERE lot_number = :lotNumber",
-            new { lotNumber });
     }
 
     private static async Task<int> GetAvailableQuantityAsync(long itemId, DateOnly asOf)

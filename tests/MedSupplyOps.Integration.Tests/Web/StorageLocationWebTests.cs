@@ -92,36 +92,40 @@ public sealed partial class StorageLocationWebTests
     [Fact]
     public async Task T2_English_inventory_uses_master_name_and_falls_back_for_unmatched_text()
     {
-        var itemId = await GetSeedItemIdAsync();
-        var lotNumber = "ITSL-T2-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
+        // 儲藏位置與品項都自己建：種子儲藏位置的英文名稱可以在網站上改，不能拿來當固定的期望值。
+        var englishName = "T2 Master Location " + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        var location = await InsertLocationAsync("T2", englishName: englishName);
+        var item = await InsertItemAsync("T2");
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
-        await connection.ExecuteAsync("""
+        const string insertLotSql = """
             INSERT INTO stock_lots
                 (item_id, lot_number, expiry_date, quantity, storage_location, created_by)
             VALUES
-                (:itemId, :lotNumber, :expiryDate, 1, 'ITEST-A01', 'itest-woae-t2')
-            """, new
-        {
-            itemId,
-            lotNumber,
-            expiryDate = TestBusinessCalendar.Today.AddDays(120).ToDateTime(TimeOnly.MinValue),
-        });
+                (:itemId, :lotNumber, :expiryDate, 1, :storageLocation, 'itest-location-t2')
+            """;
+        var expiryDate = TestBusinessCalendar.Today.AddDays(120).ToDateTime(TimeOnly.MinValue);
+        await connection.ExecuteAsync(
+            insertLotSql,
+            new { itemId = item.Id, lotNumber = location.Code + "-LOT", expiryDate, storageLocation = location.Name });
+        await connection.ExecuteAsync(
+            insertLotSql,
+            new { itemId = item.Id, lotNumber = location.Code + "-RAW", expiryDate, storageLocation = "ITEST-A01" });
 
         try
         {
             using var client = CreateClient(english: true);
             await WebAuthTestHelpers.LoginAsync(client, TestIdentitySeeder.StorekeeperEmail);
-            var html = Decode(await client.GetStringAsync("/Inventory?search=MD-0001"));
+            var html = Decode(await client.GetStringAsync($"/Inventory?search={Uri.EscapeDataString(item.Code)}"));
 
-            Assert.Contains("Central Warehouse A01", html, StringComparison.Ordinal);
+            Assert.Contains(englishName, html, StringComparison.Ordinal);
+            Assert.DoesNotContain(location.Name, html, StringComparison.Ordinal);
             Assert.Contains("ITEST-A01", html, StringComparison.Ordinal);
-            _output.WriteLine("T2 English master match: Central Warehouse A01");
+            _output.WriteLine($"T2 English master match: {englishName}");
             _output.WriteLine("T2 unmatched fallback: ITEST-A01");
         }
         finally
         {
-            await connection.ExecuteAsync("DELETE FROM stock_lots WHERE lot_number = :lotNumber", new { lotNumber });
-            await connection.ExecuteAsync("COMMIT");
+            await CleanupLocationAndItemAsync(location.Id, item.Id);
         }
     }
 
@@ -129,7 +133,7 @@ public sealed partial class StorageLocationWebTests
     public async Task T3_disable_is_blocked_by_positive_stock_then_succeeds_after_quantity_is_zero()
     {
         var location = await InsertLocationAsync("T3");
-        var itemId = await InsertItemAsync("T3");
+        var itemId = (await InsertItemAsync("T3")).Id;
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
         await connection.ExecuteAsync("""
             INSERT INTO stock_lots
@@ -318,7 +322,10 @@ public sealed partial class StorageLocationWebTests
             "SELECT item_id FROM items WHERE item_code = 'MD-0001' AND is_deleted = 0");
     }
 
-    private static async Task<(long Id, string Code, string Name)> InsertLocationAsync(string marker, bool isDeleted = false)
+    private static async Task<(long Id, string Code, string Name)> InsertLocationAsync(
+        string marker,
+        bool isDeleted = false,
+        string englishName = "Test Storage Location")
     {
         var suffix = Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
         var code = $"ITSL-{marker}-{suffix}";
@@ -342,8 +349,8 @@ public sealed partial class StorageLocationWebTests
         {
             await connection.ExecuteAsync("""
                 INSERT INTO storage_locations (location_code, name, name_en, created_by)
-                VALUES (:code, :name, 'Test Storage Location', 'itest-woae')
-                """, new { code, name });
+                VALUES (:code, :name, :englishName, 'itest-woae')
+                """, new { code, name, englishName });
         }
 
         var id = await connection.QuerySingleAsync<long>(
@@ -352,7 +359,7 @@ public sealed partial class StorageLocationWebTests
         return (id, code, name);
     }
 
-    private static async Task<long> InsertItemAsync(string marker)
+    private static async Task<(long Id, string Code)> InsertItemAsync(string marker)
     {
         var code = $"ITSL-{marker}-{Guid.NewGuid():N}"[..28].ToUpperInvariant();
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
@@ -360,9 +367,10 @@ public sealed partial class StorageLocationWebTests
             INSERT INTO items (item_code, item_name, unit_of_measure, safety_stock_qty, created_by)
             VALUES (:code, '儲藏位置驗收品項', '盒', 0, 'itest-woae')
             """, new { code });
-        return await connection.QuerySingleAsync<long>(
+        var id = await connection.QuerySingleAsync<long>(
             "SELECT item_id FROM items WHERE item_code = :code",
             new { code });
+        return (id, code);
     }
 
     private static async Task DeleteLocationAsync(long id)
