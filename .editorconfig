@@ -23,7 +23,7 @@ trim_trailing_whitespace = false
 
 [*.ps1]
 # Windows PowerShell 5.1 讀沒有 BOM 的 UTF-8 會當成 ANSI（正體中文環境是 Big5），
-# 含中文的腳本會在解析階段就爆掉。詳見踩坑紀錄 L-005。
+# 含中文的腳本會在解析階段就爆掉。
 charset = utf-8-bom
 
 [*.cs]

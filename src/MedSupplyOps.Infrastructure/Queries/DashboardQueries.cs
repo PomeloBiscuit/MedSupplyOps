@@ -47,7 +47,7 @@ public sealed class DashboardQueries
     {
         // ★ entity_id 是字串欄位，JOIN 條件裡的轉換必須是 DEFAULT NULL ON CONVERSION ERROR。
         //   Oracle 不保證先比對 entity_type 再轉換：原本的 TO_NUMBER(a.entity_id) 遇到一筆非數字 id
-        //   （例如將來以 GUID 為鍵的稽核類型），整個營運儀表板就是 HTTP 500。見 L-029。
+        //   （例如將來以 GUID 為鍵的稽核類型），整個營運儀表板就是 HTTP 500。
         const string sql = """
             SELECT a.entity_type AS EntityType,
                    a.entity_id AS EntityId,

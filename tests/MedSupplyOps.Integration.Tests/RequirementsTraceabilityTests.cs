@@ -73,7 +73,7 @@ public sealed class RequirementsTraceabilityTests
             // ★ 「部分：」開頭的實作位置，狀態不可以是「已實作」。
             //   狀態欄才是別人會讀的那一格；把缺口寫在另一欄不能抵銷一個過度宣稱。
             //   覆核時實測抓到：FR-501 的實作位置寫著「未涵蓋 FR-301／FR-303、沒有 OpenAPI 文件」，
-            //   狀態卻是「已實作」。見 L-035。
+            //   狀態卻是「已實作」。
             if (row.Status == "已實作" && row.Implementation.TrimStart().StartsWith("部分：", StringComparison.Ordinal))
             {
                 failures.Add($"{row.Requirement}：實作位置以「部分：」開頭，狀態不可以是「已實作」；請改成「部分實作」。");

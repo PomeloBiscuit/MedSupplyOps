@@ -6,7 +6,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 /// <summary>
 /// 請領人帳號的科室必須是指名的種子科室，不能是「代碼排第一的科室」。
 ///
-/// ★ 這支測試存在的原因（L-027）：
+/// ★ 這支測試存在的原因：
 /// 帳號種子原本用 <c>OrderBy(Code).First()</c> 挑科室，而且**每次主機啟動都會重綁**。
 /// 資料庫是共用的，整合測試會暫時建立代碼像 <c>D1EE0F72409</c> 的科室 —— 它排在 <c>DEP-ER</c> 前面。
 /// 只要任何主機（包括測試主機）剛好在那段時間啟動，示範帳號 <c>requester@example.local</c>

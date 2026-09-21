@@ -32,7 +32,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 
 # 容器內執行一律走共用 helper：它用「寫檔 + docker cp」而不是 stdin 管線。
 # 理由（PowerShell 5.1 會在 stdin 前面加 BOM：bash 大聲炸、sqlplus 安靜降級）
-# 寫在 scripts/lib/ContainerExec.ps1 的檔頭（踩坑紀錄 L-022）。
+# 寫在 scripts/lib/ContainerExec.ps1 的檔頭。
 . (Join-Path $PSScriptRoot 'lib/ContainerExec.ps1')
 Set-Location $repoRoot
 

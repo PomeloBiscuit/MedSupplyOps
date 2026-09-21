@@ -93,7 +93,7 @@ public sealed class ReceivingController : Controller
 
         // ★ 只清掉「被正規化過的欄位」的舊驗證結果，不可以 ModelState.Clear()：
         //   那會連同綁定錯誤一起清掉 —— 數量送空白時屬性維持預設值 1，重新驗證又合法，
-        //   於是入庫一個使用者沒有輸入的數量，畫面顯示成功。見 L-028。
+        //   於是入庫一個使用者沒有輸入的數量，畫面顯示成功。
         ModelState.Remove(nameof(model.LotNumber));
         ModelState.Remove(nameof(model.StorageLocation));
         TryValidateModel(model);

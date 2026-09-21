@@ -32,7 +32,7 @@ internal static class TestIdentitySeeder
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var dbContext = scope.ServiceProvider.GetRequiredService<MedSupplyOpsDbContext>();
-        // ★ 指名種子科室，與示範帳號同一條規則（L-027）。
+        // ★ 指名種子科室，與示範帳號同一條規則。
         //   曾經用「代碼排第一、且 created_by 不是 itest」—— 那只擋得住一個字串，
         //   任何其他前綴建立的科室照樣會把測試帳號綁走。
         var requesterDepartmentId = await dbContext.Departments.AsNoTracking()

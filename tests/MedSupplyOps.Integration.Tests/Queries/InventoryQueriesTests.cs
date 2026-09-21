@@ -11,7 +11,7 @@ namespace MedSupplyOps.Integration.Tests.Queries;
 /// <summary>以真 Oracle 驗證 Dapper 讀取查詢的答案、FEFO 次序及效期邊界。</summary>
 public sealed class InventoryQueriesTests
 {
-    // ★ 查的是種子資料（MD-*），效期是相對於建庫當天算的 —— 用真實業務日期，不用固定的假日期。見 L-026。
+    // ★ 查的是種子資料（MD-*），效期是相對於建庫當天算的 —— 用真實業務日期，不用固定的假日期。
     private static readonly DateOnly Today = TestBusinessCalendar.SystemToday;
 
     [Fact]

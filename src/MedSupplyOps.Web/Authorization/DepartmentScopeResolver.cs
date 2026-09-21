@@ -63,6 +63,6 @@ public readonly record struct DepartmentScope(DepartmentScopeKind Kind, long? De
     /// <summary>RequisitionsController 既有語意：限自己科室（含科室為 null 的情況）。</summary>
     // ★ 「沒有範圍」也算受限（限定到沒有科室），不是「不受限」。
     //   RequisitionsController 的每一處都只看 IsRestricted；若 NoScope 在這裡回 false，
-    //   它在那裡就等於全院 —— 今天被三角色 Policy 擋住看不到，將來加一個新角色就會漏。見 L-029。
+    //   它在那裡就等於全院 —— 今天被三角色 Policy 擋住看不到，將來加一個新角色就會漏。
     public bool IsRestricted => Kind != DepartmentScopeKind.Unrestricted;
 }

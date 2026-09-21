@@ -27,7 +27,7 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
     public static readonly string[] BannedChineseUiStrings =
     [
         // ★ 這三條是「整頁掃中日韓字元」抓到的，不是靠人工列清單想出來的。
-        //   頁尾那條每一頁都有，卻在清單式斷言下活了下來 —— 見 L-038。
+        //   頁尾那條每一頁都有，卻在清單式斷言下活了下來。
         "．版權所有", "個人資料為唯讀；如需修改請聯絡系統管理員。",
         "更新後，目前裝置會重新簽入，其他裝置的既有登入會失效。",
         "庫存總覽", "料號", "品名", "規格", "單位", "可用量", "安全存量",
@@ -243,7 +243,7 @@ public sealed partial class EnglishLocalizationTests : IClassFixture<Requisition
     /// 而錯的那一邊不會有任何徵兆 —— 頁面照樣渲染，只是讀起來像壞掉的機器翻譯。
     ///
     /// 這條測試釘住稽核那一邊：英文版的最近異動必須出現過去式動詞，
-    /// 且**不得**出現名詞形式。見 L-038 與 docs/i18n-glossary.md。
+    /// 且**不得**出現名詞形式。見 docs/i18n-glossary.md。
     /// </summary>
     [Fact]
     public async Task Audit_feed_in_English_uses_past_tense_verbs_not_the_navigation_nouns()

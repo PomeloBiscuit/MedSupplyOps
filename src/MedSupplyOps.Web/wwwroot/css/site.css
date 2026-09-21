@@ -911,7 +911,7 @@ body.mso-sidebar-dragging { cursor: ew-resize; user-select: none; }
 /* offcanvas 跟隨同一個寬度偏好，但在窄螢幕最多只佔 82vw。 */
 /* ★ 不能直接寫 width：Bootstrap 的 .offcanvas.offcanvas-start（兩個 class）權重比這裡高，
    會以 width: var(--bs-offcanvas-width)（預設 400px）蓋掉。從側欄改版以來，這裡寫的寬度
-   一次都沒生效過——瀏覽器實測 computed width 一直是 400px。改設 Bootstrap 自己讀的變數。見 L-040。 */
+   一次都沒生效過——瀏覽器實測 computed width 一直是 400px。改設 Bootstrap 自己讀的變數。 */
 .mso-navigation-offcanvas { --bs-offcanvas-width: min(var(--mso-sidebar-width), 82vw); background: var(--mso-navy); color: #fff; }
 
 /* Bootstrap 顯示完成後明確移除 transform，讓 fixed Popper 以 viewport 為包含區塊。 */

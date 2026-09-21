@@ -157,7 +157,7 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
                 "SELECT item_id FROM items WHERE item_code = :code", new { code = expiringItemCode });
             // ★ 效期要以**網站的**業務日期為基準，不可用資料庫的 SYSDATE：測試主機的時鐘被釘在
             //   TestBusinessCalendar.DefaultInstant，卡片算的是那個「今天」。兩個時鐘混用，
-            //   這條斷言就只在兩者相差不到 30 天的那段真實日期裡是綠的，之後自己變紅。見 L-036。
+            //   這條斷言就只在兩者相差不到 30 天的那段真實日期裡是綠的，之後自己變紅。
             await connection.ExecuteAsync(
                 "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, :expiry, 5, 'ITEST-A01', 'itest')",
                 new { itemId = expiringItemId, lot = expiringLotNumber, expiry = HostDate(10) });
@@ -365,7 +365,7 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
     }
 
     /// <summary>
-    /// ★ 「沒有範圍」必須對**每一個**用 <c>IsRestricted</c> 判斷的地方都是「限定到沒有科室」，不是「不受限」（L-029）。
+    /// ★ 「沒有範圍」必須對**每一個**用 <c>IsRestricted</c> 判斷的地方都是「限定到沒有科室」，不是「不受限」。
     ///
     /// <c>RequisitionsController</c> 的每一處都只看 <c>IsRestricted</c>。若 <c>NoScope.IsRestricted</c> 是 false，
     /// 它在那裡就等於全院。今天那些 Action 被三角色 Policy 擋住所以看不到 ——
@@ -381,7 +381,7 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
     }
 
     /// <summary>
-    /// ★ <c>audit_logs.entity_id</c> 是字串欄位（L-029）。
+    /// ★ <c>audit_logs.entity_id</c> 是字串欄位。
     /// 儀表板若在 JOIN 條件裡直接 <c>TO_NUMBER(entity_id)</c>，Oracle 不保證先比對 <c>entity_type</c> ——
     /// 一筆非數字 id 的稽核（例如將來以 GUID 為鍵的類型）就可能讓營運儀表板整頁 ORA-01722。
     /// D3 的要求是：不認得的類型照樣顯示，首頁不能因此壞掉。
@@ -451,7 +451,7 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
 
         try
         {
-            // ★ 同上：過期日以網站的業務日期往前推，不用資料庫的 SYSDATE。見 L-036。
+            // ★ 同上：過期日以網站的業務日期往前推，不用資料庫的 SYSDATE。
             const string insertLotSql =
                 "INSERT INTO stock_lots (item_id, lot_number, expiry_date, quantity, storage_location, created_by) VALUES (:itemId, :lot, :expiry, :quantity, 'ITEST-A01', 'itest')";
             await connection.ExecuteAsync(insertLotSql, new { itemId = activeId, lot = "L1" + suffix, expiry = HostDate(-5), quantity = 50 });
@@ -517,7 +517,7 @@ public sealed class HomeDashboardWebTests : IClassFixture<RequisitionFlowTests.R
     /// ★ 不可以改用資料庫的 <c>TRUNC(SYSDATE)</c>：那是真實時鐘，而卡片的數字是網站用被釘住的
     ///   測試時鐘算出來的「今天」去篩的。兩個時鐘各走各的，測試就會在某個真實日期自己變紅
     ///   ——「已過期仍在庫」那條就是這樣在 2026-09-16 引爆的（那天起 SYSDATE-5 剛好等於釘住的今天，
-    ///   而條件是 expiry &lt; today，等於不算）。見 L-036。
+    ///   而條件是 expiry &lt; today，等於不算）。
     /// </summary>
     private static DateTime HostDate(int offsetDays)
         => TestBusinessCalendar.Today.AddDays(offsetDays).ToDateTime(TimeOnly.MinValue);

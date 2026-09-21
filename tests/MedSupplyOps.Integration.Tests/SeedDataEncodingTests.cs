@@ -108,7 +108,7 @@ public sealed class SeedDataEncodingTests
     /// <summary>
     /// ★ 資料字典裡的中文註解也必須完好。
     ///
-    /// 這條測試是補一道縫：L-015 修好了成因（初始化腳本補上 NLS_LANG），
+    /// 這條測試是補一道縫：當時修好了成因（初始化腳本補上 NLS_LANG），
     /// 也補了上面那幾條檢查 —— 但它們檢查的是**種子資料的列**。
     /// 已經被寫壞的 <c>V001</c> 表／欄位註解沒有人回頭修，也沒有任何關卡照得到它們
     /// （ER 圖產生器不讀註解、App 畫面看不到註解），
@@ -136,7 +136,7 @@ public sealed class SeedDataEncodingTests
         Assert.True(
             list.Count == 0,
             $"資料字典有 {list.Count} 個註解含 U+FFFD 替代字元：{string.Join(", ", list)}。" +
-            "這代表某支遷移是在 NLS_LANG 未設定的情況下被套用的（踩坑紀錄 L-015／L-021）。");
+            "這代表某支遷移是在 NLS_LANG 未設定的情況下被套用的。");
     }
 
     [Fact]

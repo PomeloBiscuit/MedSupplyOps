@@ -35,7 +35,7 @@ public sealed partial class AuthorizationAndAuditTests
     /// <c>Sequence contains no elements</c> ——
     /// 而在跑過幾輪的資料庫上它會通過，因為帳號是前幾輪留下來的。
     ///
-    /// 也就是「測試通過只因為環境有殘留」（踩坑紀錄 L-023）。
+    /// 也就是「測試通過只因為環境有殘留」。
     /// 其他四個 Web 測試類別都有 <c>IAsyncLifetime</c>，
     /// 它們在 <c>InitializeAsync</c> 裡登入，順帶就把 Host 建起來了；
     /// 只有這一個類別漏掉，於是沒有任何東西保證順序。

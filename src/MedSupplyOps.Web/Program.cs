@@ -52,7 +52,7 @@ catch (Exception exception) when (exception is TimeZoneNotFoundException or Inva
 // ★ 業務日曆必須從 DI 取時鐘，不可以直接寫 TimeProvider.System。
 //   第一版寫成 new BusinessCalendar(TimeProvider.System, ...)：上一行註冊的 TimeProvider
 //   **沒有任何人用**，換掉它對產品毫無作用。邊界測試當時看不到，因為它連日曆一起換掉了
-//   （測試自己提供了它要驗證的那個東西，L-014 的形狀）。見 L-026。
+//   （測試自己提供了它要驗證的那個東西）。
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(serviceProvider =>
     new BusinessCalendar(serviceProvider.GetRequiredService<TimeProvider>(), businessTimeZone));

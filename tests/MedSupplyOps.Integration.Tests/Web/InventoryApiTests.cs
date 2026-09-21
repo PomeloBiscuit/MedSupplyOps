@@ -18,7 +18,7 @@ namespace MedSupplyOps.Integration.Tests.Web;
 public sealed class InventoryApiTests : IClassFixture<InventoryApiTests.InventoryWebApplicationFactory>, IAsyncLifetime
 {
     // 查的是 cold-start 時以 TRUNC(SYSDATE) 建立的種子批次；基準日必須跟著真實業務日期，
-    // 不可使用只供 Web host 邊界測試的固定假時鐘（見 L-033）。
+    // 不可使用只供 Web host 邊界測試的固定假時鐘。
     private static readonly DateOnly Today = TestBusinessCalendar.SystemToday;
     private readonly HttpClient _client;
 

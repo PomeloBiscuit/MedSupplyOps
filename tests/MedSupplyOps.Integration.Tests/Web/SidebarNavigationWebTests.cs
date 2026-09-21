@@ -197,7 +197,7 @@ public sealed partial class SidebarNavigationWebTests
     /// offcanvas 的寬度規則曾經寫成 <c>width: …</c>，被 Bootstrap 的 <c>.offcanvas.offcanvas-start</c>
     /// （權重較高）蓋掉，瀏覽器實測 computed width 從側欄改版起一直是 400px——這裡寫的寬度一次都沒生效過。
     /// 伺服器端測試算不出 computed style，所以守 CSS 原始碼：寬度必須透過 Bootstrap 自己讀的
-    /// <c>--bs-offcanvas-width</c> 設定，不可以再直接寫 <c>width:</c>。見 L-040。
+    /// <c>--bs-offcanvas-width</c> 設定，不可以再直接寫 <c>width:</c>。
     /// </summary>
     [Fact]
     public async Task Hidden_sidebar_offcanvas_has_a_close_drag_handle_and_its_width_goes_through_the_bootstrap_variable()
@@ -395,7 +395,7 @@ public sealed partial class SidebarNavigationWebTests
         var anonymousHtml = await GetHtmlAsync(anonymous, "/Account/Login");
         var authenticatedHtml = await GetHtmlAsync(authenticated, "/");
         // ★ 版權字串改成走資源檔（鍵帶 {0} 年份），英文版才不會夾中文標點與「版權所有」。
-        //   這條測試驗的是「年份取自業務日曆」，不是那句話怎麼寫；繁中版的實際文字見資源鍵。見 L-038。
+        //   這條測試驗的是「年份取自業務日曆」，不是那句話怎麼寫；繁中版的實際文字見資源鍵。
         var copyright = $"© {year} MedSupplyOps．版權所有";
         const string warning = "本系統為院內作業系統，內容僅供授權人員使用，禁止未經授權之重製、散布、擷取或外傳。";
 

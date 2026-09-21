@@ -83,7 +83,7 @@ public sealed class ItemsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateItemViewModel model, CancellationToken cancellationToken)
     {
-        // ★ 只重新驗證被正規化過的欄位；不可以 ModelState.Clear()，那會吞掉數字欄的綁定錯誤（L-028）。
+        // ★ 只重新驗證被正規化過的欄位；不可以 ModelState.Clear()，那會吞掉數字欄的綁定錯誤。
         Normalize(model);
         ModelState.Remove(nameof(model.Code));
         ModelState.Remove(nameof(model.Barcode));
@@ -196,7 +196,7 @@ public sealed class ItemsController : Controller
         [Bind("Barcode,Name,EnglishName,Specification,EnglishSpecification,EnglishUnitOfMeasure,SafetyStockQty")] EditItemViewModel model,
         CancellationToken cancellationToken)
     {
-        // ★ 同 Create：安全存量送空白或非數字時，Clear() 會讓它變成 0 寫進資料庫（L-028）。
+        // ★ 同 Create：安全存量送空白或非數字時，Clear() 會讓它變成 0 寫進資料庫。
         Normalize(model);
         ModelState.Remove(nameof(model.Barcode));
         ModelState.Remove(nameof(model.Name));

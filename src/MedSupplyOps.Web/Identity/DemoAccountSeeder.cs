@@ -27,7 +27,7 @@ internal static class DemoAccountSeeder
     /// ★ 必須**指名**，不可以用「代碼排第一的科室」。
     ///   這個種子每次啟動都會執行、而且會重綁；資料庫是共用的，
     ///   任何人新增一個代碼排在前面的科室（例如整合測試暫時建立的 <c>D1EE0F72409</c>），
-    ///   下一次啟動就會把示範帳號綁過去。見 L-027。
+    ///   下一次啟動就會把示範帳號綁過去。
     /// </summary>
     public const string RequesterDepartmentCode = "DEP-ER";
 

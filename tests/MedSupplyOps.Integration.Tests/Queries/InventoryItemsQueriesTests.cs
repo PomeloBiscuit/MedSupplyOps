@@ -7,7 +7,7 @@ namespace MedSupplyOps.Integration.Tests.Queries;
 /// <summary>驗證庫存頁品項摘要與既有單品項查詢採用相同的可用量定義。</summary>
 public sealed class InventoryItemsQueriesTests
 {
-    // ★ 查的是種子資料（MD-*），效期是相對於建庫當天算的 —— 用真實業務日期，不用固定的假日期。見 L-026。
+    // ★ 查的是種子資料（MD-*），效期是相對於建庫當天算的 —— 用真實業務日期，不用固定的假日期。
     private static readonly DateOnly Today = TestBusinessCalendar.SystemToday;
 
     [Fact]

@@ -139,7 +139,7 @@ public sealed partial class StorageLocationWebTests
             INSERT INTO stock_lots
                 (item_id, lot_number, expiry_date, quantity, storage_location, created_by)
             VALUES
-                (:itemId, :lotNumber, :expiryDate, 7, :name, 'itest-woae-t3')
+                (:itemId, :lotNumber, :expiryDate, 7, :name, 'itest-location-t3')
             """, new
         {
             itemId,
@@ -337,7 +337,7 @@ public sealed partial class StorageLocationWebTests
                 INSERT INTO storage_locations
                     (location_code, name, name_en, is_deleted, deleted_at, deleted_by, created_by)
                 VALUES
-                    (:code, :name, 'Disabled Test Location', 1, :deletedAt, 'itest-woae', 'itest-woae')
+                    (:code, :name, 'Disabled Test Location', 1, :deletedAt, 'itest-location', 'itest-location')
                 """, new
             {
                 code,
@@ -349,7 +349,7 @@ public sealed partial class StorageLocationWebTests
         {
             await connection.ExecuteAsync("""
                 INSERT INTO storage_locations (location_code, name, name_en, created_by)
-                VALUES (:code, :name, :englishName, 'itest-woae')
+                VALUES (:code, :name, :englishName, 'itest-location')
                 """, new { code, name, englishName });
         }
 
@@ -365,7 +365,7 @@ public sealed partial class StorageLocationWebTests
         await using var connection = new OracleConnection(OracleTestDatabase.ConnectionString);
         await connection.ExecuteAsync("""
             INSERT INTO items (item_code, item_name, unit_of_measure, safety_stock_qty, created_by)
-            VALUES (:code, '儲藏位置驗收品項', '盒', 0, 'itest-woae')
+            VALUES (:code, '儲藏位置驗收品項', '盒', 0, 'itest-location')
             """, new { code });
         var id = await connection.QuerySingleAsync<long>(
             "SELECT item_id FROM items WHERE item_code = :code",

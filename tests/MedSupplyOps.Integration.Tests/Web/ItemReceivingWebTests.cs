@@ -251,7 +251,7 @@ public sealed partial class ItemReceivingWebTests
     }
 
     /// <summary>
-    /// ★ 數字欄位的「綁定錯誤」不可以在重新驗證時被吞掉（L-028）。
+    /// ★ 數字欄位的「綁定錯誤」不可以在重新驗證時被吞掉。
     ///
     /// 兩個 Controller 都先正規化字串欄位、再重新驗證。若用 <c>ModelState.Clear()</c> 清掉舊結果，
     /// 會連同模型綁定的錯誤一起清掉：數字欄送空白或非數字時，屬性維持預設值

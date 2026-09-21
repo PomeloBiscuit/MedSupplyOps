@@ -109,7 +109,7 @@ $probes = @(
     },
     @{
         # 這支探針釘住的不是某條業務規則，而是「App 照使用者的方式啟動時真的能用」。
-        # 它存在的理由（踩坑紀錄 L-014）：曾經五道關卡全綠而網站每頁 500。
+        # 它存在的理由：曾經五道關卡全綠而網站每頁 500。
         Name        = 'P8  拿掉 InventoryQueries 的 DI 註冊（正式組裝出現破洞）'
         Rule        = '啟動煙霧測試：正式 DI 圖必須完整'
         File        = 'src/MedSupplyOps.Web/Program.cs'
@@ -367,7 +367,7 @@ foreach ($probe in $probes) {
                     #   原本這裡會掉進下面的 else，把「零條測試執行」印成「改壞了卻全綠」——
                     #   那是最糟的誤判：它去指控測試沒有鑑別力，而真正的事實是什麼都沒跑。
                     #   2026-09-16 曾在探針執行中把一支編譯不過的暫存測試檔寫進測試專案，
-                    #   P11／P12 就是這樣被誤判成無鑑別力的。見 L-018、L-037。
+                    #   P11／P12 就是這樣被誤判成無鑑別力的。
                     $tail = ($run.Raw -split "`r?`n" | Where-Object { $_ -match 'error|Build FAILED|建置失敗' } | Select-Object -First 3) -join ' / '
                     $verdict = "★ 這次沒有測到：dotnet test 沒有產出通過／失敗數，結果不採信。$tail"
                 }
