@@ -15,6 +15,10 @@
 | 科室 | department | 資料內容（實際科室名稱）不翻譯 |
 | 品項 | item | 資料內容（品名與規格）不翻譯 |
 | 批號 | lot number | 批次識別文字不翻譯 |
+| 中央庫房 | central storeroom | 請領單審核與發料的場域 |
+| 配批 | lot allocation | 依 FEFO 從批次分配數量 |
+| 稽核軌跡 | audit trail | 寫入紀錄只增不改不刪 |
+| 軟刪除 | soft deletion | 保留紀錄並排除未刪除資料的唯一性衝突 |
 | 儲藏位置 | storage location | UI 不再使用舊稱；主檔可填英文名稱，英文缺值或舊批次對不到主檔時回退原文 |
 | 顯示時區 | display time zone | 只影響時間呈現，不影響業務日曆 |
 

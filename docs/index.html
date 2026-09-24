@@ -5,60 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MedSupplyOps — 醫材耗材請領與庫存管理系統</title>
 <meta name="description" content="C# / ASP.NET Core MVC / Oracle。這份作品想回答的不是「用了哪些技術」，而是「你怎麼知道它是對的」。">
-<style>
-:root{
-  --ink:#10171f; --text:#2b3440; --muted:#5b6775; --line:#e2e7ec; --line-strong:#cfd6de;
-  --surface:#f4f6f8; --surface-2:#eef1f4; --bg:#ffffff;
-  --primary:#1b5e9c; --primary-dark:#123f6b;
-  --danger:#8f1d17; --warn:#7a5200; --ok:#1f6b45;
-  --radius:10px; --radius-sm:7px;
-  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:64px}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
-a{color:var(--primary);text-decoration:none}
-a:hover{color:var(--primary-dark);text-decoration:underline}
-code{font-family:var(--mono);font-size:.88em;background:var(--surface);padding:.12em .4em;border-radius:4px;color:var(--ink)}
-pre{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--ink);color:#e6edf3;padding:16px 18px;border-radius:var(--radius-sm);overflow-x:auto}
-pre code{background:none;color:inherit;padding:0}
-h2{font-size:26px;line-height:1.35;margin:0 0 6px;color:var(--ink);letter-spacing:-.01em}
-h3{font-size:17px;margin:28px 0 8px;color:var(--ink)}
-p{margin:0 0 14px}
-.wrap{max-width:900px;margin:0 auto;padding:0 20px}
-nav.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-nav.top .wrap{display:flex;align-items:center;gap:18px;height:56px;overflow-x:auto}
-nav.top strong{font-size:15px;color:var(--ink);white-space:nowrap}
-nav.top a{font-size:13px;color:var(--muted);white-space:nowrap}
-nav.top a:hover{color:var(--primary)}
-section{padding:54px 0;border-bottom:1px solid var(--line)}
-section.hero{padding:64px 0 48px}
-.lede{font-size:17px;color:var(--muted);margin:10px 0 0}
-.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:26px 0 0}
-.fact{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
-.fact b{display:block;font-size:28px;line-height:1.2;color:var(--ink);font-variant-numeric:tabular-nums}
-.fact span{font-size:12.5px;color:var(--muted)}
-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
-th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-th{background:var(--surface);color:var(--ink);font-weight:600;font-size:13px;white-space:nowrap}
-.note{background:var(--surface);border-left:3px solid var(--primary);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:14px 16px;margin:16px 0;font-size:14.5px}
-.note.warn{border-left-color:var(--warn)}
-.quote{font-size:18px;line-height:1.6;color:var(--ink);border-left:3px solid var(--ink);padding-left:16px;margin:20px 0;font-weight:600}
-.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin:16px 0;text-align:center;overflow-x:auto}
-.btn{display:inline-block;background:var(--primary);color:#fff;padding:10px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:600}
-.btn:hover{background:var(--primary-dark);color:#fff;text-decoration:none}
-.btn.ghost{background:none;color:var(--primary);border:1px solid var(--line-strong)}
-.btn.ghost:hover{background:var(--surface);color:var(--primary-dark)}
-.tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
-.tag.partial{background:#fdf6e3;color:var(--warn);border-color:#e8d9a8}
-footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
-@media (max-width:700px){
-  body{font-size:14.5px} h2{font-size:22px} section{padding:40px 0}
-  th,td{padding:8px 9px;font-size:13.5px}
-}
-</style>
+<script>
+(function () {
+  var theme;
+  try { theme = localStorage.getItem('medsupplyops-theme'); } catch (error) { /* Storage may be unavailable. */ }
+  if (theme !== 'light' && theme !== 'dark') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.dataset.theme = theme;
+}());
+</script>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="alternate" hreflang="en" href="en/index.html">
 </head>
 <body>
 
@@ -72,6 +30,10 @@ footer{padding:36px 0 56px;color:var(--muted);font-size:13.5px}
   <a href="#performance">效能</a>
   <a href="#ops">可維運性</a>
   <a href="#scope">範圍</a>
+  <span class="nav-actions">
+    <a id="language-toggle" href="en/index.html" hreflang="en">English</a>
+    <button id="theme-toggle" type="button" aria-label="切換至深色模式" aria-pressed="false">深色模式</button>
+  </span>
 </div></nav>
 
 <section class="hero"><div class="wrap">
@@ -185,8 +147,6 @@ flowchart TB
     S --> P
     P --> DB
     Q --> DB
-    style domain fill:#e8f4ea,stroke:#2d6a4f
-    style DB fill:#fdf0d5,stroke:#bc6c25
   </div>
   <table>
     <thead><tr><th>決定</th><th>理由</th></tr></thead>
@@ -213,7 +173,7 @@ flowchart TB
   <p>「配發」是 M:N 關聯：一筆明細可能要跨數個批次，依先到期先出湊足數量；同一批次也可能
      分給多筆明細。「配發數量」描述的是這筆明細從這個批次拿了幾個，所以屬於關聯本身。</p>
   <h4>請領與發料</h4>
-  <img src="diagrams/er-chen-zh-light.svg" data-src-dark="diagrams/er-chen-zh-dark.svg" alt="全系統 Chen 概念模型" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
+  <div class="figure-scroll"><a href="diagrams/er-chen-zh-light.svg" target="_blank" rel="noopener" aria-label="在新分頁開啟全系統 Chen 概念模型原尺寸圖"><img src="diagrams/er-chen-zh-light.svg" data-src-dark="diagrams/er-chen-zh-dark.svg" alt="全系統 Chen 概念模型"></a></div>
   <h4>帳號、權限與稽核</h4>
   <div class="note warn">
     「存放於」與「留下」在概念上成立，但實體設計刻意不做外鍵：批次以名稱對應儲藏位置，
@@ -226,7 +186,7 @@ flowchart TB
     並提供 <code>-Check</code> 模式 —— schema 改了而圖沒重產，關卡就失敗。
     一張匯出的 schema 圖是最典型的「錯了但看起來正常」：資料庫加了欄位、圖沒更新，圖依然畫得漂亮。
   </p>
-  <div class="mermaid" id="er-diagram">flowchart LR
+  <div class="mermaid" id="er-diagram" data-schema-path="diagrams/schema.mmd">flowchart LR
     LOADING["載入 ER 圖中…"]</div>
   <p style="font-size:13.5px;color:var(--muted)">
     共 15 張表（8 張業務表 + 7 張身分表）。圖太寬時可以左右捲動，或
@@ -236,7 +196,7 @@ flowchart TB
   <h3>關聯綱目（從 Oracle 資料字典自動產生）</h3>
   <p>每列是一張表、每格是一個欄位；底線表示主鍵，箭頭由外鍵指向被參照的主鍵，線型表示刪除規則。</p>
   <h4>請領與發料</h4>
-  <img src="diagrams/relational-schema-zh-light.svg" data-src-dark="diagrams/relational-schema-zh-dark.svg" alt="全系統關聯綱目" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
+  <div class="figure-scroll"><a href="diagrams/relational-schema-zh-light.svg" target="_blank" rel="noopener" aria-label="在新分頁開啟全系統關聯綱目原尺寸圖"><img src="diagrams/relational-schema-zh-light.svg" data-src-dark="diagrams/relational-schema-zh-dark.svg" alt="全系統關聯綱目"></a></div>
   <h4>帳號、權限與稽核</h4>
   <p style="font-size:13.5px;color:var(--muted)">
     IDENTITY_USER_CLAIMS、IDENTITY_USER_LOGINS、IDENTITY_USER_TOKENS、IDENTITY_ROLE_CLAIMS
@@ -378,42 +338,6 @@ dotnet test MedSupplyOps.slnx</code></pre>
 </div></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script>
-(function () {
-  if (typeof mermaid === 'undefined') {
-    // 載不到就把圖的原始碼直接顯示出來，不要留一塊空白假裝沒事。
-    document.querySelectorAll('.mermaid').forEach(function (el) {
-      var pre = document.createElement('pre');
-      pre.textContent = el.textContent.trim();
-      el.replaceWith(pre);
-    });
-    return;
-  }
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: 'base',
-    themeVariables: {
-      fontFamily: getComputedStyle(document.body).fontFamily,
-      primaryColor: '#f4f6f8', primaryTextColor: '#10171f', primaryBorderColor: '#5b6775',
-      lineColor: '#5b6775', secondaryColor: '#eef1f4', tertiaryColor: '#ffffff'
-    }
-  });
-
-  // ER 圖從自動產生的 .mmd 讀進來：頁面永遠顯示現行版本，不會有另一份會過期的複本。
-  var FENCE = String.fromCharCode(96, 96, 96);
-  fetch('diagrams/schema.mmd')
-    .then(function (r) { if (!r.ok) { throw new Error(String(r.status)); } return r.text(); })
-    .then(function (text) {
-      var body = text.replace(/<!--[\s\S]*?-->/g, '').split(FENCE + 'mermaid').join('').split(FENCE).join('').trim();
-      document.getElementById('er-diagram').textContent = body;
-    })
-    .catch(function () {
-      document.getElementById('er-diagram').innerHTML =
-        '<p style="margin:0;color:#5b6775">ER 圖需要從 <code>docs/diagrams/schema.mmd</code> 載入（用瀏覽器直接開本機檔案時會被擋下）。' +
-        '<a href="https://github.com/PomeloBiscuit/MedSupplyOps/blob/main/docs/diagrams/schema.mmd">在 GitHub 上看</a></p>';
-    })
-    .finally(function () { mermaid.run({ querySelector: '.mermaid' }); });
-})();
-</script>
+<script src="assets/site.js"></script>
 </body>
 </html>

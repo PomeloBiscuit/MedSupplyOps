@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedSupplyOps — Medical Supply Requisition and Inventory Management</title>
+<meta name="description" content="C# / ASP.NET Core MVC / Oracle. This portfolio asks how we know the system is correct.">
+<script>
+(function () {
+  var theme;
+  try { theme = localStorage.getItem('medsupplyops-theme'); } catch (error) { /* Storage may be unavailable. */ }
+  if (theme !== 'light' && theme !== 'dark') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.dataset.theme = theme;
+}());
+</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" hreflang="zh-Hant" href="../index.html">
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <strong>MedSupplyOps</strong>
+  <a href="#verify">How do we know?</a>
+  <a href="#probes">Mutation probes</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#data">Database</a>
+  <a href="#flow">Core workflow</a>
+  <a href="#performance">Performance</a>
+  <a href="#ops">Operations</a>
+  <a href="#scope">Scope</a>
+  <span class="nav-actions">
+    <a id="language-toggle" href="../index.html" hreflang="zh-Hant">中文</a>
+    <button id="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">Dark mode</button>
+  </span>
+</div></nav>
+
+<section class="hero"><div class="wrap">
+  <p class="kicker">C# · ASP.NET Core MVC · Oracle · Docker</p>
+  <h2 style="font-size:34px">Medical supply requisition and inventory management system</h2>
+  <p class="lede">
+    An internal system for a fictional hospital: a nursing station submits a requisition, the central storeroom approves it and issues lots
+    by first expiry, first out (FEFO). Every step is written to an append-only audit trail.
+  </p>
+  <p class="lede" style="margin-top:14px">
+    This portfolio asks a question beyond which technologies were used: <strong style="color:var(--ink)">How do you know it is correct?</strong>
+  </p>
+  <div class="facts">
+    <div class="fact"><b>334</b><span>tests; all integration tests use a real Oracle database</span></div>
+    <div class="fact"><b>13+5</b><span>mutation probes across code and database rules</span></div>
+    <div class="fact"><b>6</b><span>gates run on every commit</span></div>
+  </div>
+  <p style="margin-top:26px">
+    <a class="btn" href="https://github.com/PomeloBiscuit/MedSupplyOps">View source on GitHub</a>
+    <a class="btn ghost" href="#verify">Start with the verification method</a>
+  </p>
+</div></section>
+
+<section id="verify"><div class="wrap">
+  <p class="kicker">01 — Why feature count is not the point</p>
+  <h2>The most dangerous errors in this system do not crash it</h2>
+  <p>They raise no error, the screen looks normal, and simply running the app catches none of them:</p>
+  <table>
+    <thead><tr><th>If this is implemented incorrectly</th><th>What the user sees</th></tr></thead>
+    <tbody>
+      <tr><td>The issue order by expiry date is reversed</td><td>The quantity is right, inventory is deducted correctly, and the page looks normal — but the wrong lot was issued</td></tr>
+      <tr><td>The expiry rule is off by one day (<code>&lt;</code> becomes <code>&lt;=</code>)</td><td>Each lot loses one usable day. No one reports it</td></tr>
+      <tr><td>Two people request the last box at the same time</td><td>Both requisitions succeed and inventory becomes -5</td></tr>
+      <tr><td>An invalid requisition state transition is silently ignored</td><td>The user clicks Approve, sees no error, and the requisition stays in its previous state</td></tr>
+      <tr><td>The ER diagram drifts from the real schema</td><td>The diagram looks polished, but it is wrong</td></tr>
+    </tbody>
+  </table>
+  <p>So the focus of this project is <strong>designing a check that distinguishes correct from incorrect behavior for each such rule</strong>.</p>
+  <h3>Six gates, all run on every commit</h3>
+  <pre><code>dotnet build   MedSupplyOps.slnx     # Compile and analyze (warnings are errors)
+dotnet test    MedSupplyOps.slnx     # 334 tests
+dotnet format  --verify-no-changes   # Formatting and naming
+scripts/mutation-probe.ps1           # Prove the tests detect incorrect behavior
+scripts/generate-er-diagram.ps1 -Check   # Detect ER diagram drift
+scripts/check-db-clean.ps1           # Tests must leave no database residue</code></pre>
+  <p>The first three are common; <strong>the last three are the focus of this project</strong>.</p>
+</div></section>
+
+<section id="probes"><div class="wrap">
+  <p class="kicker">02 — Mutation probes</p>
+  <h2>Proving the tests can detect the failure</h2>
+  <p class="quote">A check that cannot distinguish before from after a fix is no check at all.</p>
+  <p>
+    All tests passing means only that none failed; it does not mean they can detect the claimed fault.
+    A script therefore <strong>deliberately breaks the implementation 13 times</strong>, checks that the relevant tests fail each time,
+    then restores the code and checks that the baseline passes again:
+  </p>
+  <table>
+    <thead><tr><th>Probe</th><th>Rule</th><th>Failing tests</th></tr></thead>
+    <tbody>
+      <tr><td>P1 Reverse FEFO order (issue the latest-expiring lot first)</td><td>First expiry, first out</td><td>2</td></tr>
+      <tr><td>P2 Change expiry comparison <code>&lt;</code> to <code>&lt;=</code></td><td>A lot remains usable on its expiry date</td><td>2</td></tr>
+      <tr><td>P3 Remove the lot-number tie breaker for equal expiry dates</td><td>Deterministic allocation across environments</td><td>1</td></tr>
+      <tr><td>P4 Allow partial issue</td><td>Insufficient stock fails the entire issue</td><td>4</td></tr>
+      <tr><td>P5 Add an illegal state-machine transition</td><td>Illegal transitions must be rejected</td><td>2</td></tr>
+      <tr><td>P6 Stop requiring a reason for rejection</td><td>Rejection requires a reason</td><td>1</td></tr>
+      <tr><td>P7 Remove <code>SELECT … FOR UPDATE</code> from issue</td><td>Concurrent requests must not overissue</td><td>3</td></tr>
+      <tr><td>P8 Remove query-service DI registration</td><td>Production composition must be complete</td><td>9</td></tr>
+      <tr><td>P9 Skip failed lines and continue issuing the rest</td><td>Issue the whole requisition atomically</td><td>6</td></tr>
+      <tr><td>P10 Remove the item-row lock during receiving</td><td>Receiving a new lot for the same item must be serialized</td><td>2</td></tr>
+      <tr><td>P11 Move receiving expiry check by one day</td><td>Receiving is allowed on the expiry date</td><td>1</td></tr>
+      <tr><td>P12 Give a roleless account unrestricted home-page scope</td><td>Roleless accounts must not see hospital-wide data</td><td>1</td></tr>
+      <tr><td>P13 Skip an unknown GS1 application identifier</td><td>Reject the entire input rather than accepting part of it</td><td>1</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Another 5 <strong>database-level</strong> probes try to write invalid data and verify that constraints reject it: negative inventory,
+    an unknown state, a rejected requisition without a reason, and a duplicate item number. The fifth verifies that
+    <strong>reusing an item number after soft deletion is allowed</strong>. The first four show that invalid data is blocked;
+    only the last shows that valid data is not blocked by mistake.
+  </p>
+  <div class="note">
+    <strong>A real defect found by a probe.</strong>
+    A test named for determinism remained green after a probe removed the entire sort key it supposedly checked.
+    Its test data happened to produce the same answer under both sort orders. The test had never checked its claimed rule,
+    and <strong>reading the test code alone did not reveal that</strong>.
+  </div>
+</div></section>
+
+<section id="architecture"><div class="wrap">
+  <p class="kicker">03 — Architecture</p>
+  <h2>Three layers, with separate write and read paths</h2>
+  <div class="mermaid">
+flowchart TB
+    subgraph web["MedSupplyOps.Web (MVC + Web API + FHIR)"]
+        C["Controllers / Razor Views"]
+        A["Authorization: deny by default + Policy"]
+    end
+    subgraph infra["MedSupplyOps.Infrastructure"]
+        Q["Queries (Dapper handwritten Oracle SQL)"]
+        S["Services: issue / receiving + concurrency control"]
+        P["Persistence (EF Core) write path"]
+    end
+    subgraph domain["MedSupplyOps.Domain (no package dependencies)"]
+        F["FefoAllocator (pure function)"]
+        M["RequisitionStateMachine"]
+    end
+    DB[("Oracle 26ai Free: handwritten DDL + CHECK constraints")]
+    C --> A
+    A --> Q
+    A --> S
+    S --> F
+    S --> P
+    P --> DB
+    Q --> DB
+  </div>
+  <table>
+    <thead><tr><th>Decision</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>The Domain layer has <strong>no package dependencies</strong> (not even EF Core)</td>
+          <td>This is not architectural purity for its own sake: FEFO and inventory rules can be tested without a database, proving they do not depend on persistence details</td></tr>
+      <tr><td><strong>EF Core for writes, handwritten Oracle SQL for reads</strong></td>
+          <td>If everything were left to the ORM, the author could not explain who generated the SQL, why it looks that way, or how to tune it</td></tr>
+      <tr><td>Authorization <strong>denies by default</strong> (fallback policy), with an allowlist of public endpoints</td>
+          <td>With public access as the default, an unmarked endpoint would go unnoticed — and only a signed-out user would discover it</td></tr>
+      <tr><td><code>TreatWarningsAsErrors</code></td>
+          <td>C# has no separate type-checking step. Promoting analyzer warnings to errors gives the third gate something real to block</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section id="data"><div class="wrap">
+  <p class="kicker">04 — Database</p>
+  <h2>Conceptual model and actual structure</h2>
+  <h3>Conceptual model (Chen notation)</h3>
+  <p>Rectangles denote entities, diamonds denote relationships, and ovals denote representative attributes; underlined attribute names are primary keys.
+     Double lines between entities and relationships indicate total participation, single lines indicate partial participation,
+     and <code>1</code>, <code>N</code>, and <code>M</code> indicate cardinality.</p>
+  <p>Every requisition must come from a department, so the requisition side has a double line. A department can submit none, so its side has a single line.</p>
+  <p>Allocation is an M:N relationship: one line can draw from several lots to meet its quantity by earliest expiry;
+     one lot can also supply several lines. Allocated quantity describes how many units that line takes from that lot,
+     so it belongs to the relationship itself.</p>
+  <h4>Requisition and issue</h4>
+  <div class="figure-scroll"><a href="../diagrams/er-chen-en-light.svg" target="_blank" rel="noopener" aria-label="Open the full-size system-wide Chen conceptual model in a new tab"><img src="../diagrams/er-chen-en-light.svg" data-src-dark="../diagrams/er-chen-en-dark.svg" alt="System-wide Chen conceptual model"></a></div>
+  <h4>Accounts, permissions, and audit</h4>
+  <div class="note warn">
+    The conceptual relationships “stored at” and “leaves” are valid, but the physical design deliberately omits foreign keys:
+    a lot matches a storage location by name, and audit records preserve the operator as text. These two relationships
+    therefore have no arrows in the relational schema below.
+  </div>
+
+  <h3>Actual structure (generated from the Oracle data dictionary)</h3>
+  <p>
+    The ER diagram below <strong>is not drawn by hand</strong>: a script generates it from Oracle's data dictionary.
+    Its <code>-Check</code> mode fails the gate if the schema changes without regenerating the diagram.
+    An exported schema diagram is a classic case of “wrong but apparently normal”: a database column changes,
+    the diagram is not updated, and it still looks polished.
+  </p>
+  <div class="mermaid" id="er-diagram" data-schema-path="../diagrams/schema.mmd">flowchart LR
+    LOADING["Loading ER diagram..."]</div>
+  <p style="font-size:13.5px;color:var(--muted)">
+    There are 15 tables (8 business tables + 7 identity tables). Scroll horizontally if the diagram is too wide, or
+    <a href="https://github.com/PomeloBiscuit/MedSupplyOps/blob/main/docs/diagrams/schema.mmd">view the source on GitHub</a>.
+  </p>
+
+  <h3>Relational schema (generated from the Oracle data dictionary)</h3>
+  <p>Each row is a table and each cell is a column. Underlines mark primary keys; arrows point from foreign keys to referenced primary keys; line styles indicate deletion rules.</p>
+  <h4>Requisition and issue</h4>
+  <div class="figure-scroll"><a href="../diagrams/relational-schema-en-light.svg" target="_blank" rel="noopener" aria-label="Open the full-size system-wide relational schema in a new tab"><img src="../diagrams/relational-schema-en-light.svg" data-src-dark="../diagrams/relational-schema-en-dark.svg" alt="System-wide relational schema"></a></div>
+  <h4>Accounts, permissions, and audit</h4>
+  <p style="font-size:13.5px;color:var(--muted)">
+    IDENTITY_USER_CLAIMS, IDENTITY_USER_LOGINS, IDENTITY_USER_TOKENS, and IDENTITY_ROLE_CLAIMS
+    are standard Identity tables unused by this system, so they are omitted from the relational schema.
+  </p>
+
+  <h3>Three Oracle-specific decisions</h3>
+  <table>
+    <tbody>
+      <tr><td><strong>Use <code>VARCHAR2(n CHAR)</code> for every string</strong></td>
+          <td>Under AL32UTF8, a Chinese character takes 3 bytes. Default BYTE semantics let <code>VARCHAR2(50)</code> hold only 16 Chinese characters.
+              A long department name triggers <code>ORA-12899</code>; a developer sees a length of 50 and an input of 20 characters, with no obvious explanation.</td></tr>
+      <tr><td><strong>Function-based index for soft deletion</strong></td>
+          <td>Uniqueness applies only to records not deleted. A direct UNIQUE constraint on item number would prevent reuse after soft deletion,
+              with no message explaining why.</td></tr>
+      <tr><td><strong>No <code>ON DELETE CASCADE</code> anywhere in the schema</strong></td>
+          <td>Deleting a department and cascading through its requisitions and issue records would destroy the audit trail in a medical setting.
+              All deletion is soft deletion.</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section id="flow"><div class="wrap">
+  <p class="kicker">05 — Core workflow</p>
+  <h2>Issue: FEFO lot allocation and concurrency control</h2>
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant K as Inventory clerk
+    participant W as Web (deny by default)
+    participant S as StockIssueService
+    participant D as Oracle
+    K->>W: Click Issue on an approved requisition
+    W->>S: IssueRequisitionAsync (one transaction)
+    S->>D: SELECT ... FOR UPDATE WAIT 5 (lock by ascending item_id)
+    Note over S,D: Fixed lock order prevents deadlocks
+    S->>S: FefoAllocator: earliest expiry first, lot number breaks ties
+    alt Any line has insufficient quantity
+        S->>D: ROLLBACK
+        S-->>W: Entire requisition fails (no partial issue)
+    else All lines have enough
+        S->>D: UPDATE lot quantity + INSERT allocation + INSERT audit
+        S->>D: COMMIT
+        S-->>W: Success, return the allocated lots
+    end
+  </div>
+  <table>
+    <tbody>
+      <tr><td><strong>Why pessimistic rather than optimistic locking</strong></td>
+          <td>Issue is a short, high-contention transaction. To the user, the result is whether stock can be issued. Optimistic locking makes the second person finish all the work before being told to retry;
+              pessimistic locking makes them wait at the read. They then see the <strong>actual inventory</strong> after the first deduction and receive a meaningful message such as “insufficient stock; 1 available.”</td></tr>
+      <tr><td><strong>Lock timeout is not insufficient stock</strong></td>
+          <td>A timeout means stock may exist but the lock was unavailable, so the caller should retry. Treating it as shortage creates a <strong>false out-of-stock message</strong>.
+              On timeout, available quantity is returned as <code>-1</code> rather than <code>0</code>: no data was read, and returning 0 would imply it was checked and found empty.</td></tr>
+      <tr><td><strong>Database <code>CHECK (quantity &gt;= 0)</code> is the final defense</strong></td>
+          <td>After probe P7 removes the application lock, inventory <strong>still cannot become negative</strong>: the second UPDATE violates CHECK and fails.
+              The application gives correct, helpful results; the database guarantees the data remains valid.</td></tr>
+    </tbody>
+  </table>
+  <h3>Requisition state machine</h3>
+  <p>Six states and five legal transitions. <strong>An illegal transition must be rejected with an explicit error, never silently ignored</strong> — probe P5 checks this.</p>
+  <div class="mermaid">
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> PendingApproval : Submit
+    PendingApproval --> Approved : Approve
+    PendingApproval --> Rejected : Reject (reason required)
+    Approved --> Issued : Issue (FEFO allocation)
+    Issued --> Closed : Close
+    Rejected --> [*]
+    Closed --> [*]
+  </div>
+</div></section>
+
+<section id="performance"><div class="wrap">
+  <p class="kicker">06 — Performance</p>
+  <h2>Logical reads instead of execution time</h2>
+  <p>
+    Timing measures “your query + operating system scheduling + GC + other processes” when only the first matters.
+    The measurement therefore uses <strong>Buffers (logical reads)</strong> from <code>DBMS_XPLAN</code> and requires
+    <strong>the same A-Rows before and after</strong>. If the returned row count changes, the query has changed rather than improved.
+  </p>
+  <table>
+    <thead><tr><th>Query</th><th>Before index</th><th>After index</th><th>A-Rows</th></tr></thead>
+    <tbody>
+      <tr><td>FEFO available-lot query</td><td>1004 buffers (full table scan)</td><td>111 buffers (index range scan)</td><td>101 → 101</td></tr>
+      <tr><td>Home audit list (20 groups of ten thousand audit rows)</td><td>2006 buffers</td><td>54 buffers (−97%)</td><td>5 → 5</td></tr>
+      <tr><td>Expired lots still in stock (2 groups of ten thousand lots)</td><td colspan="2">19 buffers; an existing index is used — <strong>no new index needed</strong></td><td>1 → 1</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    The last row is deliberate: <strong>“no new index needed” is also a conclusion</strong>.
+    Adding an unnecessary index to make numbers look better is as dishonest as shrinking the query to improve them.
+  </div>
+</div></section>
+
+<section id="ops"><div class="wrap">
+  <p class="kicker">07 — Operations</p>
+  <h2>The safety net must also be verified</h2>
+  <table>
+    <thead><tr><th>Area</th><th>What was done</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Backup and restore drill</strong></td>
+          <td>Two backup layers (Data Pump logical backup + cold volume backup). A drill found that the script left two files of plausible size
+              even though they were not valid backups: the container had been SIGKILLed rather than shut down cleanly. Packaging now requires
+              a clean-shutdown marker and an exit code other than 137; failures write <code>UNTRUSTED.txt</code>.
+              Restore also fixed a false failure by checking the log inside the container. A destructive restore drill then confirmed that
+              <strong>marker data written before restore disappeared and four table row counts returned to baseline</strong>.</td></tr>
+      <tr><td><strong>Cold-start replay</strong></td>
+          <td>From a clean clone and a fresh database volume, all six gates were rerun using the README instructions.
+              This exposed a test that failed only on a fresh database but remained green in an accumulated environment.</td></tr>
+      <tr><td><strong>Requirements traceability gate</strong></td>
+          <td>Each requirement ID appears exactly once in the traceability table. For a row marked implemented, its test method,
+              probe ID, and file path must exist. <strong>Partially implemented work cannot be marked implemented</strong>.
+              This gate runs with the tests rather than as a separate, easily forgotten step.</td></tr>
+      <tr><td><strong>Tests must leave no residue</strong></td>
+          <td>Integration tests share one Oracle container. Residual data escapes individual assertions because each test checks only its own scope.
+              A separate gate therefore requires the database to contain only seed data after the test run.</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section id="scope"><div class="wrap">
+  <p class="kicker">08 — Scope</p>
+  <h2>Deliberate exclusions</h2>
+  <p>The requirements explain the boundaries: no patient records, medical orders, registration, or insurance claims;
+     no external purchasing and acceptance, transfers between hospitals, front-end SPA, or high-availability cluster.</p>
+  <div class="note">
+    This is deliberate: <strong>the system handles no patient data</strong>.
+    Without clinical domain knowledge, it does not pretend to have it. An honest inventory system is better than a seemingly complete “hospital system” with an incorrect model.
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <p><a class="btn" href="https://github.com/PomeloBiscuit/MedSupplyOps">GitHub: source and full documentation</a></p>
+  <p style="margin-top:18px">Requires .NET SDK 10 and Docker Desktop; no Oracle installation is needed:</p>
+  <pre><code>cp .env.example .env        # Enter the database password
+docker compose up -d        # Start Oracle 26ai Free; create schema and seed data
+dotnet test MedSupplyOps.slnx</code></pre>
+  <p style="margin-top:20px;font-size:13px">
+    This system is a portfolio project. Its institution, departments, and data are fictional.
+  </p>
+</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
