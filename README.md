@@ -455,18 +455,16 @@ erDiagram
 實體與關聯之間的雙線表示全部參與、單線表示部分參與，線旁的 `1`、`N`、`M` 表示基數。
 例如：每張請領單一定由某個科室提出，所以請領單那一側是雙線；科室可以一張單都沒提，所以是單線。
 完整欄位仍以後面的關聯綱目為準。
+全系統 Chen 圖為維持可讀性，各實體只顯示主鍵屬性；其餘欄位列在關聯綱目。
 
 「配發」是 M:N 關聯：一筆請領明細可能要跨數個批次，依先到期先出湊足數量；同一批次也可能
 分給多筆明細。「配發數量」既不單獨屬於請領明細，也不單獨屬於批次，它描述的是「這筆明細
 從這個批次拿了幾個」，所以掛在「配發」關聯上。
 
-### 請領與發料
-
-![請領與發料 Chen 概念模型](docs/diagrams/er-requisition.svg)
-
-### 帳號、權限與稽核
-
-![帳號、權限與稽核 Chen 概念模型](docs/diagrams/er-identity.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/er-chen-zh-dark.svg">
+  <img src="docs/diagrams/er-chen-zh-light.svg" alt="全系統 Chen 概念模型">
+</picture>
 
 > **概念關聯與實體外鍵的差異：**「存放於」與「留下」在概念上成立，但實體設計刻意不做外鍵。
 > 批次以名稱對應儲藏位置，原因記在 [`docs/requirements.md`](docs/requirements.md) 的 FR-105 附近；
@@ -500,15 +498,12 @@ Chen 圖由 [`docs/diagrams/conceptual-model.json`](docs/diagrams/conceptual-mod
 這張圖把上面的 ER 圖落成實際資料表：每一列是一張表，每個格子是一個欄位，底線標示主鍵，
 箭頭從外鍵欄位指向它參照的主鍵；實線、虛線與點線分別呈現外鍵的刪除規則。這張圖和前面的
 鴉爪式實體關係圖都由 `scripts/generate-er-diagram.ps1` 從 Oracle 資料字典自動產生，並由
-`-Check` 關卡逐位元組比對，因此不會和資料庫結構脫節。
+`-Check` 關卡先統一換行再逐位元組比對，因此不會和資料庫結構脫節。
 
-### 請領與發料
-
-![請領與發料關聯綱目](docs/diagrams/relational-schema-requisition.svg)
-
-### 帳號、權限與稽核
-
-![帳號、權限與稽核關聯綱目](docs/diagrams/relational-schema-identity.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/relational-schema-zh-dark.svg">
+  <img src="docs/diagrams/relational-schema-zh-light.svg" alt="全系統關聯綱目">
+</picture>
 
 `IDENTITY_USER_CLAIMS`、`IDENTITY_USER_LOGINS`、`IDENTITY_USER_TOKENS`、
 `IDENTITY_ROLE_CLAIMS` 是本系統未使用的 Identity 標準表，因此不畫入關聯綱目。

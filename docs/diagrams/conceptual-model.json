@@ -1,9 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
   "relationalSchemas": {
-    "requisition": {
-      "title": "請領與發料",
-      "output": "docs/diagrams/relational-schema-requisition.svg",
+    "system": {
+      "title": "全系統關聯綱目",
+      "nameEn": "Full-system relational schema",
+      "caption": "未使用資料表：IDENTITY_USER_CLAIMS、IDENTITY_USER_LOGINS、IDENTITY_USER_TOKENS、IDENTITY_ROLE_CLAIMS",
+      "captionEn": "Excluded unused tables: IDENTITY_USER_CLAIMS, IDENTITY_USER_LOGINS, IDENTITY_USER_TOKENS, IDENTITY_ROLE_CLAIMS",
       "tables": [
         "DEPARTMENTS",
         "REQUISITIONS",
@@ -11,14 +13,7 @@
         "ITEMS",
         "STOCK_LOTS",
         "STORAGE_LOCATIONS",
-        "ISSUE_ALLOCATIONS"
-      ]
-    },
-    "identity": {
-      "title": "帳號、權限與稽核",
-      "output": "docs/diagrams/relational-schema-identity.svg",
-      "tables": [
-        "DEPARTMENTS",
+        "ISSUE_ALLOCATIONS",
         "IDENTITY_USERS",
         "IDENTITY_ROLES",
         "IDENTITY_USER_ROLES",
@@ -33,92 +28,287 @@
     "IDENTITY_ROLE_CLAIMS"
   ],
   "conceptualDiagrams": {
-    "requisition": {
-      "title": "請領與發料概念模型",
-      "output": "docs/diagrams/er-requisition.svg",
-      "width": 980,
-      "height": 1160,
+    "system": {
+      "title": "全系統 Chen 概念模型",
+      "nameEn": "Full-system Chen conceptual model",
+      "caption": "矩形為實體；菱形為關聯；橢圓為屬性；底線為主鍵；雙線為全部參與。",
+      "captionEn": "Rectangles: entities; diamonds: relationships; ellipses: attributes; underline: primary key; double line: total participation.",
       "entities": [
         {
           "id": "DEPARTMENT",
           "name": "科室",
-          "x": 140,
-          "y": 180,
-          "width": 116,
-          "height": 46,
+          "nameEn": "Department",
+          "grid": {
+            "row": 0,
+            "col": 0
+          },
+          "attributeSide": "bottom",
           "attributes": [
-            { "id": "DEPARTMENT_ID", "name": "科室編號", "x": 65, "y": 65, "rx": 50, "ry": 18, "primaryKey": true },
-            { "id": "DEPARTMENT_CODE", "name": "科室代碼", "x": 175, "y": 65, "rx": 50, "ry": 18 },
-            { "id": "DEPARTMENT_NAME", "name": "科室名稱", "x": 285, "y": 65, "rx": 50, "ry": 18 }
+            {
+              "id": "DEPARTMENT_ID",
+              "name": "科室編號",
+              "nameEn": "Department ID",
+              "primaryKey": true
+            },
+            {
+              "id": "DEPARTMENT_CODE",
+              "name": "科室代碼",
+              "nameEn": "Department code"
+            },
+            {
+              "id": "DEPARTMENT_NAME",
+              "name": "科室名稱",
+              "nameEn": "Department name"
+            }
           ]
         },
         {
           "id": "REQUISITION",
           "name": "請領單",
-          "x": 650,
-          "y": 180,
-          "width": 126,
-          "height": 46,
+          "nameEn": "Requisition",
+          "grid": {
+            "row": 1,
+            "col": 0
+          },
+          "attributeSide": "bottom",
           "attributes": [
-            { "id": "REQUISITION_ID", "name": "請領單編號", "x": 455, "y": 65, "rx": 56, "ry": 18, "primaryKey": true },
-            { "id": "REQUISITION_NO", "name": "單號", "x": 575, "y": 65, "rx": 50, "ry": 18 },
-            { "id": "STATUS", "name": "狀態", "x": 695, "y": 65, "rx": 50, "ry": 18 },
-            { "id": "REJECTION_REASON", "name": "駁回原因", "x": 840, "y": 65, "rx": 56, "ry": 18 }
+            {
+              "id": "REQUISITION_ID",
+              "name": "請領單編號",
+              "nameEn": "Requisition ID",
+              "primaryKey": true
+            },
+            {
+              "id": "REQUISITION_NO",
+              "name": "單號",
+              "nameEn": "Requisition number"
+            },
+            {
+              "id": "STATUS",
+              "name": "狀態",
+              "nameEn": "Status"
+            },
+            {
+              "id": "REJECTION_REASON",
+              "name": "駁回原因",
+              "nameEn": "Rejection reason"
+            }
           ]
         },
         {
           "id": "ITEM",
           "name": "品項",
-          "x": 140,
-          "y": 500,
-          "width": 116,
-          "height": 46,
+          "nameEn": "Item",
+          "grid": {
+            "row": 2,
+            "col": 0
+          },
+          "attributeSide": "bottom",
           "attributes": [
-            { "id": "ITEM_ID", "name": "品項編號", "x": 50, "y": 385, "rx": 48, "ry": 18, "primaryKey": true },
-            { "id": "ITEM_CODE", "name": "料號", "x": 155, "y": 385, "rx": 48, "ry": 18 },
-            { "id": "ITEM_NAME", "name": "品名", "x": 260, "y": 385, "rx": 48, "ry": 18 },
-            { "id": "SAFETY_STOCK", "name": "安全存量", "x": 75, "y": 615, "rx": 50, "ry": 18 },
-            { "id": "BARCODE", "name": "條碼", "x": 210, "y": 615, "rx": 48, "ry": 18 }
+            {
+              "id": "ITEM_ID",
+              "name": "品項編號",
+              "nameEn": "Item ID",
+              "primaryKey": true
+            },
+            {
+              "id": "ITEM_CODE",
+              "name": "料號",
+              "nameEn": "Item code"
+            },
+            {
+              "id": "ITEM_NAME",
+              "name": "品名",
+              "nameEn": "Item name"
+            },
+            {
+              "id": "SAFETY_STOCK",
+              "name": "安全存量",
+              "nameEn": "Safety stock"
+            },
+            {
+              "id": "BARCODE",
+              "name": "條碼",
+              "nameEn": "Barcode"
+            }
           ]
         },
         {
           "id": "REQUISITION_LINE",
           "name": "請領明細",
-          "x": 650,
-          "y": 500,
-          "width": 126,
-          "height": 46,
+          "nameEn": "Requisition line",
+          "grid": {
+            "row": 2,
+            "col": 1
+          },
+          "attributeSide": "bottom",
           "attributes": [
-            { "id": "REQUISITION_LINE_ID", "name": "明細編號", "x": 830, "y": 440, "rx": 54, "ry": 18, "primaryKey": true },
-            { "id": "LINE_NO", "name": "行號", "x": 830, "y": 500, "rx": 50, "ry": 18 },
-            { "id": "REQUESTED_QUANTITY", "name": "請領數量", "x": 830, "y": 560, "rx": 54, "ry": 18 }
+            {
+              "id": "REQUISITION_LINE_ID",
+              "name": "明細編號",
+              "nameEn": "Line ID",
+              "primaryKey": true
+            },
+            {
+              "id": "LINE_NO",
+              "name": "行號",
+              "nameEn": "Line number"
+            },
+            {
+              "id": "REQUESTED_QUANTITY",
+              "name": "請領數量",
+              "nameEn": "Requested quantity"
+            }
           ]
         },
         {
           "id": "STOCK_LOT",
           "name": "批次",
-          "x": 400,
-          "y": 920,
-          "width": 116,
-          "height": 46,
+          "nameEn": "Lot",
+          "grid": {
+            "row": 3,
+            "col": 0
+          },
+          "attributeSide": "bottom",
           "attributes": [
-            { "id": "STOCK_LOT_ID", "name": "批次編號", "x": 210, "y": 1080, "rx": 52, "ry": 18, "primaryKey": true },
-            { "id": "LOT_NUMBER", "name": "批號", "x": 330, "y": 1080, "rx": 48, "ry": 18 },
-            { "id": "EXPIRY_DATE", "name": "效期", "x": 450, "y": 1080, "rx": 48, "ry": 18 },
-            { "id": "LOT_QUANTITY", "name": "數量", "x": 570, "y": 1080, "rx": 48, "ry": 18 }
+            {
+              "id": "STOCK_LOT_ID",
+              "name": "批次編號",
+              "nameEn": "Lot ID",
+              "primaryKey": true
+            },
+            {
+              "id": "LOT_NUMBER",
+              "name": "批號",
+              "nameEn": "Lot number"
+            },
+            {
+              "id": "EXPIRY_DATE",
+              "name": "效期",
+              "nameEn": "Expiry date"
+            },
+            {
+              "id": "LOT_QUANTITY",
+              "name": "數量",
+              "nameEn": "Quantity"
+            }
           ]
         },
         {
           "id": "STORAGE_LOCATION",
           "name": "儲藏位置",
-          "x": 840,
-          "y": 920,
-          "width": 126,
-          "height": 46,
+          "nameEn": "Storage location",
+          "grid": {
+            "row": 3,
+            "col": 1
+          },
+          "attributeSide": "bottom",
           "attributes": [
-            { "id": "LOCATION_ID", "name": "位置編號", "x": 735, "y": 1040, "rx": 52, "ry": 18, "primaryKey": true },
-            { "id": "LOCATION_CODE", "name": "位置代碼", "x": 895, "y": 1040, "rx": 52, "ry": 18 },
-            { "id": "LOCATION_NAME", "name": "位置名稱", "x": 840, "y": 1110, "rx": 52, "ry": 18 }
+            {
+              "id": "LOCATION_ID",
+              "name": "位置編號",
+              "nameEn": "Location ID",
+              "primaryKey": true
+            },
+            {
+              "id": "LOCATION_CODE",
+              "name": "位置代碼",
+              "nameEn": "Location code"
+            },
+            {
+              "id": "LOCATION_NAME",
+              "name": "位置名稱",
+              "nameEn": "Location name"
+            }
+          ]
+        },
+        {
+          "id": "USER",
+          "name": "使用者",
+          "nameEn": "User",
+          "grid": {
+            "row": 0,
+            "col": 1
+          },
+          "attributeSide": "bottom",
+          "attributes": [
+            {
+              "id": "USER_ID",
+              "name": "使用者編號",
+              "nameEn": "User ID",
+              "primaryKey": true
+            },
+            {
+              "id": "USER_NAME",
+              "name": "帳號",
+              "nameEn": "User name"
+            },
+            {
+              "id": "DISPLAY_NAME",
+              "name": "顯示名稱",
+              "nameEn": "Display name"
+            },
+            {
+              "id": "EMPLOYEE_NO",
+              "name": "員工編號",
+              "nameEn": "Employee number"
+            }
+          ]
+        },
+        {
+          "id": "ROLE",
+          "name": "角色",
+          "nameEn": "Role",
+          "grid": {
+            "row": 0,
+            "col": 2
+          },
+          "attributeSide": "bottom",
+          "attributes": [
+            {
+              "id": "ROLE_ID",
+              "name": "角色編號",
+              "nameEn": "Role ID",
+              "primaryKey": true
+            },
+            {
+              "id": "ROLE_NAME",
+              "name": "角色名稱",
+              "nameEn": "Role name"
+            }
+          ]
+        },
+        {
+          "id": "AUDIT_LOG",
+          "name": "稽核紀錄",
+          "nameEn": "Audit log",
+          "grid": {
+            "row": 1,
+            "col": 1
+          },
+          "attributeSide": "bottom",
+          "attributes": [
+            {
+              "id": "AUDIT_LOG_ID",
+              "name": "稽核編號",
+              "nameEn": "Audit log ID",
+              "primaryKey": true
+            },
+            {
+              "id": "ACTION",
+              "name": "動作",
+              "nameEn": "Action"
+            },
+            {
+              "id": "OCCURRED_AT",
+              "name": "發生時間",
+              "nameEn": "Occurred at"
+            },
+            {
+              "id": "VALUES",
+              "name": "異動前後值",
+              "nameEn": "Old and new values"
+            }
           ]
         }
       ],
@@ -126,182 +316,168 @@
         {
           "id": "SUBMITS",
           "name": "提出",
-          "x": 360,
-          "y": 180,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Submits",
           "participants": [
-            { "entity": "DEPARTMENT", "participation": "partial", "cardinality": "1" },
-            { "entity": "REQUISITION", "participation": "total", "cardinality": "N" }
+            {
+              "entity": "DEPARTMENT",
+              "participation": "partial",
+              "cardinality": "1"
+            },
+            {
+              "entity": "REQUISITION",
+              "participation": "total",
+              "cardinality": "N"
+            }
           ],
           "attributes": []
         },
         {
           "id": "CONTAINS",
           "name": "包含",
-          "x": 650,
-          "y": 335,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Contains",
           "participants": [
-            { "entity": "REQUISITION", "participation": "total", "cardinality": "1" },
-            { "entity": "REQUISITION_LINE", "participation": "total", "cardinality": "N" }
+            {
+              "entity": "REQUISITION",
+              "participation": "total",
+              "cardinality": "1"
+            },
+            {
+              "entity": "REQUISITION_LINE",
+              "participation": "total",
+              "cardinality": "N"
+            }
           ],
           "attributes": []
         },
         {
           "id": "REQUESTS",
           "name": "請領",
-          "x": 360,
-          "y": 500,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Requests",
           "participants": [
-            { "entity": "REQUISITION_LINE", "participation": "total", "cardinality": "N" },
-            { "entity": "ITEM", "participation": "partial", "cardinality": "1" }
+            {
+              "entity": "REQUISITION_LINE",
+              "participation": "total",
+              "cardinality": "N"
+            },
+            {
+              "entity": "ITEM",
+              "participation": "partial",
+              "cardinality": "1"
+            }
           ],
           "attributes": []
         },
         {
           "id": "HOLDS",
           "name": "持有",
-          "x": 140,
-          "y": 720,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Holds",
           "participants": [
-            { "entity": "ITEM", "participation": "partial", "cardinality": "1" },
-            { "entity": "STOCK_LOT", "participation": "total", "cardinality": "N" }
+            {
+              "entity": "ITEM",
+              "participation": "partial",
+              "cardinality": "1"
+            },
+            {
+              "entity": "STOCK_LOT",
+              "participation": "total",
+              "cardinality": "N"
+            }
           ],
           "attributes": []
         },
         {
           "id": "ALLOCATES",
           "name": "配發",
-          "x": 650,
-          "y": 720,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Allocates",
           "participants": [
-            { "entity": "REQUISITION_LINE", "participation": "partial", "cardinality": "M" },
-            { "entity": "STOCK_LOT", "participation": "partial", "cardinality": "N" }
+            {
+              "entity": "REQUISITION_LINE",
+              "participation": "partial",
+              "cardinality": "M"
+            },
+            {
+              "entity": "STOCK_LOT",
+              "participation": "partial",
+              "cardinality": "N"
+            }
           ],
           "attributes": [
-            { "id": "ALLOCATED_QUANTITY", "name": "配發數量", "x": 840, "y": 720, "rx": 52, "ry": 18 }
+            {
+              "id": "ALLOCATED_QUANTITY",
+              "name": "配發數量",
+              "nameEn": "Allocated quantity"
+            }
           ]
         },
         {
           "id": "STORED_AT",
           "name": "存放於",
-          "x": 620,
-          "y": 920,
-          "width": 104,
-          "height": 56,
+          "nameEn": "Stored at",
           "participants": [
-            { "entity": "STOCK_LOT", "participation": "total", "cardinality": "N" },
-            { "entity": "STORAGE_LOCATION", "participation": "partial", "cardinality": "1" }
+            {
+              "entity": "STOCK_LOT",
+              "participation": "total",
+              "cardinality": "N"
+            },
+            {
+              "entity": "STORAGE_LOCATION",
+              "participation": "partial",
+              "cardinality": "1"
+            }
           ],
           "attributes": []
-        }
-      ]
-    },
-    "identity": {
-      "title": "帳號、權限與稽核概念模型",
-      "output": "docs/diagrams/er-identity.svg",
-      "width": 980,
-      "height": 900,
-      "entities": [
-        {
-          "id": "DEPARTMENT",
-          "name": "科室",
-          "x": 140,
-          "y": 180,
-          "width": 116,
-          "height": 46,
-          "attributes": [
-            { "id": "DEPARTMENT_ID", "name": "科室編號", "x": 60, "y": 65, "rx": 50, "ry": 18, "primaryKey": true },
-            { "id": "DEPARTMENT_CODE", "name": "科室代碼", "x": 170, "y": 65, "rx": 50, "ry": 18 },
-            { "id": "DEPARTMENT_NAME", "name": "科室名稱", "x": 280, "y": 65, "rx": 50, "ry": 18 }
-          ]
         },
-        {
-          "id": "USER",
-          "name": "使用者",
-          "x": 600,
-          "y": 180,
-          "width": 116,
-          "height": 46,
-          "attributes": [
-            { "id": "USER_ID", "name": "使用者編號", "x": 430, "y": 65, "rx": 54, "ry": 18, "primaryKey": true },
-            { "id": "USER_NAME", "name": "帳號", "x": 550, "y": 65, "rx": 48, "ry": 18 },
-            { "id": "DISPLAY_NAME", "name": "顯示名稱", "x": 670, "y": 65, "rx": 50, "ry": 18 },
-            { "id": "EMPLOYEE_NO", "name": "員工編號", "x": 800, "y": 65, "rx": 50, "ry": 18 }
-          ]
-        },
-        {
-          "id": "ROLE",
-          "name": "角色",
-          "x": 600,
-          "y": 590,
-          "width": 116,
-          "height": 46,
-          "attributes": [
-            { "id": "ROLE_ID", "name": "角色編號", "x": 520, "y": 800, "rx": 50, "ry": 18, "primaryKey": true },
-            { "id": "ROLE_NAME", "name": "角色名稱", "x": 680, "y": 800, "rx": 50, "ry": 18 }
-          ]
-        },
-        {
-          "id": "AUDIT_LOG",
-          "name": "稽核紀錄",
-          "x": 850,
-          "y": 400,
-          "width": 126,
-          "height": 46,
-          "attributes": [
-            { "id": "AUDIT_LOG_ID", "name": "稽核編號", "x": 720, "y": 400, "rx": 52, "ry": 18, "primaryKey": true },
-            { "id": "ACTION", "name": "動作", "x": 950, "y": 400, "rx": 28, "ry": 18 },
-            { "id": "OCCURRED_AT", "name": "發生時間", "x": 760, "y": 650, "rx": 52, "ry": 18 },
-            { "id": "VALUES", "name": "異動前後值", "x": 920, "y": 650, "rx": 56, "ry": 18 }
-          ]
-        }
-      ],
-      "relationships": [
         {
           "id": "BELONGS",
           "name": "隸屬",
-          "x": 360,
-          "y": 180,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Belongs to",
           "participants": [
-            { "entity": "DEPARTMENT", "participation": "partial", "cardinality": "1" },
-            { "entity": "USER", "participation": "partial", "cardinality": "N" }
+            {
+              "entity": "DEPARTMENT",
+              "participation": "partial",
+              "cardinality": "1"
+            },
+            {
+              "entity": "USER",
+              "participation": "partial",
+              "cardinality": "N"
+            }
           ],
           "attributes": []
         },
         {
           "id": "ASSIGNS",
           "name": "擔任",
-          "x": 600,
-          "y": 390,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Assigned role",
           "participants": [
-            { "entity": "USER", "participation": "partial", "cardinality": "M" },
-            { "entity": "ROLE", "participation": "partial", "cardinality": "N" }
+            {
+              "entity": "USER",
+              "participation": "partial",
+              "cardinality": "M"
+            },
+            {
+              "entity": "ROLE",
+              "participation": "partial",
+              "cardinality": "N"
+            }
           ],
           "attributes": []
         },
         {
           "id": "LEAVES",
           "name": "留下",
-          "x": 800,
-          "y": 180,
-          "width": 94,
-          "height": 56,
+          "nameEn": "Leaves",
           "participants": [
-            { "entity": "USER", "participation": "partial", "cardinality": "1" },
-            { "entity": "AUDIT_LOG", "participation": "total", "cardinality": "N" }
+            {
+              "entity": "USER",
+              "participation": "partial",
+              "cardinality": "1"
+            },
+            {
+              "entity": "AUDIT_LOG",
+              "participation": "total",
+              "cardinality": "N"
+            }
           ],
           "attributes": []
         }

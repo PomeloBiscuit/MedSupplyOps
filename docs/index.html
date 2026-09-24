@@ -213,9 +213,8 @@ flowchart TB
   <p>「配發」是 M:N 關聯：一筆明細可能要跨數個批次，依先到期先出湊足數量；同一批次也可能
      分給多筆明細。「配發數量」描述的是這筆明細從這個批次拿了幾個，所以屬於關聯本身。</p>
   <h4>請領與發料</h4>
-  <img src="diagrams/er-requisition.svg" alt="請領與發料 Chen 概念模型" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
+  <img src="diagrams/er-chen-zh-light.svg" data-src-dark="diagrams/er-chen-zh-dark.svg" alt="全系統 Chen 概念模型" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
   <h4>帳號、權限與稽核</h4>
-  <img src="diagrams/er-identity.svg" alt="帳號、權限與稽核 Chen 概念模型" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
   <div class="note warn">
     「存放於」與「留下」在概念上成立，但實體設計刻意不做外鍵：批次以名稱對應儲藏位置，
     稽核紀錄以帳號文字保存操作者。因此後面的關聯綱目中，這兩條關聯沒有箭頭。
@@ -237,9 +236,8 @@ flowchart TB
   <h3>關聯綱目（從 Oracle 資料字典自動產生）</h3>
   <p>每列是一張表、每格是一個欄位；底線表示主鍵，箭頭由外鍵指向被參照的主鍵，線型表示刪除規則。</p>
   <h4>請領與發料</h4>
-  <img src="diagrams/relational-schema-requisition.svg" alt="請領與發料關聯綱目" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
+  <img src="diagrams/relational-schema-zh-light.svg" data-src-dark="diagrams/relational-schema-zh-dark.svg" alt="全系統關聯綱目" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
   <h4>帳號、權限與稽核</h4>
-  <img src="diagrams/relational-schema-identity.svg" alt="帳號、權限與稽核關聯綱目" style="display:block;width:100%;max-width:980px;height:auto;margin:16px auto">
   <p style="font-size:13.5px;color:var(--muted)">
     IDENTITY_USER_CLAIMS、IDENTITY_USER_LOGINS、IDENTITY_USER_TOKENS、IDENTITY_ROLE_CLAIMS
     是本系統未使用的 Identity 標準表，因此不畫入關聯綱目。

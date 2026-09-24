@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="2060" viewBox="0 0 1220 2060" role="img" aria-labelledby="title description">
+  <title id="title">Full-system Chen conceptual model</title>
+  <desc id="description">Rectangles: entities; diamonds: relationships; ellipses: attributes; underline: primary key; double line: total participation. Only primary-key attributes are shown; other columns appear in the relational schema.</desc>
+  <rect x="0" y="0" width="1220" height="2060" fill="#111827"/>
+  <line data-attribute-line="entity:DEPARTMENT:attribute:DEPARTMENT:DEPARTMENT_ID" x1="250" y1="104" x2="250" y2="118" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:REQUISITION:attribute:REQUISITION:REQUISITION_ID" x1="250" y1="574" x2="250" y2="588" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:ITEM:attribute:ITEM:ITEM_ID" x1="250" y1="1044" x2="250" y2="1058" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:REQUISITION_LINE:attribute:REQUISITION_LINE:REQUISITION_LINE_ID" x1="610" y1="1044" x2="610" y2="1058" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:STOCK_LOT:attribute:STOCK_LOT:STOCK_LOT_ID" x1="250" y1="1514" x2="250" y2="1528" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:STORAGE_LOCATION:attribute:STORAGE_LOCATION:LOCATION_ID" x1="610" y1="1514" x2="610" y2="1528" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:USER:attribute:USER:USER_ID" x1="610" y1="104" x2="610" y2="118" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:ROLE:attribute:ROLE:ROLE_ID" x1="970" y1="104" x2="970" y2="118" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="entity:AUDIT_LOG:attribute:AUDIT_LOG:AUDIT_LOG_ID" x1="610" y1="574" x2="610" y2="588" stroke="#a8bacd" stroke-width="1.5"/>
+  <line data-attribute-line="relationship:ALLOCATES:attribute:ALLOCATES:ALLOCATED_QUANTITY" x1="250" y1="1826" x2="250" y2="1833" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="SUBMITS:DEPARTMENT" d="M 189.5 57 H 20 V 720 H 188" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="171.5" y="48" text-anchor="middle" font-size="13" fill="#f4f7fb">1</text>
+  <path data-connection="SUBMITS:REQUISITION" d="M 315.5 524 H 377 V 717 H 312" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="SUBMITS:REQUISITION" d="M 315.5 530 H 383 V 723 H 312" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="333.5" y="518" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="CONTAINS:REQUISITION" d="M 184.5 524 H 31 V 1187 H 181.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="CONTAINS:REQUISITION" d="M 184.5 530 H 37 V 1193 H 181.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="166.5" y="518" text-anchor="middle" font-size="13" fill="#f4f7fb">1</text>
+  <path data-connection="CONTAINS:REQUISITION_LINE" d="M 696 994 H 737 V 1187 H 318.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="CONTAINS:REQUISITION_LINE" d="M 696 1000 H 743 V 1193 H 318.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="714" y="988" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="REQUESTS:REQUISITION_LINE" d="M 696 1012 H 751 V 1317 H 318.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="REQUESTS:REQUISITION_LINE" d="M 696 1018 H 757 V 1323 H 318.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="714" y="1006" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="REQUESTS:ITEM" d="M 217 997 H 48 V 1320 H 181.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="199" y="988" text-anchor="middle" font-size="13" fill="#f4f7fb">1</text>
+  <path data-connection="HOLDS:ITEM" d="M 217 1015 H 62 V 1660 H 201" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="199" y="1006" text-anchor="middle" font-size="13" fill="#f4f7fb">1</text>
+  <path data-connection="HOLDS:STOCK_LOT" d="M 279 1464 H 391 V 1657 H 299" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="HOLDS:STOCK_LOT" d="M 279 1470 H 397 V 1663 H 299" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="297" y="1458" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="ALLOCATES:REQUISITION_LINE" d="M 696 1033 H 768 V 1790 H 325" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="714" y="1024" text-anchor="middle" font-size="13" fill="#f4f7fb">M</text>
+  <path data-connection="ALLOCATES:STOCK_LOT" d="M 221 1467 H 76 V 1790 H 175" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="203" y="1458" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="STORED_AT:STOCK_LOT" d="M 221 1482 H 87 V 1917 H 178.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="STORED_AT:STOCK_LOT" d="M 221 1488 H 93 V 1923 H 178.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="203" y="1476" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="STORED_AT:STORAGE_LOCATION" d="M 696 1467 H 782 V 1920 H 321.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="714" y="1458" text-anchor="middle" font-size="13" fill="#f4f7fb">1</text>
+  <path data-connection="BELONGS:DEPARTMENT" d="M 189.5 75 H 104 V 250 H 172" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="171.5" y="66" text-anchor="middle" font-size="13" fill="#f4f7fb">1</text>
+  <path data-connection="BELONGS:USER" d="M 646.5 57 H 796 V 250 H 328" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="664.5" y="48" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="ASSIGNS:USER" d="M 573.5 57 H 408 V 380 H 512.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="555.5" y="48" text-anchor="middle" font-size="13" fill="#f4f7fb">M</text>
+  <path data-connection="ASSIGNS:ROLE" d="M 1003 57 H 1100 V 380 H 707.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="1021" y="48" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <path data-connection="LEAVES:USER" d="M 573.5 75 H 422 V 850 H 554.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="555.5" y="66" text-anchor="middle" font-size="13" fill="#f4f7fb">1</text>
+  <path data-connection="LEAVES:AUDIT_LOG" d="M 663.5 524 H 807 V 847 H 665.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <path data-connection="LEAVES:AUDIT_LOG" d="M 663.5 530 H 813 V 853 H 665.5" fill="none" stroke="#a8bacd" stroke-width="1.5"/>
+  <text x="681.5" y="518" text-anchor="middle" font-size="13" fill="#f4f7fb">N</text>
+  <rect data-element="entity:DEPARTMENT" x="189.5" y="46" width="121" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="80.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Department</text>
+  <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_ID" cx="250" cy="140" rx="62.5" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="144.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Department ID</text>
+  <line data-primary-key="attribute:DEPARTMENT:DEPARTMENT_ID" x1="199.69" y1="147.55" x2="300.31" y2="147.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:REQUISITION" x="184.5" y="516" width="131" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="550.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Requisition</text>
+  <ellipse data-element="attribute:REQUISITION:REQUISITION_ID" cx="250" cy="610" rx="66.5" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="614.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Requisition ID</text>
+  <line data-primary-key="attribute:REQUISITION:REQUISITION_ID" x1="195.66" y1="617.55" x2="304.34" y2="617.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:ITEM" x="217" y="986" width="66" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1020.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Item</text>
+  <ellipse data-element="attribute:ITEM:ITEM_ID" cx="250" cy="1080" rx="45" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1084.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Item ID</text>
+  <line data-primary-key="attribute:ITEM:ITEM_ID" x1="223.87" y1="1087.55" x2="276.13" y2="1087.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:REQUISITION_LINE" x="524" y="986" width="172" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="1020.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Requisition line</text>
+  <ellipse data-element="attribute:REQUISITION_LINE:REQUISITION_LINE_ID" cx="610" cy="1080" rx="45" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="1084.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Line ID</text>
+  <line data-primary-key="attribute:REQUISITION_LINE:REQUISITION_LINE_ID" x1="583.87" y1="1087.55" x2="636.13" y2="1087.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:STOCK_LOT" x="221" y="1456" width="58" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1490.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Lot</text>
+  <ellipse data-element="attribute:STOCK_LOT:STOCK_LOT_ID" cx="250" cy="1550" rx="45" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1554.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Lot ID</text>
+  <line data-primary-key="attribute:STOCK_LOT:STOCK_LOT_ID" x1="227.9" y1="1557.55" x2="272.1" y2="1557.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:STORAGE_LOCATION" x="524" y="1456" width="172" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="1490.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Storage location</text>
+  <ellipse data-element="attribute:STORAGE_LOCATION:LOCATION_ID" cx="610" cy="1550" rx="54.5" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="1554.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Location ID</text>
+  <line data-primary-key="attribute:STORAGE_LOCATION:LOCATION_ID" x1="567.75" y1="1557.55" x2="652.25" y2="1557.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:USER" x="573.5" y="46" width="73" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="80.25" text-anchor="middle" font-size="15" fill="#f4f7fb">User</text>
+  <ellipse data-element="attribute:USER:USER_ID" cx="610" cy="140" rx="45" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="144.55" text-anchor="middle" font-size="13" fill="#f4f7fb">User ID</text>
+  <line data-primary-key="attribute:USER:USER_ID" x1="583.87" y1="147.55" x2="636.13" y2="147.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:ROLE" x="937" y="46" width="66" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="970" y="80.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Role</text>
+  <ellipse data-element="attribute:ROLE:ROLE_ID" cx="970" cy="140" rx="45" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="970" y="144.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Role ID</text>
+  <line data-primary-key="attribute:ROLE:ROLE_ID" x1="943.87" y1="147.55" x2="996.13" y2="147.55" stroke="#f4f7fb" stroke-width="1"/>
+  <rect data-element="entity:AUDIT_LOG" x="556.5" y="516" width="107" height="58" fill="#24364b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="550.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Audit log</text>
+  <ellipse data-element="attribute:AUDIT_LOG:AUDIT_LOG_ID" cx="610" cy="610" rx="56.5" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="614.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Audit log ID</text>
+  <line data-primary-key="attribute:AUDIT_LOG:AUDIT_LOG_ID" x1="565.8" y1="617.55" x2="654.2" y2="617.55" stroke="#f4f7fb" stroke-width="1"/>
+  <polygon data-element="relationship:BELONGS" points="250,214 328,250 250,286 172,250" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="255.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Belongs to</text>
+  <polygon data-element="relationship:ASSIGNS" points="610,344 707.5,380 610,416 512.5,380" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="385.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Assigned role</text>
+  <polygon data-element="relationship:SUBMITS" points="250,684 312,720 250,756 188,720" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="725.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Submits</text>
+  <polygon data-element="relationship:LEAVES" points="610,814 665.5,850 610,886 554.5,850" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="610" y="855.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Leaves</text>
+  <polygon data-element="relationship:CONTAINS" points="250,1154 318.5,1190 250,1226 181.5,1190" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1195.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Contains</text>
+  <polygon data-element="relationship:REQUESTS" points="250,1284 318.5,1320 250,1356 181.5,1320" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1325.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Requests</text>
+  <polygon data-element="relationship:HOLDS" points="250,1624 299,1660 250,1696 201,1660" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1665.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Holds</text>
+  <polygon data-element="relationship:ALLOCATES" points="250,1754 325,1790 250,1826 175,1790" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1795.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Allocates</text>
+  <ellipse data-element="attribute:ALLOCATES:ALLOCATED_QUANTITY" cx="250" cy="1855" rx="82.5" ry="22" fill="#1c2a3b" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1859.55" text-anchor="middle" font-size="13" fill="#f4f7fb">Allocated quantity</text>
+  <polygon data-element="relationship:STORED_AT" points="250,1884 321.5,1920 250,1956 178.5,1920" fill="#473b25" stroke="#98afc6" stroke-width="1.5"/>
+  <text x="250" y="1925.25" text-anchor="middle" font-size="15" fill="#f4f7fb">Stored at</text>
+  <text x="20" y="2048" font-size="13" fill="#f4f7fb">Only primary-key attributes are shown; other columns appear in the relational schema.</text>
+</svg>

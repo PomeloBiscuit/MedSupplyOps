@@ -361,14 +361,20 @@ function Assert-TableCoverage {
     )
 
     $drawn = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $counts = @{}
     foreach ($property in $Specification.relationalSchemas.psobject.Properties) {
-        foreach ($table in $property.Value.tables) { [void]$drawn.Add([string]$table) }
+        foreach ($table in $property.Value.tables) {
+            [void]$drawn.Add([string]$table)
+            if (-not $counts.ContainsKey([string]$table)) { $counts[[string]$table] = 0 }
+            $counts[[string]$table]++
+        }
     }
     $excluded = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($table in $Specification.excludedTables) { [void]$excluded.Add([string]$table) }
 
     $failures = New-Object System.Collections.Generic.List[string]
     foreach ($table in $DatabaseModel.Tables) {
+        if ($counts.ContainsKey($table) -and $counts[$table] -ne 1) { [void]$failures.Add("資料表 $table 在全系統關聯綱目出現 $($counts[$table]) 次，預期一次。") }
         if (-not $drawn.Contains($table) -and -not $excluded.Contains($table)) {
             [void]$failures.Add("資料表 $table 沒有歸屬於任何關聯綱目，也未列入不畫清單。")
         }
@@ -504,189 +510,300 @@ function Get-ShapeBoundaryPoint {
     return [pscustomobject]@{ X = $Shape.X + ($dx * $scale); Y = $Shape.Y + ($dy * $scale) }
 }
 
-function New-ConceptualModelSvg {
-    param([Parameter(Mandatory = $true)]$Diagram)
+function Get-EstimatedTextWidth {
+    param([string]$Value, [double]$FontSize)
+    $units = 0.0
+    foreach ($character in $Value.ToCharArray()) {
+        $code = [int][char]$character
+        if ($character -eq ' ') { $units += 0.3 }
+        elseif (($code -ge 0x2e80 -and $code -le 0x9fff) -or ($code -ge 0xac00 -and $code -le 0xd7af) -or ($code -ge 0xf900 -and $code -le 0xfaff) -or ($code -ge 0xff00 -and $code -le 0xffef)) { $units += 1.0 }
+        else { $units += 0.62 }
+    }
+    return ($units * $FontSize)
+}
 
-    $width = [int]$Diagram.width
-    $height = [int]$Diagram.height
-    if ($width -gt 1000) { throw "概念模型 $($Diagram.title) 寬度 $width 超過 1000px。" }
+function Get-BilingualText {
+    param($Element, [string]$Language)
+    if ($Language -eq 'en') { return [string]$Element.nameEn }
+    return [string]$Element.name
+}
 
-    $shapes = @{}
-    $bounds = New-Object System.Collections.Generic.List[object]
+function Assert-ConceptualNames {
+    param($Diagram)
+    foreach ($element in @($Diagram.entities) + @($Diagram.relationships)) {
+        foreach ($item in @($element) + @($element.attributes)) {
+            if ([string]::IsNullOrWhiteSpace($item.name) -or [string]::IsNullOrWhiteSpace($item.nameEn)) {
+                throw "元素 $($item.id) 缺少 name 或 nameEn。"
+            }
+        }
+    }
+}
+
+function Get-ConceptualLayout {
+    param($Diagram, [bool]$PrimaryOnly)
+    $entityFont = 15; $attributeFont = 13; $relationshipFont = 15
+    $entities = @($Diagram.entities)
+    $relationships = @($Diagram.relationships)
+    $entityById = @{}
+    $cellWidth = 220
+    $cellHeight = if ($PrimaryOnly) { 160 } else { 190 }
+    $gutterWidth = 140
+    $cellById = @{}
+    foreach ($entity in $entities) {
+        if ($entityById.ContainsKey([string]$entity.id)) { throw "實體 id 重複：$($entity.id)。" }
+        $entityById[[string]$entity.id] = $entity
+        $row = [int]$entity.grid.row; $col = [int]$entity.grid.col
+        if ($row -lt 0 -or $row -gt 3 -or $col -lt 0 -or $col -gt 2) { throw "實體 $($entity.id) 的 grid 超出 4×3。" }
+        $slot = "$row|$col"
+        if ($cellById.ContainsKey($slot)) { throw "格子 $slot 有多個實體。" }
+        $cellById[$slot] = $entity.id
+        if ($entity.attributeSide -ne 'bottom' -and $entity.attributeSide -ne 'top') { throw "實體 $($entity.id) 的屬性邊無效。" }
+        $entityNeed = [Math]::Ceiling([Math]::Max((Get-EstimatedTextWidth $entity.name $entityFont), (Get-EstimatedTextWidth $entity.nameEn $entityFont)) + 28)
+        $shown = @($entity.attributes | Where-Object { -not $PrimaryOnly -or $_.primaryKey })
+        $attributeWidths = @($shown | ForEach-Object {
+            $needed = [Math]::Ceiling([Math]::Max((Get-EstimatedTextWidth $_.name $attributeFont), (Get-EstimatedTextWidth $_.nameEn $attributeFont)) + 24)
+            [Math]::Min(190, [Math]::Max(90, $needed))
+        })
+        $rowCount = [Math]::Min(2, $attributeWidths.Count)
+        $firstRow = [int][Math]::Ceiling($attributeWidths.Count / 2.0)
+        $firstNeed = 0; $secondNeed = 0
+        for ($index = 0; $index -lt $attributeWidths.Count; $index++) {
+            if ($index -lt $firstRow) { $firstNeed += $attributeWidths[$index] + 12 }
+            else { $secondNeed += $attributeWidths[$index] + 12 }
+        }
+        $cellWidth = [Math]::Max($cellWidth, [Math]::Max($entityNeed + 36, [Math]::Max($firstNeed, $secondNeed) + 24))
+    }
+    $cellWidth = [int][Math]::Ceiling($cellWidth)
+    $width = (3 * $cellWidth) + (4 * $gutterWidth)
+    $grouped = @{}
+    for ($row = 0; $row -lt 4; $row++) { $grouped[$row] = New-Object System.Collections.Generic.List[object] }
+    foreach ($relationship in $relationships) {
+        if (@($relationship.participants).Count -ne 2) { throw "關聯 $($relationship.id) 須恰有兩個參與實體。" }
+        $leftEntity = $entityById[[string]$relationship.participants[0].entity]
+        $rightEntity = $entityById[[string]$relationship.participants[1].entity]
+        if ($null -eq $leftEntity -or $null -eq $rightEntity) { throw "關聯 $($relationship.id) 指向不存在的實體。" }
+        $gap = [Math]::Max([int]$leftEntity.grid.row, [int]$rightEntity.grid.row)
+        [void]$grouped[$gap].Add($relationship)
+    }
+    $rowTop = @(); $gapStart = @(); $gapHeight = @(); $cursor = 30
+    for ($row = 0; $row -lt 4; $row++) {
+        $rowTop += $cursor
+        $cursor += $cellHeight
+        $gapStart += $cursor
+        $gapHeight += (50 + ($grouped[$row].Count * 130))
+        $cursor += $gapHeight[$row]
+    }
+    $height = $cursor + 20
+    $entityShapes = @{}; $attributeShapes = New-Object System.Collections.Generic.List[object]
+    $shapes = New-Object System.Collections.Generic.List[object]
+    foreach ($entity in $entities) {
+        $col = [int]$entity.grid.col; $row = [int]$entity.grid.row
+        $cellLeft = $gutterWidth + ($col * ($cellWidth + $gutterWidth))
+        $cx = $cellLeft + ($cellWidth / 2); $cy = $rowTop[$row] + 45
+        $labelWidth = [Math]::Max((Get-EstimatedTextWidth $entity.name $entityFont), (Get-EstimatedTextWidth $entity.nameEn $entityFont))
+        $boxWidth = [Math]::Ceiling($labelWidth + 28)
+        $record = [pscustomobject]@{ Id = "entity:$($entity.id)"; Kind = 'rect'; Element = $entity; X = $cx; Y = $cy; Width = $boxWidth; Height = 58; FontSize = 15; PrimaryKey = $false }
+        $entityShapes[[string]$entity.id] = $record; [void]$shapes.Add($record)
+        $shown = @($entity.attributes | Where-Object { -not $PrimaryOnly -or $_.primaryKey })
+        $firstRow = [int][Math]::Ceiling($shown.Count / 2.0)
+        for ($attrIndex = 0; $attrIndex -lt $shown.Count; $attrIndex++) {
+            $attribute = $shown[$attrIndex]
+            $attributeWidth = [Math]::Max((Get-EstimatedTextWidth $attribute.name 13), (Get-EstimatedTextWidth $attribute.nameEn 13))
+            $diameter = [Math]::Min(190, [Math]::Max(90, [Math]::Ceiling($attributeWidth + 24)))
+            $attrRow = if ($attrIndex -lt $firstRow) { 0 } else { 1 }
+            $members = if ($attrRow -eq 0) { @($shown | Select-Object -First $firstRow) } else { @($shown | Select-Object -Skip $firstRow) }
+            $localIndex = if ($attrRow -eq 0) { $attrIndex } else { $attrIndex - $firstRow }
+            $widths = @($members | ForEach-Object {
+                [Math]::Min(190, [Math]::Max(90, [Math]::Ceiling([Math]::Max((Get-EstimatedTextWidth $_.name 13), (Get-EstimatedTextWidth $_.nameEn 13)) + 24)))
+            })
+            $total = ($widths | Measure-Object -Sum).Sum + ([Math]::Max(0, $members.Count - 1) * 12)
+            $x = $cx - ($total / 2) + ($diameter / 2)
+            for ($prior = 0; $prior -lt $localIndex; $prior++) { $x += $widths[$prior] + 12 }
+            $yOffset = if ($entity.attributeSide -eq 'bottom') { 110 + ($attrRow * 48) } else { -82 - ($attrRow * 48) }
+            $shape = [pscustomobject]@{ Id = "attribute:$($entity.id):$($attribute.id)"; Kind = 'ellipse'; Element = $attribute; X = $x; Y = ($rowTop[$row] + $yOffset); Width = $diameter; Height = 44; FontSize = 13; PrimaryKey = [bool]$attribute.primaryKey }
+            [void]$attributeShapes.Add($shape); [void]$shapes.Add($shape)
+        }
+    }
+    $relationshipShapes = @{}; $relationshipAttrs = New-Object System.Collections.Generic.List[object]
+    foreach ($gap in 0..3) {
+        $index = 0
+        foreach ($relationship in $grouped[$gap]) {
+            $cols = @($relationship.participants | ForEach-Object { [int]$entityById[[string]$_.entity].grid.col })
+            $col = [Math]::Min($cols[0], $cols[1])
+            $x = $gutterWidth + ($col * ($cellWidth + $gutterWidth)) + ($cellWidth / 2)
+            $y = $gapStart[$gap] + 60 + ($index * 130)
+            $labelWidth = [Math]::Max((Get-EstimatedTextWidth $relationship.name 15), (Get-EstimatedTextWidth $relationship.nameEn 15))
+            $diamondWidth = [Math]::Ceiling(($labelWidth + 24) / 0.72)
+            $shape = [pscustomobject]@{ Id = "relationship:$($relationship.id)"; Kind = 'diamond'; Element = $relationship; X = $x; Y = $y; Width = $diamondWidth; Height = 72; FontSize = 15; PrimaryKey = $false }
+            $relationshipShapes[[string]$relationship.id] = $shape; [void]$shapes.Add($shape)
+            foreach ($attribute in $relationship.attributes) {
+                $labelWidth = [Math]::Max((Get-EstimatedTextWidth $attribute.name 13), (Get-EstimatedTextWidth $attribute.nameEn 13))
+                $diameter = [Math]::Min(190, [Math]::Max(90, [Math]::Ceiling($labelWidth + 24)))
+                $attr = [pscustomobject]@{ Id = "attribute:$($relationship.id):$($attribute.id)"; Kind = 'ellipse'; Element = $attribute; X = $x; Y = ($y + 65); Width = $diameter; Height = 44; FontSize = 13; PrimaryKey = $false }
+                [void]$relationshipAttrs.Add($attr); [void]$shapes.Add($attr)
+            }
+            $index++
+        }
+    }
+    $gutterLanes = @(0, 0, 0, 0)
+    $sidePorts = @{}
     $connections = New-Object System.Collections.Generic.List[object]
-    $labels = New-Object System.Collections.Generic.List[object]
-
-    function Add-ShapeAndLabel {
-        param($Shape, [string]$Id, [string]$DisplayName, [string]$GroupId, [string]$Kind, [double]$FontSize)
-        if ($shapes.ContainsKey($Id)) { throw "圖面元素 id 重複：$Id。" }
-        $shapes[$Id] = $Shape
-        $shapeBounds = if ($Kind -eq 'ellipse') {
-            New-LayoutBounds $Id $DisplayName $GroupId $Kind ($Shape.X - $Shape.Rx) ($Shape.Y - $Shape.Ry) ($Shape.X + $Shape.Rx) ($Shape.Y + $Shape.Ry)
-        }
-        else {
-            New-LayoutBounds $Id $DisplayName $GroupId $Kind ($Shape.X - ($Shape.Width / 2)) ($Shape.Y - ($Shape.Height / 2)) ($Shape.X + ($Shape.Width / 2)) ($Shape.Y + ($Shape.Height / 2))
-        }
-        [void]$bounds.Add($shapeBounds)
-        $labelText = if ($DisplayName -match '「(.+)」') { $matches[1] } else { $DisplayName }
-        $textWidth = [Math]::Max($FontSize, $labelText.Length * $FontSize)
-        [void]$bounds.Add((New-LayoutBounds "$Id`:label" "$DisplayName 的文字標籤" $GroupId 'text' ($Shape.X - ($textWidth / 2)) ($Shape.Y - ($FontSize / 2)) ($Shape.X + ($textWidth / 2)) ($Shape.Y + ($FontSize / 2))))
-        [void]$labels.Add([pscustomobject]@{ Shape = $Shape; Text = $DisplayName; FontSize = $FontSize; PrimaryKey = $false; GroupId = $GroupId })
-    }
-
-    foreach ($entity in $Diagram.entities) {
-        $shape = [pscustomobject]@{ X = [double]$entity.x; Y = [double]$entity.y; Width = [double]$entity.width; Height = [double]$entity.height; Kind = 'rectangle'; DisplayName = "實體「$($entity.name)」" }
-        Add-ShapeAndLabel $shape "entity:$($entity.id)" "實體「$($entity.name)」" "entity:$($entity.id)" 'rectangle' 15
-        $labels[$labels.Count - 1].Text = [string]$entity.name
-        foreach ($attribute in $entity.attributes) {
-            $attributeShape = [pscustomobject]@{ X = [double]$attribute.x; Y = [double]$attribute.y; Rx = [double]$attribute.rx; Ry = [double]$attribute.ry; Kind = 'ellipse'; DisplayName = "屬性「$($attribute.name)」" }
-            $attributeId = "attribute:$($entity.id):$($attribute.id)"
-            Add-ShapeAndLabel $attributeShape $attributeId "屬性「$($attribute.name)」" $attributeId 'ellipse' 13
-            $labels[$labels.Count - 1].Text = [string]$attribute.name
-            $labels[$labels.Count - 1].PrimaryKey = [bool]$attribute.primaryKey
+    foreach ($relationship in $relationships) {
+        $first = $entityById[[string]$relationship.participants[0].entity]
+        $second = $entityById[[string]$relationship.participants[1].entity]
+        $firstCol = [int]$first.grid.col; $secondCol = [int]$second.grid.col
+        $sides = if ($firstCol -lt $secondCol) { @('left', 'right') } elseif ($firstCol -gt $secondCol) { @('right', 'left') } else { @('left', 'right') }
+        $diamond = $relationshipShapes[[string]$relationship.id]
+        for ($participantIndex = 0; $participantIndex -lt 2; $participantIndex++) {
+            $participant = $relationship.participants[$participantIndex]
+            $entity = $entityShapes[[string]$participant.entity]
+            $entitySpec = $entityById[[string]$participant.entity]
+            $col = [int]$entitySpec.grid.col; $side = $sides[$participantIndex]
+            $gutter = if ($side -eq 'left') { $col } else { $col + 1 }
+            $lane = $gutterLanes[$gutter]; $gutterLanes[$gutter]++
+            $gutterLeft = $gutter * ($cellWidth + $gutterWidth)
+            $trackX = $gutterLeft + 20 + ($lane * 14)
+            $portKey = "$($entity.Id)|$side"
+            if (-not $sidePorts.ContainsKey($portKey)) { $sidePorts[$portKey] = 0 }
+            $portNumber = $sidePorts[$portKey]; $sidePorts[$portKey]++
+            $portY = $entity.Y + (($portNumber - 1) * 18)
+            $portX = if ($side -eq 'left') { $entity.X - ($entity.Width / 2) } else { $entity.X + ($entity.Width / 2) }
+            $diamondX = if ($trackX -lt $diamond.X) { $diamond.X - ($diamond.Width / 2) } else { $diamond.X + ($diamond.Width / 2) }
+            $connection = [pscustomobject]@{ Id = "$($relationship.id):$($participant.entity)"; Relationship = $relationship; Participant = $participant; Entity = $entity; Diamond = $diamond; PortX = $portX; PortY = $portY; TrackX = $trackX; EndX = $diamondX; EndY = $diamond.Y; Gutter = $gutter; Lane = $lane }
+            [void]$connections.Add($connection)
         }
     }
-    foreach ($relationship in $Diagram.relationships) {
-        $shape = [pscustomobject]@{ X = [double]$relationship.x; Y = [double]$relationship.y; Width = [double]$relationship.width; Height = [double]$relationship.height; Kind = 'diamond'; DisplayName = "關聯「$($relationship.name)」" }
-        Add-ShapeAndLabel $shape "relationship:$($relationship.id)" "關聯「$($relationship.name)」" "relationship:$($relationship.id)" 'diamond' 15
-        $labels[$labels.Count - 1].Text = [string]$relationship.name
-        foreach ($attribute in $relationship.attributes) {
-            $attributeShape = [pscustomobject]@{ X = [double]$attribute.x; Y = [double]$attribute.y; Rx = [double]$attribute.rx; Ry = [double]$attribute.ry; Kind = 'ellipse'; DisplayName = "屬性「$($attribute.name)」" }
-            $attributeId = "attribute:$($relationship.id):$($attribute.id)"
-            Add-ShapeAndLabel $attributeShape $attributeId "屬性「$($attribute.name)」" $attributeId 'ellipse' 13
-            $labels[$labels.Count - 1].Text = [string]$attribute.name
-        }
+    for ($gutter = 0; $gutter -lt 4; $gutter++) {
+        if ((20 + (($gutterLanes[$gutter] - 1) * 14) + 20) -gt $gutterWidth) { throw "垂直通道 $gutter 車道超出 ${gutterWidth}px。" }
     }
-
-    function Add-Connection {
-        param([string]$Id, $From, $To, [string[]]$EndpointGroups, [string[]]$IgnoredGroups, [double]$Offset)
-        $dx = $To.X - $From.X
-        $dy = $To.Y - $From.Y
-        $length = [Math]::Sqrt(($dx * $dx) + ($dy * $dy))
-        $offsetX = if ($length -eq 0) { 0 } else { (-$dy / $length) * $Offset }
-        $offsetY = if ($length -eq 0) { 0 } else { ($dx / $length) * $Offset }
-        [void]$connections.Add([pscustomobject]@{
-            Id = $Id; X1 = $From.X + $offsetX; Y1 = $From.Y + $offsetY
-            X2 = $To.X + $offsetX; Y2 = $To.Y + $offsetY
-            EndpointGroups = $EndpointGroups; IgnoredGroups = $IgnoredGroups
+    $attributeConnections = New-Object System.Collections.Generic.List[object]
+    foreach ($attribute in $attributeShapes) {
+        $parts = $attribute.Id -split ':'
+        $owner = $entityShapes[$parts[1]]
+        $direction = if ($owner.Element.attributeSide -eq 'bottom') { 1 } else { -1 }
+        [void]$attributeConnections.Add([pscustomobject]@{
+            Id = "$($owner.Id):$($attribute.Id)"; Owner = $owner.Id; Attribute = $attribute.Id
+            X1 = $owner.X; Y1 = $owner.Y + ($direction * $owner.Height / 2)
+            X2 = $attribute.X; Y2 = $attribute.Y - ($direction * $attribute.Height / 2)
         })
     }
-
-    foreach ($entity in $Diagram.entities) {
-        $owner = $shapes["entity:$($entity.id)"]
-        foreach ($attribute in $entity.attributes) {
-            $attributeId = "attribute:$($entity.id):$($attribute.id)"
-            $attributeShape = $shapes[$attributeId]
-            $from = Get-ShapeBoundaryPoint $owner $attributeShape.X $attributeShape.Y
-            $to = Get-ShapeBoundaryPoint $attributeShape $owner.X $owner.Y
-            Add-Connection "屬性線 $($entity.name)—$($attribute.name)" $from $to @("entity:$($entity.id)", $attributeId) @() 0
-        }
+    foreach ($attribute in $relationshipAttrs) {
+        $parts = $attribute.Id -split ':'
+        $owner = $relationshipShapes[$parts[1]]
+        [void]$attributeConnections.Add([pscustomobject]@{
+            Id = "$($owner.Id):$($attribute.Id)"; Owner = $owner.Id; Attribute = $attribute.Id
+            X1 = $owner.X; Y1 = $owner.Y + ($owner.Height / 2)
+            X2 = $attribute.X; Y2 = $attribute.Y - ($attribute.Height / 2)
+        })
     }
-    foreach ($relationship in $Diagram.relationships) {
-        $relationshipId = "relationship:$($relationship.id)"
-        $relationshipShape = $shapes[$relationshipId]
-        foreach ($participant in $relationship.participants) {
-            $entityRecord = @($Diagram.entities | Where-Object { $_.id -eq $participant.entity })
-            if ($entityRecord.Count -ne 1) { throw "關聯 $($relationship.name) 找不到唯一的實體 $($participant.entity)。" }
-            $entityId = "entity:$($participant.entity)"
-            $entityShape = $shapes[$entityId]
-            $from = Get-ShapeBoundaryPoint $entityShape $relationshipShape.X $relationshipShape.Y
-            $to = Get-ShapeBoundaryPoint $relationshipShape $entityShape.X $entityShape.Y
-            $cardinalityGroup = "cardinality:$($relationship.id):$($participant.entity)"
-            if ($participant.participation -eq 'total') {
-                Add-Connection "$($entityRecord[0].name)—$($relationship.name) 雙線 1" $from $to @($entityId, $relationshipId) @($cardinalityGroup) -3
-                Add-Connection "$($entityRecord[0].name)—$($relationship.name) 雙線 2" $from $to @($entityId, $relationshipId) @($cardinalityGroup) 3
-            }
-            elseif ($participant.participation -eq 'partial') {
-                Add-Connection "$($entityRecord[0].name)—$($relationship.name) 單線" $from $to @($entityId, $relationshipId) @($cardinalityGroup) 0
-            }
-            else { throw "關聯 $($relationship.name) 的參與類型 $($participant.participation) 不受支援。" }
+    return [pscustomobject]@{ Width = $width; Height = $height; CellWidth = $cellWidth; CellHeight = $cellHeight; GutterWidth = $gutterWidth; GapHeights = $gapHeight; GutterLanes = $gutterLanes; Shapes = $shapes; AttributeConnections = $attributeConnections; AttributeShapes = $attributeShapes; RelationshipAttributes = $relationshipAttrs; EntityShapes = $entityShapes; RelationshipShapes = $relationshipShapes; Connections = $connections; PrimaryOnly = $PrimaryOnly }
+}
 
-            $dx = $to.X - $from.X
-            $dy = $to.Y - $from.Y
-            $length = [Math]::Sqrt(($dx * $dx) + ($dy * $dy))
-            $cardinalityX = $from.X + ($dx * 0.28) + ((-$dy / $length) * 14)
-            $cardinalityY = $from.Y + ($dy * 0.28) + (($dx / $length) * 14)
-            [void]$bounds.Add((New-LayoutBounds $cardinalityGroup "基數 $($participant.cardinality)（$($entityRecord[0].name)—$($relationship.name)）" $cardinalityGroup 'text' ($cardinalityX - 7) ($cardinalityY - 8) ($cardinalityX + 7) ($cardinalityY + 8)))
-            [void]$labels.Add([pscustomobject]@{ Shape = [pscustomobject]@{ X = $cardinalityX; Y = $cardinalityY }; Text = [string]$participant.cardinality; FontSize = 13; PrimaryKey = $false; GroupId = $cardinalityGroup })
-        }
-        foreach ($attribute in $relationship.attributes) {
-            $attributeId = "attribute:$($relationship.id):$($attribute.id)"
-            $attributeShape = $shapes[$attributeId]
-            $from = Get-ShapeBoundaryPoint $relationshipShape $attributeShape.X $attributeShape.Y
-            $to = Get-ShapeBoundaryPoint $attributeShape $relationshipShape.X $relationshipShape.Y
-            Add-Connection "關聯屬性線 $($relationship.name)—$($attribute.name)" $from $to @($relationshipId, $attributeId) @() 0
-        }
-    }
-
-    $layoutFailures = New-Object System.Collections.Generic.List[string]
-    foreach ($item in $bounds) {
-        if ($item.X1 -lt 0 -or $item.Y1 -lt 0 -or $item.X2 -gt $width -or $item.Y2 -gt $height) {
-            [void]$layoutFailures.Add("元素 $($item.DisplayName) 超出 ${width}×${height} 畫布。")
-        }
+function Assert-ConceptualLayout {
+    param($Layout, [string]$Language, [string]$Path)
+    if ($Layout.Width -gt 1800) { throw "$Path 寬度 $($Layout.Width) 超過 1800px。" }
+    $bounds = New-Object System.Collections.Generic.List[object]
+    foreach ($shape in $Layout.Shapes) {
+        $label = Get-BilingualText $shape.Element $Language
+        $estimate = Get-EstimatedTextWidth $label $shape.FontSize
+        $inner = switch ($shape.Kind) { 'ellipse' { $shape.Width - 20 } 'diamond' { ($shape.Width * 0.72) - 20 } default { $shape.Width - 20 } }
+        if ($estimate -gt $inner + 0.01) { throw "$Path 元素 $($shape.Id) 標籤放得下檢查失敗：估計寬 $([Math]::Round($estimate, 1))px，形狀內寬 $([Math]::Round($inner, 1))px。" }
+        $box = New-LayoutBounds $shape.Id $shape.Id $shape.Id $shape.Kind ($shape.X - ($shape.Width / 2)) ($shape.Y - ($shape.Height / 2)) ($shape.X + ($shape.Width / 2)) ($shape.Y + ($shape.Height / 2))
+        if ($box.X1 -lt 0 -or $box.Y1 -lt 0 -or $box.X2 -gt $Layout.Width -or $box.Y2 -gt $Layout.Height) { throw "$Path 元素 $($shape.Id) 超出畫布。" }
+        [void]$bounds.Add($box)
     }
     for ($i = 0; $i -lt $bounds.Count; $i++) {
         for ($j = $i + 1; $j -lt $bounds.Count; $j++) {
-            if ($bounds[$i].GroupId -ne $bounds[$j].GroupId -and (Test-LayoutBoundsOverlap $bounds[$i] $bounds[$j])) {
-                [void]$layoutFailures.Add("元素外框重疊：$($bounds[$i].DisplayName) 與 $($bounds[$j].DisplayName)。")
+            if (Test-LayoutBoundsOverlap $bounds[$i] $bounds[$j]) { throw "$Path 元素外框重疊：$($bounds[$i].Id) 與 $($bounds[$j].Id)。" }
+        }
+    }
+    $segments = New-Object System.Collections.Generic.List[object]
+    foreach ($segment in $Layout.AttributeConnections) {
+        [void]$segments.Add($segment)
+        foreach ($box in $bounds) {
+            if ($box.Id -eq $segment.Owner -or $box.Id -eq $segment.Attribute) { continue }
+            if (Test-LineIntersectsBounds $segment $box) { throw "$Path 屬性線 $($segment.Id) 穿過 $($box.Id)。" }
+        }
+    }
+    foreach ($connection in $Layout.Connections) {
+        $offsets = if ($connection.Participant.participation -eq 'total') { @(-3, 3) } else { @(0) }
+        foreach ($offset in $offsets) {
+            $points = @(@($connection.PortX, ($connection.PortY + $offset)), @(($connection.TrackX + $offset), ($connection.PortY + $offset)), @(($connection.TrackX + $offset), ($connection.EndY + $offset)), @($connection.EndX, ($connection.EndY + $offset)))
+            for ($index = 0; $index -lt 3; $index++) {
+                $segment = [pscustomobject]@{ Id = $connection.Id; X1 = [double]$points[$index][0]; Y1 = [double]$points[$index][1]; X2 = [double]$points[$index + 1][0]; Y2 = [double]$points[$index + 1][1] }
+                [void]$segments.Add($segment)
+                foreach ($box in $bounds) {
+                    if ($box.Id -eq $connection.Entity.Id -or $box.Id -eq $connection.Diamond.Id) { continue }
+                    if (Test-LineIntersectsBounds $segment $box) { throw "$Path 連線 $($segment.Id) 穿過 $($box.Id)。" }
+                }
             }
         }
     }
-    foreach ($connection in $connections) {
-        foreach ($item in $bounds) {
-            if ($connection.EndpointGroups -contains $item.GroupId -or $connection.IgnoredGroups -contains $item.GroupId) { continue }
-            if (Test-LineIntersectsBounds $connection $item) {
-                [void]$layoutFailures.Add("連線 $($connection.Id) 穿過 $($item.DisplayName)。")
-            }
+    for ($i = 0; $i -lt $segments.Count; $i++) {
+        for ($j = $i + 1; $j -lt $segments.Count; $j++) {
+            $a = $segments[$i]; $b = $segments[$j]
+            if ($a.Id -eq $b.Id) { continue }
+            if ($a.X1 -eq $a.X2 -and $b.X1 -eq $b.X2 -and $a.X1 -eq $b.X1 -and [Math]::Max([Math]::Min($a.Y1,$a.Y2),[Math]::Min($b.Y1,$b.Y2)) -lt [Math]::Min([Math]::Max($a.Y1,$a.Y2),[Math]::Max($b.Y1,$b.Y2))) { throw "$Path 垂直通道連線重疊：$($a.Id) 與 $($b.Id)。" }
+            if ($a.Y1 -eq $a.Y2 -and $b.Y1 -eq $b.Y2 -and $a.Y1 -eq $b.Y1 -and [Math]::Max([Math]::Min($a.X1,$a.X2),[Math]::Min($b.X1,$b.X2)) -lt [Math]::Min([Math]::Max($a.X1,$a.X2),[Math]::Max($b.X1,$b.X2))) { throw "$Path 水平通道連線重疊：$($a.Id) 與 $($b.Id)。" }
         }
     }
-    if ($layoutFailures.Count -gt 0) {
-        throw "概念模型「$($Diagram.title)」版面檢查失敗：`n$($layoutFailures -join [Environment]::NewLine)"
-    }
+}
 
-    $font = '&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif'
+function New-ConceptualModelSvg {
+    param($Diagram, $Layout, [string]$Language, [string]$Theme, [string]$Path)
+    Assert-ConceptualLayout $Layout $Language $Path
+    $palette = if ($Theme -eq 'dark') {
+        @{ Background = '#111827'; Entity = '#24364b'; Relationship = '#473b25'; Attribute = '#1c2a3b'; Foreground = '#f4f7fb'; Line = '#a8bacd'; Border = '#98afc6' }
+    } else {
+        @{ Background = '#ffffff'; Entity = '#eef4f8'; Relationship = '#fff7df'; Attribute = '#ffffff'; Foreground = '#17212b'; Line = '#4a5560'; Border = '#4a5560' }
+    }
+    $title = if ($Language -eq 'en') { [string]$Diagram.nameEn } else { [string]$Diagram.title }
+    $description = if ($Language -eq 'en') { [string]$Diagram.captionEn } else { [string]$Diagram.caption }
+    if ($Layout.PrimaryOnly) { $description += $(if ($Language -eq 'en') { ' Only primary-key attributes are shown; other columns appear in the relational schema.' } else { ' 僅繪製主鍵屬性；其他欄位請見關聯綱目。' }) }
     $svg = New-Object System.Collections.Generic.List[string]
     [void]$svg.Add('<?xml version="1.0" encoding="UTF-8"?>')
-    [void]$svg.Add("<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"$width`" height=`"$height`" viewBox=`"0 0 $width $height`" role=`"img`" aria-labelledby=`"title description`">")
-    [void]$svg.Add("  <title id=`"title`">$(ConvertTo-SvgText $Diagram.title)</title>")
-    [void]$svg.Add('  <desc id="description">Chen 記法：矩形為實體、菱形為關聯、橢圓為屬性、底線為主鍵、雙線為全部參與。</desc>')
-    [void]$svg.Add("  <rect x=`"0`" y=`"0`" width=`"$width`" height=`"$height`" fill=`"#ffffff`"/>")
-    [void]$svg.Add("  <g fill=`"none`" stroke=`"#4a5560`" stroke-width=`"1.5`">")
-    foreach ($connection in $connections) {
-        [void]$svg.Add(('    <line data-name="{0}" x1="{1:0.##}" y1="{2:0.##}" x2="{3:0.##}" y2="{4:0.##}"/>' -f (ConvertTo-SvgText $connection.Id), $connection.X1, $connection.Y1, $connection.X2, $connection.Y2))
+    [void]$svg.Add("<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"$($Layout.Width)`" height=`"$($Layout.Height)`" viewBox=`"0 0 $($Layout.Width) $($Layout.Height)`" role=`"img`" aria-labelledby=`"title description`">")
+    [void]$svg.Add("  <title id=`"title`">$(ConvertTo-SvgText $title)</title>")
+    [void]$svg.Add("  <desc id=`"description`">$(ConvertTo-SvgText $description)</desc>")
+    [void]$svg.Add("  <rect x=`"0`" y=`"0`" width=`"$($Layout.Width)`" height=`"$($Layout.Height)`" fill=`"$($palette.Background)`"/>")
+    foreach ($segment in $Layout.AttributeConnections) {
+        [void]$svg.Add("  <line data-attribute-line=`"$($segment.Id)`" x1=`"$($segment.X1)`" y1=`"$($segment.Y1)`" x2=`"$($segment.X2)`" y2=`"$($segment.Y2)`" stroke=`"$($palette.Line)`" stroke-width=`"1.5`"/>")
     }
-    [void]$svg.Add('  </g>')
-    foreach ($entity in $Diagram.entities) {
-        $x = [double]$entity.x - ([double]$entity.width / 2); $y = [double]$entity.y - ([double]$entity.height / 2)
-        [void]$svg.Add("  <rect data-element=`"entity:$($entity.id)`" x=`"$x`" y=`"$y`" width=`"$($entity.width)`" height=`"$($entity.height)`" fill=`"#eef4f8`" stroke=`"#4a5560`" stroke-width=`"1.5`"/>")
+    foreach ($connection in $Layout.Connections) {
+        $offsets = if ($connection.Participant.participation -eq 'total') { @(-3, 3) } else { @(0) }
+        foreach ($offset in $offsets) {
+            $portY = $connection.PortY + $offset; $trackX = $connection.TrackX + $offset; $endY = $connection.EndY + $offset
+            [void]$svg.Add("  <path data-connection=`"$($connection.Id)`" d=`"M $($connection.PortX) $portY H $trackX V $endY H $($connection.EndX)`" fill=`"none`" stroke=`"$($palette.Line)`" stroke-width=`"1.5`"/>")
+        }
+        $sign = if ($connection.TrackX -lt $connection.PortX) { -1 } else { 1 }
+        $cardinalityX = $connection.PortX + ($sign * 18)
+        [void]$svg.Add("  <text x=`"$cardinalityX`" y=`"$($connection.PortY - 9)`" text-anchor=`"middle`" font-size=`"13`" fill=`"$($palette.Foreground)`">$($connection.Participant.cardinality)</text>")
     }
-    foreach ($relationship in $Diagram.relationships) {
-        $halfWidth = [double]$relationship.width / 2; $halfHeight = [double]$relationship.height / 2
-        $points = "$($relationship.x),$([double]$relationship.y - $halfHeight) $([double]$relationship.x + $halfWidth),$($relationship.y) $($relationship.x),$([double]$relationship.y + $halfHeight) $([double]$relationship.x - $halfWidth),$($relationship.y)"
-        [void]$svg.Add("  <polygon data-element=`"relationship:$($relationship.id)`" points=`"$points`" fill=`"#fff7df`" stroke=`"#4a5560`" stroke-width=`"1.5`"/>")
-    }
-    foreach ($entity in $Diagram.entities) {
-        foreach ($attribute in $entity.attributes) {
-            [void]$svg.Add("  <ellipse data-element=`"attribute:$($entity.id):$($attribute.id)`" cx=`"$($attribute.x)`" cy=`"$($attribute.y)`" rx=`"$($attribute.rx)`" ry=`"$($attribute.ry)`" fill=`"#ffffff`" stroke=`"#4a5560`" stroke-width=`"1.5`"/>")
+    foreach ($shape in $Layout.Shapes) {
+        $x = $shape.X - ($shape.Width / 2); $y = $shape.Y - ($shape.Height / 2)
+        switch ($shape.Kind) {
+            'rect' { [void]$svg.Add("  <rect data-element=`"$($shape.Id)`" x=`"$x`" y=`"$y`" width=`"$($shape.Width)`" height=`"$($shape.Height)`" fill=`"$($palette.Entity)`" stroke=`"$($palette.Border)`" stroke-width=`"1.5`"/>") }
+            'ellipse' { [void]$svg.Add("  <ellipse data-element=`"$($shape.Id)`" cx=`"$($shape.X)`" cy=`"$($shape.Y)`" rx=`"$($shape.Width / 2)`" ry=`"$($shape.Height / 2)`" fill=`"$($palette.Attribute)`" stroke=`"$($palette.Border)`" stroke-width=`"1.5`"/>") }
+            'diamond' {
+                $points = "$($shape.X),$y $($shape.X + ($shape.Width / 2)),$($shape.Y) $($shape.X),$($shape.Y + ($shape.Height / 2)) $x,$($shape.Y)"
+                [void]$svg.Add("  <polygon data-element=`"$($shape.Id)`" points=`"$points`" fill=`"$($palette.Relationship)`" stroke=`"$($palette.Border)`" stroke-width=`"1.5`"/>")
+            }
+        }
+        $label = Get-BilingualText $shape.Element $Language
+        $baseline = $shape.Y + ($shape.FontSize * 0.35)
+        [void]$svg.Add("  <text x=`"$($shape.X)`" y=`"$baseline`" text-anchor=`"middle`" font-size=`"$($shape.FontSize)`" fill=`"$($palette.Foreground)`">$(ConvertTo-SvgText $label)</text>")
+        if ($shape.PrimaryKey) {
+            $lineWidth = Get-EstimatedTextWidth $label $shape.FontSize
+            $underlineY = $baseline + 3; $x1 = $shape.X - ($lineWidth / 2); $x2 = $shape.X + ($lineWidth / 2)
+            [void]$svg.Add("  <line data-primary-key=`"$($shape.Id)`" x1=`"$x1`" y1=`"$underlineY`" x2=`"$x2`" y2=`"$underlineY`" stroke=`"$($palette.Foreground)`" stroke-width=`"1`"/>")
         }
     }
-    foreach ($relationship in $Diagram.relationships) {
-        foreach ($attribute in $relationship.attributes) {
-            [void]$svg.Add("  <ellipse data-element=`"attribute:$($relationship.id):$($attribute.id)`" cx=`"$($attribute.x)`" cy=`"$($attribute.y)`" rx=`"$($attribute.rx)`" ry=`"$($attribute.ry)`" fill=`"#ffffff`" stroke=`"#4a5560`" stroke-width=`"1.5`"/>")
-        }
+    if ($Layout.PrimaryOnly) {
+        $note = if ($Language -eq 'en') { 'Only primary-key attributes are shown; other columns appear in the relational schema.' } else { '僅顯示各實體主鍵屬性；其他欄位見關聯綱目。' }
+        $estimate = Get-EstimatedTextWidth $note 13
+        if ($estimate -gt $Layout.Width - 40) { throw "$Path 圖說標籤放得下檢查失敗：估計寬 $([Math]::Round($estimate,1))px。" }
+        [void]$svg.Add("  <text x=`"20`" y=`"$($Layout.Height - 12)`" font-size=`"13`" fill=`"$($palette.Foreground)`">$(ConvertTo-SvgText $note)</text>")
     }
-    [void]$svg.Add("  <g font-family=`"$font`" text-anchor=`"middle`" fill=`"#17212b`">")
-    foreach ($label in $labels) {
-        $baseline = [double]$label.Shape.Y + ([double]$label.FontSize * 0.35)
-        $weight = if ($label.FontSize -eq 15) { '600' } else { '400' }
-        [void]$svg.Add("    <text x=`"$($label.Shape.X)`" y=`"$baseline`" font-size=`"$($label.FontSize)`" font-weight=`"$weight`">$(ConvertTo-SvgText $label.Text)</text>")
-        if ($label.PrimaryKey) {
-            $underlineWidth = [Math]::Min(([double]$label.Shape.Rx * 1.55), ([string]$label.Text).Length * 13)
-            $x1 = [double]$label.Shape.X - ($underlineWidth / 2); $x2 = [double]$label.Shape.X + ($underlineWidth / 2)
-            $underlineY = $baseline + 3
-            [void]$svg.Add(('    <line data-primary-key="{0}" x1="{1:0.##}" y1="{2:0.##}" x2="{3:0.##}" y2="{2:0.##}" stroke="#17212b" stroke-width="1"/>' -f (ConvertTo-SvgText $label.Text), $x1, $underlineY, $x2))
-        }
-    }
-    [void]$svg.Add('  </g>')
     [void]$svg.Add('</svg>')
     return (($svg -join "`n") + "`n")
 }
@@ -694,7 +811,8 @@ function New-ConceptualModelSvg {
 function New-RelationalSchemaSvg {
     param(
         [Parameter(Mandatory = $true)]$DatabaseModel,
-        [Parameter(Mandatory = $true)]$Schema
+        [Parameter(Mandatory = $true)]$Schema,
+        [string]$Language
     )
 
     $tables = @($Schema.tables | ForEach-Object { [string]$_ })
@@ -731,12 +849,12 @@ function New-RelationalSchemaSvg {
             }
             [void]$items.Add([pscustomobject]@{ Name = $column; Summary = $false; SummaryType = '' })
         }
-        if ($hasAudit) { [void]$items.Add([pscustomobject]@{ Name = '＋ 稽核欄位'; Summary = $true; SummaryType = 'audit' }) }
-        if ($hasIdentity) { [void]$items.Add([pscustomobject]@{ Name = '＋ Identity 內建欄位'; Summary = $true; SummaryType = 'identity' }) }
+        if ($hasAudit) { [void]$items.Add([pscustomobject]@{ Name = $(if ($Language -eq 'en') { '+ Audit fields' } else { '＋ 稽核欄位' }); Summary = $true; SummaryType = 'audit' }) }
+        if ($hasIdentity) { [void]$items.Add([pscustomobject]@{ Name = $(if ($Language -eq 'en') { '+ Identity fields' } else { '＋ Identity 內建欄位' }); Summary = $true; SummaryType = 'identity' }) }
         $displayColumns[$table] = $items
     }
 
-    $svgWidth = 980; $laneSpacing = 14; $leftMargin = 24; $tableNameWidth = 190; $tableGap = 18
+    $svgWidth = 1400; $laneSpacing = 12; $leftMargin = 24; $tableNameWidth = 190; $tableGap = 18
     $cellHeight = 34; $baseGap = 12; $endpointSpacing = 9; $interTableGap = 12
     $tableX = $leftMargin + ($sortedMappings.Count * $laneSpacing) + 16
     $fieldX = $tableX + $tableNameWidth + $tableGap
@@ -746,7 +864,7 @@ function New-RelationalSchemaSvg {
         $lineIndex = 0; $nextX = $fieldX
         $tablePlacements = New-Object System.Collections.Generic.List[object]
         foreach ($column in $displayColumns[$table]) {
-            $cellWidth = if ($column.Summary) { [Math]::Max(122, ($column.Name.Length * 8) + 26) } else { [Math]::Max(92, ($column.Name.Length * 8) + 24) }
+            $cellWidth = [Math]::Max(92, [Math]::Ceiling((Get-EstimatedTextWidth $column.Name 12) + 24))
             if ($nextX -gt $fieldX -and ($nextX + $cellWidth) -gt ($fieldX + $fieldAreaWidth)) { $lineIndex++; $nextX = $fieldX }
             $placement = [pscustomobject]@{ Table = $table; Column = $column.Name; X = $nextX; Y = 0; Width = $cellWidth; Line = $lineIndex; Summary = $column.Summary; SummaryType = $column.SummaryType }
             [void]$tablePlacements.Add($placement)
@@ -767,11 +885,11 @@ function New-RelationalSchemaSvg {
             $gapEndpointCounts[$gapKey]++
             if (-not $gapNextSlots.ContainsKey($gapKey)) { $gapNextSlots[$gapKey] = 0 }
         }
-        $mapping | Add-Member -NotePropertyName Lane -NotePropertyValue $i
-        $mapping | Add-Member -NotePropertyName SourceGapKey -NotePropertyValue $sourceGapKey
-        $mapping | Add-Member -NotePropertyName TargetGapKey -NotePropertyValue $targetGapKey
-        $mapping | Add-Member -NotePropertyName SourceSlot -NotePropertyValue $gapNextSlots[$sourceGapKey]
-        $mapping | Add-Member -NotePropertyName TargetSlot -NotePropertyValue $gapNextSlots[$targetGapKey]
+        $mapping | Add-Member -NotePropertyName Lane -NotePropertyValue $i -Force
+        $mapping | Add-Member -NotePropertyName SourceGapKey -NotePropertyValue $sourceGapKey -Force
+        $mapping | Add-Member -NotePropertyName TargetGapKey -NotePropertyValue $targetGapKey -Force
+        $mapping | Add-Member -NotePropertyName SourceSlot -NotePropertyValue $gapNextSlots[$sourceGapKey] -Force
+        $mapping | Add-Member -NotePropertyName TargetSlot -NotePropertyValue $gapNextSlots[$targetGapKey] -Force
         $gapNextSlots[$sourceGapKey]++; $gapNextSlots[$targetGapKey]++
     }
     $gapBottoms = @{}; $currentY = 28
@@ -786,14 +904,16 @@ function New-RelationalSchemaSvg {
         $currentY += $interTableGap
     }
 
-    $legendY = $currentY + 6; $svgHeight = $legendY + 154
+    $legendY = $currentY + 6; $svgHeight = $legendY + 150
     $monoFont = 'Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace'
     $sansFont = '&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif'
     $lines = New-Object System.Collections.Generic.List[string]
     [void]$lines.Add('<?xml version="1.0" encoding="UTF-8"?>')
     [void]$lines.Add("<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"$svgWidth`" height=`"$svgHeight`" viewBox=`"0 0 $svgWidth $svgHeight`" role=`"img`" aria-labelledby=`"title description`">")
-    [void]$lines.Add("  <title id=`"title`">MEDSUPPLY $([string]$Schema.title)關聯綱目</title>")
-    [void]$lines.Add('  <desc id="description">每列代表一張資料表；箭頭由外鍵指向被參照的主鍵；摘要格收起非鍵值的簿記欄位。</desc>')
+    $title = if ($Language -eq 'en') { "MEDSUPPLY $($Schema.nameEn)" } else { "MEDSUPPLY $($Schema.title)" }
+    $caption = if ($Language -eq 'en') { [string]$Schema.captionEn } else { [string]$Schema.caption }
+    [void]$lines.Add("  <title id=`"title`">$(ConvertTo-SvgText $title)</title>")
+    [void]$lines.Add("  <desc id=`"description`">$(ConvertTo-SvgText $caption)</desc>")
     [void]$lines.Add('  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 0 0 L 10 5 L 0 10 z" fill="#40566d"/></marker></defs>')
     [void]$lines.Add("  <rect x=`"0`" y=`"0`" width=`"$svgWidth`" height=`"$svgHeight`" fill=`"#ffffff`"/>")
     foreach ($table in $tableOrder) {
@@ -832,19 +952,71 @@ function New-RelationalSchemaSvg {
         [void]$lines.Add("  <g class=`"foreign-key`" data-constraint=`"$($mapping.Constraint)`" data-source=`"$sourceLabel`" data-target=`"$targetLabel`" data-delete-rule=`"$($mapping.DeleteRule)`"><title>$(ConvertTo-SvgText "$sourceLabel → $targetLabel ($($mapping.DeleteRule))")</title><path d=`"M $sourceX $sourceBottom V $sourceY H $laneX V $targetY H $targetX V $targetBottom`" fill=`"none`" stroke=`"#40566d`" stroke-width=`"1.5`"$dash marker-end=`"url(#arrow)`"/></g>")
     }
     $legendWidth = $svgWidth - $tableX - 22
+    $legendText = if ($Language -eq 'en') {
+        @('Solid: CASCADE    Dashed: NO ACTION / RESTRICT    Dotted: SET NULL    Underline: primary key',
+          'Audit and Identity bookkeeping fields are summarized.',
+          'Excluded unused tables: IDENTITY_USER_CLAIMS, IDENTITY_USER_LOGINS,',
+          'IDENTITY_USER_TOKENS, IDENTITY_ROLE_CLAIMS')
+    } else {
+        @('實線：CASCADE　虛線：NO ACTION / RESTRICT　點線：SET NULL　底線：主鍵',
+          '稽核與 Identity 內建簿記欄位以摘要格表示。',
+          '未使用資料表：IDENTITY_USER_CLAIMS、IDENTITY_USER_LOGINS、',
+          'IDENTITY_USER_TOKENS、IDENTITY_ROLE_CLAIMS')
+    }
     [void]$lines.Add("  <g class=`"legend`" font-family=`"$sansFont`" fill=`"#263746`">")
-    [void]$lines.Add("    <rect x=`"$tableX`" y=`"$legendY`" width=`"$legendWidth`" height=`"138`" rx=`"6`" fill=`"#f7f9fb`" stroke=`"#c6d0da`"/>")
-    [void]$lines.Add("    <line x1=`"$($tableX + 18)`" y1=`"$($legendY + 22)`" x2=`"$($tableX + 65)`" y2=`"$($legendY + 22)`" stroke=`"#40566d`" stroke-width=`"2`"/><text x=`"$($tableX + 74)`" y=`"$($legendY + 27)`" font-size=`"12`">CASCADE</text>")
-    [void]$lines.Add("    <line x1=`"$($tableX + 155)`" y1=`"$($legendY + 22)`" x2=`"$($tableX + 202)`" y2=`"$($legendY + 22)`" stroke=`"#40566d`" stroke-width=`"2`" stroke-dasharray=`"8 6`"/><text x=`"$($tableX + 211)`" y=`"$($legendY + 27)`" font-size=`"12`">NO ACTION / RESTRICT</text>")
-    [void]$lines.Add("    <line x1=`"$($tableX + 390)`" y1=`"$($legendY + 22)`" x2=`"$($tableX + 437)`" y2=`"$($legendY + 22)`" stroke=`"#40566d`" stroke-width=`"2`" stroke-dasharray=`"2 5`"/><text x=`"$($tableX + 446)`" y=`"$($legendY + 27)`" font-size=`"12`">SET NULL</text><text x=`"$($tableX + 560)`" y=`"$($legendY + 27)`" font-size=`"12`" font-weight=`"700`">底線＝主鍵</text>")
-    [void]$lines.Add("    <text x=`"$($tableX + 18)`" y=`"$($legendY + 50)`" font-size=`"11`">本 schema 沒有 ON DELETE CASCADE，所以所有箭頭都是虛線。</text>")
-    [void]$lines.Add("    <text x=`"$($tableX + 18)`" y=`"$($legendY + 72)`" font-size=`"11`">稽核欄位：IS_DELETED、DELETED_AT、DELETED_BY、CREATED_AT、CREATED_BY、</text>")
-    [void]$lines.Add("    <text x=`"$($tableX + 18)`" y=`"$($legendY + 89)`" font-size=`"11`">UPDATED_AT、UPDATED_BY、ROW_VERSION。</text>")
-    [void]$lines.Add("    <text x=`"$($tableX + 18)`" y=`"$($legendY + 111)`" font-size=`"11`">Identity 內建欄位：NORMALIZED_*、EMAIL_CONFIRMED、PASSWORD_HASH、SECURITY_STAMP、CONCURRENCY_STAMP、</text>")
-    [void]$lines.Add("    <text x=`"$($tableX + 18)`" y=`"$($legendY + 128)`" font-size=`"11`">PHONE_*、TWO_FACTOR_ENABLED、LOCKOUT_*、ACCESS_FAILED_COUNT。</text>")
+    [void]$lines.Add("    <rect x=`"$tableX`" y=`"$legendY`" width=`"$legendWidth`" height=`"130`" rx=`"6`" fill=`"#f7f9fb`" stroke=`"#c6d0da`"/>")
+    for ($i = 0; $i -lt $legendText.Count; $i++) {
+        $estimated = Get-EstimatedTextWidth $legendText[$i] 12
+        if ($estimated -gt $legendWidth - 36) { throw "關聯綱目圖例第 $($i + 1) 行標籤放得下檢查失敗：估計寬 $([Math]::Round($estimated, 1))px，形狀內寬 $($legendWidth - 36)px。" }
+        [void]$lines.Add("    <text x=`"$($tableX + 18)`" y=`"$($legendY + 25 + ($i * 27))`" font-size=`"12`">$(ConvertTo-SvgText $legendText[$i])</text>")
+    }
     [void]$lines.Add('  </g>')
     [void]$lines.Add('</svg>')
     return (($lines -join "`n") + "`n")
+}
+
+function Set-RelationalTheme {
+    param([string]$Svg, [string]$Theme)
+    if ($Theme -ne 'dark') { return $Svg }
+    $pairs = @(
+        @('#ffffff','#111827'), @('#e7eef6','#24364b'), @('#6f8295','#a8bacd'),
+        @('#8c9aa8','#98afc6'), @('#162536','#f4f7fb'), @('#eef1f4','#2a3544'),
+        @('#4c5d6c','#d8e2ed'), @('#40566d','#abc3dc'), @('#263746','#e1eaf3'),
+        @('#f7f9fb','#1c2a3b'), @('#c6d0da','#98afc6')
+    )
+    for ($i = 0; $i -lt $pairs.Count; $i++) { $Svg = $Svg.Replace($pairs[$i][0], "__PALETTE_$i`__") }
+    for ($i = 0; $i -lt $pairs.Count; $i++) { $Svg = $Svg.Replace("__PALETTE_$i`__", $pairs[$i][1]) }
+    return $Svg
+}
+
+function Assert-SvgVariant {
+    param([string]$Svg, [string]$Path, [string]$Language, [string]$Theme, [int]$WidthLimit)
+    $xml = [xml]$Svg
+    $root = $xml.DocumentElement
+    if ([int]$root.GetAttribute('width') -gt $WidthLimit) { throw "$Path 寬度超過 ${WidthLimit}px。" }
+    $ns = [System.Xml.XmlNamespaceManager]::new($xml.NameTable)
+    $ns.AddNamespace('s', 'http://www.w3.org/2000/svg')
+    foreach ($node in $xml.SelectNodes('//s:text', $ns)) {
+        $size = $node.GetAttribute('font-size')
+        if ([string]::IsNullOrWhiteSpace($size) -or [double]$size -lt 12) { throw "$Path 文字 $($node.InnerText) 字級小於 12px。" }
+    }
+    if ($Language -eq 'en' -and $Svg -match '[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]') { throw "$Path 英文版含 CJK 字元。" }
+    if ($Theme -eq 'dark') {
+        foreach ($color in @('#ffffff','#eef4f8','#fff7df','#17212b','#4a5560','#e7eef6','#6f8295','#8c9aa8','#162536','#eef1f4','#4c5d6c','#40566d','#263746','#f7f9fb','#c6d0da')) {
+            if ($Svg.Contains($color)) { throw "$Path 深色版不含亮色色碼檢查失敗：$color。" }
+        }
+    }
+    foreach ($tableGroup in $xml.SelectNodes('//s:g[@class="table"]', $ns)) {
+        $lastRectangle = $null
+        foreach ($child in $tableGroup.ChildNodes) {
+            if ($child.LocalName -eq 'rect') { $lastRectangle = $child }
+            if ($child.LocalName -eq 'text') {
+                $estimate = Get-EstimatedTextWidth $child.InnerText ([double]$child.GetAttribute('font-size'))
+                $inside = [double]$lastRectangle.GetAttribute('width') - 20
+                if ($estimate -gt $inside) { throw "$Path 資料表 $($tableGroup.GetAttribute('data-table')) 欄位 $($child.InnerText) 標籤放得下檢查失敗：估計寬 $([Math]::Round($estimate,1))px，形狀內寬 ${inside}px。" }
+            }
+        }
+    }
 }
 
 function Test-ByteArrayEqual {
@@ -923,15 +1095,39 @@ try {
     $specification = Get-ConceptualModelSpecification
     $databaseModel = Get-DatabaseModel -DictionaryRows $dictionaryRows
     Assert-TableCoverage -Specification $specification -DatabaseModel $databaseModel
+    Assert-ConceptualNames $specification.conceptualDiagrams.system
     $diagram = New-MermaidDiagram -DictionaryRows $dictionaryRows
     $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
     $expectedArtifacts = [ordered]@{}
     $expectedArtifacts[$OutputPath] = $utf8WithoutBom.GetBytes($diagram)
-    foreach ($name in @('requisition', 'identity')) {
-        $conceptual = $specification.conceptualDiagrams.$name
-        $relational = $specification.relationalSchemas.$name
-        $expectedArtifacts[[string]$conceptual.output] = $utf8WithoutBom.GetBytes((New-ConceptualModelSvg -Diagram $conceptual))
-        $expectedArtifacts[[string]$relational.output] = $utf8WithoutBom.GetBytes((New-RelationalSchemaSvg -DatabaseModel $databaseModel -Schema $relational))
+    $conceptual = $specification.conceptualDiagrams.system
+    $allLayout = Get-ConceptualLayout -Diagram $conceptual -PrimaryOnly $false
+    $primaryOnly = $allLayout.Width -gt 1800
+    $fallbackReason = if ($primaryOnly) { "自動格子寬度 $($allLayout.Width)px 超過 1800px" } else { '' }
+    if (-not $primaryOnly) {
+        try {
+            Assert-ConceptualLayout $allLayout 'zh' 'docs/diagrams/er-chen-zh-light.svg'
+            Assert-ConceptualLayout $allLayout 'en' 'docs/diagrams/er-chen-en-light.svg'
+        }
+        catch {
+            $primaryOnly = $true
+            $fallbackReason = $_.Exception.Message
+        }
+    }
+    $layout = if ($primaryOnly) { Get-ConceptualLayout -Diagram $conceptual -PrimaryOnly $true } else { $allLayout }
+    if ($primaryOnly) { Write-Host "完整屬性版未通過：$fallbackReason；改用主鍵屬性版 $($layout.Width)×$($layout.Height)px。" -ForegroundColor Yellow }
+    foreach ($language in @('zh', 'en')) {
+        foreach ($theme in @('light', 'dark')) {
+            $conceptualPath = "docs/diagrams/er-chen-$language-$theme.svg"
+            $relationalPath = "docs/diagrams/relational-schema-$language-$theme.svg"
+            $conceptualSvg = New-ConceptualModelSvg -Diagram $conceptual -Layout $layout -Language $language -Theme $theme -Path $conceptualPath
+            $relationalSvg = New-RelationalSchemaSvg -DatabaseModel $databaseModel -Schema $specification.relationalSchemas.system -Language $language
+            $relationalSvg = Set-RelationalTheme $relationalSvg $theme
+            Assert-SvgVariant $conceptualSvg $conceptualPath $language $theme 1800
+            Assert-SvgVariant $relationalSvg $relationalPath $language $theme 1400
+            $expectedArtifacts[$conceptualPath] = $utf8WithoutBom.GetBytes($conceptualSvg)
+            $expectedArtifacts[$relationalPath] = $utf8WithoutBom.GetBytes($relationalSvg)
+        }
     }
 
     # README 內嵌的那一份只要 ```mermaid 圍欄本身，不要 .mmd 的檔案標頭註解。
@@ -956,7 +1152,9 @@ try {
                 exit 1
             }
             $existingBytes = [System.IO.File]::ReadAllBytes($absolutePath)
-            if (-not (Test-ByteArrayEqual -Left $existingBytes -Right $expectedArtifacts[$path])) {
+            $existingNormalized = $utf8WithoutBom.GetBytes(([System.Text.Encoding]::UTF8.GetString($existingBytes) -replace "`r`n", "`n"))
+            $expectedNormalized = $utf8WithoutBom.GetBytes(([System.Text.Encoding]::UTF8.GetString($expectedArtifacts[$path]) -replace "`r`n", "`n"))
+            if (-not (Test-ByteArrayEqual -Left $existingNormalized -Right $expectedNormalized)) {
                 if ($path -eq $OutputPath) {
                     $existingText = [System.Text.Encoding]::UTF8.GetString($existingBytes)
                     Write-DriftDiff -ExistingText $existingText -ExpectedText $diagram
@@ -971,7 +1169,9 @@ try {
 
         # ★ 第二份：README 內嵌的實體關係圖。schema.mmd 對了不代表 README 也對——
         #   README 是最多人看的那一份，它過期比 .mmd 過期更糟。
-        if (-not (Test-ByteArrayEqual -Left $readmeBytes -Right $expectedReadmeBytes)) {
+        $readmeNormalized = $utf8WithoutBom.GetBytes(($readmeText -replace "`r`n", "`n"))
+        $expectedReadmeNormalized = $utf8WithoutBom.GetBytes(($expectedReadmeText -replace "`r`n", "`n"))
+        if (-not (Test-ByteArrayEqual -Left $readmeNormalized -Right $expectedReadmeNormalized)) {
             Write-Host "ER 圖漂移：$ReadmePath 內嵌的實體關係圖與資料字典不一致。" -ForegroundColor Red
             Write-Host "請執行產生模式（不加 -Check）重新同步。" -ForegroundColor Yellow
             exit 1

@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Dapper;
 using Oracle.ManagedDataAccess.Client;
 
@@ -11,6 +13,7 @@ public sealed partial class ReadmeConceptualModelTests
     private const string ConceptTableEnd = "<!-- CONCEPT-TABLE:END -->";
     private const string SiteMapBegin = "<!-- SITE-MAP:BEGIN -->";
     private const string SiteMapEnd = "<!-- SITE-MAP:END -->";
+    private static readonly string[] ShapeNames = ["rect", "ellipse", "polygon", "line", "path"];
 
     [Fact]
     public async Task Concept_mapping_contains_every_database_table_exactly_once()
@@ -82,6 +85,130 @@ public sealed partial class ReadmeConceptualModelTests
     }
 
     [Fact]
+    public void Conceptual_elements_have_both_language_names()
+    {
+        using var specification = JsonDocument.Parse(
+            File.ReadAllText(FindRepositoryFile("docs/diagrams/conceptual-model.json")));
+        var diagram = specification.RootElement.GetProperty("conceptualDiagrams").GetProperty("system");
+        var failures = new List<string>();
+        CheckName(diagram, "全系統標題", "title", "nameEn", failures);
+        CheckName(diagram, "全系統圖說", "caption", "captionEn", failures);
+        foreach (var collection in new[] { "entities", "relationships" })
+        {
+            foreach (var element in diagram.GetProperty(collection).EnumerateArray())
+            {
+                var id = element.GetProperty("id").GetString()!;
+                CheckName(element, id, "name", "nameEn", failures);
+                foreach (var attribute in element.GetProperty("attributes").EnumerateArray())
+                {
+                    CheckName(attribute, $"{id}.{attribute.GetProperty("id").GetString()}",
+                        "name", "nameEn", failures);
+                }
+            }
+        }
+
+        Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    [Theory]
+    [InlineData("er-chen")]
+    [InlineData("relational-schema")]
+    public void Diagram_variants_keep_shapes_and_theme_independent_structure(string stem)
+    {
+        var diagrams = new Dictionary<string, XDocument>();
+        foreach (var language in new[] { "zh", "en" })
+        {
+            foreach (var theme in new[] { "light", "dark" })
+            {
+                var name = $"{stem}-{language}-{theme}.svg";
+                diagrams[$"{language}-{theme}"] = XDocument.Load(FindRepositoryFile($"docs/diagrams/{name}"));
+            }
+        }
+
+        foreach (var theme in new[] { "light", "dark" })
+        {
+            var chinese = ShapeCounts(diagrams[$"zh-{theme}"]);
+            var english = ShapeCounts(diagrams[$"en-{theme}"]);
+            Assert.Equal(chinese, english);
+            if (stem == "er-chen")
+            {
+                XNamespace svg = "http://www.w3.org/2000/svg";
+                var attributes = diagrams[$"zh-{theme}"].Descendants(svg + "ellipse").Count();
+                var connectors = diagrams[$"zh-{theme}"].Descendants(svg + "line")
+                    .Count(line => line.Attribute("data-attribute-line") is not null);
+                Assert.Equal(attributes, connectors);
+            }
+        }
+
+        foreach (var language in new[] { "zh", "en" })
+        {
+            var light = WithoutColors(diagrams[$"{language}-light"]);
+            var dark = WithoutColors(diagrams[$"{language}-dark"]);
+            Assert.Equal(light, dark);
+        }
+    }
+
+    [Fact]
+    public void Readme_sections_use_existing_light_and_dark_diagrams()
+    {
+        var readme = File.ReadAllText(FindRepositoryFile("README.md"));
+        foreach (var (heading, nextHeading, stem) in new[]
+                 {
+                     ("## ER 圖（Chen 記法）", "## 關聯綱目", "er-chen"),
+                     ("## 關聯綱目", "## 序列圖", "relational-schema")
+                 })
+        {
+            var begin = readme.IndexOf(heading, StringComparison.Ordinal);
+            var end = readme.IndexOf(nextHeading, begin + heading.Length, StringComparison.Ordinal);
+            Assert.True(begin >= 0 && end > begin, $"README 找不到 {heading} 區段。");
+            var block = readme[begin..end];
+            var pictures = Regex.Matches(block, @"<picture>.*?</picture>", RegexOptions.Singleline);
+            Assert.True(pictures.Count == 1, $"README {heading} 預期恰好一個 picture。");
+            var picture = pictures[0].Value;
+            var lightPath = $"docs/diagrams/{stem}-zh-light.svg";
+            var darkPath = $"docs/diagrams/{stem}-zh-dark.svg";
+            Assert.Contains($"src=\"{lightPath}\"", picture, StringComparison.Ordinal);
+            Assert.Contains($"srcset=\"{darkPath}\"", picture, StringComparison.Ordinal);
+            Assert.Contains("media=\"(prefers-color-scheme: dark)\"", picture, StringComparison.Ordinal);
+            Assert.True(File.Exists(FindRepositoryFile(lightPath)), $"缺少 {lightPath}。");
+            Assert.True(File.Exists(FindRepositoryFile(darkPath)), $"缺少 {darkPath}。");
+        }
+    }
+
+    [Fact]
+    public void Site_diagram_images_have_dark_variants_and_old_names_are_gone()
+    {
+        var site = File.ReadAllText(FindRepositoryFile("docs/index.html"));
+        var images = Regex.Matches(site, @"<img\b[^>]*\bsrc=""diagrams/[^""]+""[^>]*>");
+        Assert.NotEmpty(images);
+        foreach (Match image in images)
+        {
+            var dark = Regex.Match(image.Value, @"\bdata-src-dark=""(?<path>diagrams/[^""]+)""");
+            Assert.True(dark.Success, $"圖缺少 data-src-dark：{image.Value}");
+            Assert.True(File.Exists(FindRepositoryFile($"docs/{dark.Groups["path"].Value}")),
+                $"深色圖不存在：{dark.Groups["path"].Value}");
+        }
+
+        var root = Path.GetDirectoryName(FindRepositoryFile("README.md"))!;
+        var oldNames = string.Join("|", new[]
+        {
+            "er-" + "requisition", "er-" + "identity",
+            "relational-schema-" + "requisition", "relational-schema-" + "identity"
+        });
+        using var process = Process.Start(new ProcessStartInfo("git")
+        {
+            WorkingDirectory = root,
+            ArgumentList = { "grep", "-n", "-E", oldNames },
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        })!;
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 1, $"追蹤檔仍引用舊圖或 Git 查詢失敗：{output}");
+    }
+
+    [Fact]
     public void Site_map_contains_every_page_controller()
     {
         var readme = File.ReadAllText(FindRepositoryFile("README.md"));
@@ -134,6 +261,41 @@ public sealed partial class ReadmeConceptualModelTests
 
         Assert.NotEmpty(mappings);
         return mappings;
+    }
+
+    private static void CheckName(JsonElement element, string id, string chinese, string english,
+        List<string> failures)
+    {
+        foreach (var property in new[] { chinese, english })
+        {
+            if (!element.TryGetProperty(property, out var value)
+                || string.IsNullOrWhiteSpace(value.GetString()))
+            {
+                failures.Add($"元素 {id} 缺少 {property}。");
+            }
+        }
+    }
+
+    private static string ShapeCounts(XDocument diagram)
+    {
+        XNamespace svg = "http://www.w3.org/2000/svg";
+        return string.Join(",", ShapeNames
+            .Select(name => $"{name}:{diagram.Descendants(svg + name).Count()}"));
+    }
+
+    private static string WithoutColors(XDocument document)
+    {
+        var copy = new XDocument(document);
+        XNamespace svg = "http://www.w3.org/2000/svg";
+        copy.Descendants(svg + "style").Remove();
+        foreach (var attribute in copy.Root!.DescendantsAndSelf().Attributes()
+                     .Where(attribute => attribute.Name.LocalName is "fill" or "stroke" or "color" or "style")
+                     .ToArray())
+        {
+            attribute.Remove();
+        }
+
+        return copy.ToString(SaveOptions.DisableFormatting);
     }
 
     private static string ExtractMarkedBlock(string text, string beginMarker, string endMarker)
