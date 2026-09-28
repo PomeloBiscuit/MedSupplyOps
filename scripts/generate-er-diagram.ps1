@@ -542,153 +542,593 @@ function Assert-ConceptualNames {
 }
 
 
+function ConvertTo-LayoutNumber {
+    param($Value, [string]$Id, [string]$Field)
+    Set-StrictMode -Version Latest
+    $type = if ($null -eq $Value) { 'null' } else { $Value.GetType().FullName }
+    if (@($Value).Count -ne 1 -or $Value -isnot [System.ValueType]) {
+        throw "元素 $Id 的 $Field 必須是單一數值，實際型別 $type。"
+    }
+    try { $number = [Convert]::ToDouble($Value, [Globalization.CultureInfo]::InvariantCulture) }
+    catch { throw "元素 $Id 的 $Field 無法轉為 double，原始型別 $type。" }
+    if ([double]::IsNaN($number) -or [double]::IsInfinity($number)) {
+        throw "元素 $Id 的 $Field 不是有限數值，原始型別 $type。"
+    }
+    return $number
+}
+
+function New-LayoutPoint {
+    param($X, $Y, [string]$Id)
+    Set-StrictMode -Version Latest
+    return [pscustomobject]@{ X = (ConvertTo-LayoutNumber $X $Id 'X'); Y = (ConvertTo-LayoutNumber $Y $Id 'Y') }
+}
+
+function Assert-LayoutNumbers {
+    param($Layout)
+    Set-StrictMode -Version Latest
+    foreach ($shape in $Layout.Shapes) {
+        foreach ($field in @('X', 'Y', 'Width', 'Height')) {
+            $v = $shape.$field
+            $type = if ($null -eq $v) { 'null' } else { $v.GetType().FullName }
+            if (@($v).Count -ne 1 -or ($v -isnot [double] -and $v -isnot [int])) {
+                throw "元素 $($shape.Id) 的 $field 必須是單一數值，實際型別 $type。"
+            }
+        }
+    }
+    foreach ($line in @($Layout.AttributeConnections) + @($Layout.Connections)) {
+        foreach ($field in @('X1', 'Y1', 'X2', 'Y2')) {
+            $v = $line.$field
+            $type = if ($null -eq $v) { 'null' } else { $v.GetType().FullName }
+            if (@($v).Count -ne 1 -or ($v -isnot [double] -and $v -isnot [int])) {
+                throw "線 $($line.Id) 的 $field 必須是單一數值，實際型別 $type。"
+            }
+        }
+    }
+}
+
+function Get-SystemShapeBounds {
+    param($Shape)
+    Set-StrictMode -Version Latest
+    return (New-LayoutBounds $Shape.Id $Shape.Id $Shape.Id $Shape.Kind `
+        ($Shape.X - $Shape.Width / 2) ($Shape.Y - $Shape.Height / 2) `
+        ($Shape.X + $Shape.Width / 2) ($Shape.Y + $Shape.Height / 2))
+}
+
+function Get-SystemSegments {
+    param($Layout)
+    Set-StrictMode -Version Latest
+    $segments = [System.Collections.Generic.List[object]]::new()
+    foreach ($line in $Layout.AttributeConnections) { [void]$segments.Add($line) }
+    foreach ($line in $Layout.Connections) {
+        $dx = $line.X2 - $line.X1; $dy = $line.Y2 - $line.Y1
+        $length = [Math]::Sqrt($dx * $dx + $dy * $dy)
+        $offsets = if ($line.Participant.participation -eq 'total') { @(-3, 3) } else { @(0) }
+        foreach ($offset in $offsets) {
+            [void]$segments.Add([pscustomobject]@{
+                Id = $line.Id; Owner = $line.Entity.Id; Target = $line.Diamond.Id
+                X1 = $line.X1 - $dy * $offset / $length
+                Y1 = $line.Y1 + $dx * $offset / $length
+                X2 = $line.X2 - $dy * $offset / $length
+                Y2 = $line.Y2 + $dx * $offset / $length
+            })
+        }
+    }
+    return [pscustomobject]@{ Items = $segments.ToArray() }
+}
+
+function Get-SystemGroupBounds {
+    param($Layout, [string]$EntityId)
+    Set-StrictMode -Version Latest
+    $x1 = [double]::PositiveInfinity; $y1 = [double]::PositiveInfinity
+    $x2 = [double]::NegativeInfinity; $y2 = [double]::NegativeInfinity
+    foreach ($shape in $Layout.Shapes | Where-Object { $_.Id -eq "entity:$EntityId" -or $_.Id.StartsWith("attribute:${EntityId}:") }) {
+        $box = Get-SystemShapeBounds $shape
+        $x1 = [Math]::Min($x1, $box.X1); $y1 = [Math]::Min($y1, $box.Y1)
+        $x2 = [Math]::Max($x2, $box.X2); $y2 = [Math]::Max($y2, $box.Y2)
+    }
+    foreach ($line in $Layout.AttributeConnections | Where-Object { $_.Owner -eq "entity:$EntityId" }) {
+        $x1 = [Math]::Min($x1, [Math]::Min($line.X1, $line.X2))
+        $y1 = [Math]::Min($y1, [Math]::Min($line.Y1, $line.Y2))
+        $x2 = [Math]::Max($x2, [Math]::Max($line.X1, $line.X2))
+        $y2 = [Math]::Max($y2, [Math]::Max($line.Y1, $line.Y2))
+    }
+    return (New-LayoutBounds "group:$EntityId" "group:$EntityId" $EntityId 'group' $x1 $y1 $x2 $y2)
+}
+
+function Get-SystemGroupConflict {
+    param($Layout, $Diagram)
+    Set-StrictMode -Version Latest
+    $groups = @($Diagram.entities | ForEach-Object { Get-SystemGroupBounds $Layout ([string]$_.id) })
+    for ($i = 0; $i -lt $groups.Count; $i++) {
+        for ($j = $i + 1; $j -lt $groups.Count; $j++) {
+            $a = $groups[$i]; $b = $groups[$j]
+            $dx = [Math]::Max(0, [Math]::Max($a.X1 - $b.X2, $b.X1 - $a.X2))
+            $dy = [Math]::Max(0, [Math]::Max($a.Y1 - $b.Y2, $b.Y1 - $a.Y2))
+            $distance = [Math]::Sqrt($dx * $dx + $dy * $dy)
+            if ($distance -lt 23.999) { return [pscustomobject]@{ A = $a; B = $b; Distance = $distance } }
+        }
+    }
+    return $null
+}
+
+function Get-PointSegmentDistance {
+    param([double]$Px, [double]$Py, $Line)
+    Set-StrictMode -Version Latest
+    $dx = $Line.X2 - $Line.X1; $dy = $Line.Y2 - $Line.Y1
+    $lengthSquared = $dx * $dx + $dy * $dy
+    $t = if ($lengthSquared -lt 0.000001) { 0.0 } else {
+        [Math]::Max(0, [Math]::Min(1, (($Px - $Line.X1) * $dx + ($Py - $Line.Y1) * $dy) / $lengthSquared))
+    }
+    $x = $Line.X1 + $t * $dx; $y = $Line.Y1 + $t * $dy
+    return [Math]::Sqrt(($Px - $x) * ($Px - $x) + ($Py - $y) * ($Py - $y))
+}
+
+function Get-SegmentBoundsDistance {
+    param($Line, $Box)
+    Set-StrictMode -Version Latest
+    if (Test-LineIntersectsBounds $Line $Box) { return 0.0 }
+    $distance = [double]::PositiveInfinity
+    foreach ($point in @(
+        (New-LayoutPoint $Box.X1 $Box.Y1 $Box.Id), (New-LayoutPoint $Box.X2 $Box.Y1 $Box.Id),
+        (New-LayoutPoint $Box.X2 $Box.Y2 $Box.Id), (New-LayoutPoint $Box.X1 $Box.Y2 $Box.Id)
+    )) {
+        $distance = [Math]::Min($distance, (Get-PointSegmentDistance $point.X $point.Y $Line))
+    }
+    foreach ($point in @((New-LayoutPoint $Line.X1 $Line.Y1 $Line.Id), (New-LayoutPoint $Line.X2 $Line.Y2 $Line.Id))) {
+        $nearX = [Math]::Max($Box.X1, [Math]::Min($Box.X2, $point.X))
+        $nearY = [Math]::Max($Box.Y1, [Math]::Min($Box.Y2, $point.Y))
+        $distance = [Math]::Min($distance, [Math]::Sqrt(($point.X - $nearX) * ($point.X - $nearX) + ($point.Y - $nearY) * ($point.Y - $nearY)))
+    }
+    return $distance
+}
+
+function Set-SystemCardinalityLabels {
+    param($Layout)
+    Set-StrictMode -Version Latest
+    $segments = @((Get-SystemSegments $Layout).Items)
+    $shapeBoxes = @($Layout.Shapes | ForEach-Object { Get-SystemShapeBounds $_ })
+    $labels = [System.Collections.Generic.List[object]]::new()
+    foreach ($connection in $Layout.Connections) {
+        $dx = $connection.X2 - $connection.X1; $dy = $connection.Y2 - $connection.Y1
+        $length = [Math]::Sqrt($dx * $dx + $dy * $dy)
+        $ux = $dx / $length; $uy = $dy / $length
+        $normal = if ([Math]::Abs($dx) -lt 0.001) {
+            New-LayoutPoint (1.0) (0.0) $connection.Id
+        } elseif ([Math]::Abs($dy) -lt 0.001) {
+            New-LayoutPoint (0.0) (-1.0) $connection.Id
+        } else { New-LayoutPoint (-$uy) $ux $connection.Id }
+        $cardinality = [string]$connection.Participant.cardinality
+        $boxWidth = [Math]::Ceiling((Get-EstimatedTextWidth $cardinality 13) + 4)
+        $boxHeight = 19.0
+        $lineHalfWidth = if ($connection.Participant.participation -eq 'total') { 3.75 } else { 0.75 }
+        $projectedHalf = [Math]::Abs($normal.X) * $boxWidth / 2 + [Math]::Abs($normal.Y) * $boxHeight / 2
+        $labelOffset = $lineHalfWidth + $projectedHalf + 4
+        $selected = $null; $blockers = [System.Collections.Generic.List[string]]::new()
+        foreach ($along in @(14, 26, 38)) {
+            foreach ($side in @(1, -1)) {
+                $cx = $connection.X1 + $ux * $along + $normal.X * $labelOffset * $side
+                $cy = $connection.Y1 + $uy * $along + $normal.Y * $labelOffset * $side
+                $box = New-LayoutBounds "label:$($connection.Id)" "label:$($connection.Id)" $connection.Id 'label' `
+                    ($cx - $boxWidth / 2) ($cy - $boxHeight / 2) ($cx + $boxWidth / 2) ($cy + $boxHeight / 2)
+                $blocker = $null
+                foreach ($shapeBox in $shapeBoxes) {
+                    if (Test-LayoutBoundsOverlap $box $shapeBox) { $blocker = $shapeBox.Id; break }
+                }
+                if ($null -eq $blocker) {
+                    foreach ($segment in $segments) {
+                        if ((Get-SegmentBoundsDistance $segment $box) -lt 0.75) { $blocker = "線 $($segment.Id)"; break }
+                    }
+                }
+                if ($null -eq $blocker) {
+                    foreach ($label in $labels) {
+                        if (Test-LayoutBoundsOverlap $box $label.Box) { $blocker = $label.Id; break }
+                    }
+                }
+                if ($null -eq $blocker) {
+                    $selected = [pscustomobject]@{ Id = $box.Id; Connection = $connection; X = $cx; Y = $cy; Width = $boxWidth; Height = $boxHeight; Box = $box }
+                    break
+                }
+                [void]$blockers.Add($blocker)
+            }
+            if ($null -ne $selected) { break }
+        }
+        if ($null -eq $selected) {
+            throw "基數標籤 label:$($connection.Id) 候選位置全部衝突：$($blockers.ToArray() -join ', ')。"
+        }
+        [void]$labels.Add($selected)
+    }
+    $Layout | Add-Member -NotePropertyName Labels -NotePropertyValue $labels -Force
+}
+
+function Test-ColumnArrangement {
+    param($EntityShape, [string]$Side, [object[]]$Attributes, [object[]]$Sizes, [int[]]$Order, [double]$Gap)
+    Set-StrictMode -Version Latest
+    $count = $Order.Count
+    $maxWidth = ($Sizes | Measure-Object Width -Maximum).Maximum
+    $direction = if ($Side -eq 'left') { -1 } else { 1 }
+    $x = $EntityShape.X + $direction * ($EntityShape.Width / 2 + $Gap + $maxWidth / 2)
+    $trialShapes = [System.Collections.Generic.List[object]]::new()
+    for ($slot = 0; $slot -lt $count; $slot++) {
+        $index = $Order[$slot]
+        [void]$trialShapes.Add([pscustomobject]@{
+            Id = "attribute:$($EntityShape.Element.id):$($Attributes[$index].id)"
+            Kind = 'ellipse'; X = $x
+            Y = $EntityShape.Y + ($slot - ($count - 1) / 2) * ($Sizes[$index].Height + 12)
+            Width = $Sizes[$index].Width; Height = $Sizes[$index].Height
+            Rx = $Sizes[$index].Width / 2; Ry = $Sizes[$index].Height / 2
+        })
+    }
+    foreach ($attr in $trialShapes) {
+        $start = Get-ShapeBoundaryPoint $EntityShape $attr.X $attr.Y
+        $end = Get-ShapeBoundaryPoint $attr $EntityShape.X $EntityShape.Y
+        $line = [pscustomobject]@{ X1 = $start.X; Y1 = $start.Y; X2 = $end.X; Y2 = $end.Y }
+        foreach ($other in $trialShapes) {
+            if ($other.Id -eq $attr.Id) { continue }
+            if (Test-LineIntersectsBounds $line (Get-SystemShapeBounds $other)) { return $false }
+        }
+    }
+    return $true
+}
+
+function Get-ColumnArrangement {
+    param($EntityShape, [string]$Side, [object[]]$Attributes, [object[]]$Sizes)
+    Set-StrictMode -Version Latest
+    $count = $Attributes.Count
+    $permutations = [System.Collections.Generic.List[object]]::new()
+    [void]$permutations.Add([pscustomobject]@{ Indices = [int[]]@() })
+    for ($index = 0; $index -lt $count; $index++) {
+        $next = [System.Collections.Generic.List[object]]::new()
+        foreach ($permutation in $permutations) {
+            for ($position = 0; $position -le $permutation.Indices.Count; $position++) {
+                $indices = [System.Collections.Generic.List[int]]::new()
+                for ($i = 0; $i -lt $position; $i++) { [void]$indices.Add($permutation.Indices[$i]) }
+                [void]$indices.Add($index)
+                for ($i = $position; $i -lt $permutation.Indices.Count; $i++) { [void]$indices.Add($permutation.Indices[$i]) }
+                [void]$next.Add([pscustomobject]@{ Indices = $indices.ToArray() })
+            }
+        }
+        $permutations = $next
+    }
+    foreach ($gap in @(32.0, 36.0, 40.0)) {
+        foreach ($permutation in $permutations) {
+            if (Test-ColumnArrangement $EntityShape $Side $Attributes $Sizes $permutation.Indices $gap) {
+                return [pscustomobject]@{ Indices = $permutation.Indices; Gap = $gap }
+            }
+        }
+    }
+    throw "實體 $($EntityShape.Element.id) 所有屬性排序在 28～40px 距離內仍與其他橢圓相交。"
+}
+
 function Get-DirectConceptualLayout {
     param($Diagram)
-    $locations = @{
-        ROLE = @(@(115, 70), @(345, 70))
-        USER = @(@(520, 70), @(730, 70), @(940, 70), @(1160, 70))
-        DEPARTMENT = @(@(1490, 65), @(1680, 135), @(1680, 285))
-        AUDIT_LOG = @(@(650, 520), @(450, 620), @(250, 720), @(620, 810))
-        REQUISITION = @(@(1490, 490), @(1680, 580), @(1680, 680), @(1680, 780))
-        ITEM = @(@(650, 930), @(450, 1010), @(250, 1090), @(450, 1170), @(650, 1210))
-        REQUISITION_LINE = @(@(1680, 960), @(1704, 1060), @(1680, 1160))
-        STOCK_LOT = @(@(630, 1700), @(810, 1700), @(990, 1700), @(1170, 1700))
-        STORAGE_LOCATION = @(@(105, 1700), @(285, 1700), @(465, 1700))
-        ALLOCATES = ,@(1325, 1400)
+    Set-StrictMode -Version Latest
+    $requiredSides = @{
+        DEPARTMENT = 'top'; REQUISITION = 'right'; REQUISITION_LINE = 'right'
+        ITEM = 'left'; USER = 'top'; ROLE = 'top'; AUDIT_LOG = 'left'
+        STOCK_LOT = 'bottom'; STORAGE_LOCATION = 'bottom'
     }
-    $shapes = [System.Collections.Generic.List[object]]::new()
-    $attributeConnections = [System.Collections.Generic.List[object]]::new()
-    $connections = [System.Collections.Generic.List[object]]::new()
-    $entityShapes = @{}; $relationshipShapes = @{}
     foreach ($entity in $Diagram.entities) {
-        $row = [int]$entity.grid.row; $col = [int]$entity.grid.col
-        if ($row -lt 0 -or $row -gt 3 -or $col -lt 0 -or $col -gt 2) { throw "實體 $($entity.id) 的 grid 超出 4×3。" }
-        $labelWidth = [Math]::Max((Get-EstimatedTextWidth $entity.name 15), (Get-EstimatedTextWidth $entity.nameEn 15))
-        $shape = [pscustomobject]@{ Id = "entity:$($entity.id)"; Kind = 'rect'; Element = $entity; X = (240 + 660 * $col); Y = (200 + 430 * $row); Width = [Math]::Ceiling($labelWidth + 28); Height = 52; FontSize = 15; PrimaryKey = $false }
-        $entityShapes[[string]$entity.id] = $shape; [void]$shapes.Add($shape)
-        if ($locations[[string]$entity.id].Count -ne @($entity.attributes).Count) { throw "實體 $($entity.id) 屬性座標數不符。" }
-        for ($index = 0; $index -lt @($entity.attributes).Count; $index++) {
-            $attribute = $entity.attributes[$index]; $point = $locations[[string]$entity.id][$index]
-            $labelWidth = [Math]::Max((Get-EstimatedTextWidth $attribute.name 13), (Get-EstimatedTextWidth $attribute.nameEn 13))
-            $diameter = [Math]::Ceiling($labelWidth + 24)
-            $attr = [pscustomobject]@{ Id = "attribute:$($entity.id):$($attribute.id)"; Kind = 'ellipse'; Element = $attribute; X = $point[0]; Y = $point[1]; Width = $diameter; Height = 42; Rx = ($diameter / 2); Ry = 21; FontSize = 13; PrimaryKey = [bool]$attribute.primaryKey }
-            [void]$shapes.Add($attr)
-            $start = Get-ShapeBoundaryPoint $shape $attr.X $attr.Y; $end = Get-ShapeBoundaryPoint $attr $shape.X $shape.Y
-            [void]$attributeConnections.Add([pscustomobject]@{ Id = "$($shape.Id):$($attr.Id)"; Owner = $shape.Id; Attribute = $attr.Id; X1 = $start.X; Y1 = $start.Y; X2 = $end.X; Y2 = $end.Y })
+        if (-not $requiredSides.ContainsKey([string]$entity.id) -or [string]$entity.attributeSide -ne $requiredSides[[string]$entity.id]) {
+            throw "實體 $($entity.id) 屬性邊檢查失敗：預期 $($requiredSides[[string]$entity.id])，實際 $($entity.attributeSide)。"
         }
     }
-    foreach ($relationship in $Diagram.relationships) {
-        $leftSpec = @($Diagram.entities | Where-Object { $_.id -eq $relationship.participants[0].entity })[0]
-        $rightSpec = @($Diagram.entities | Where-Object { $_.id -eq $relationship.participants[1].entity })[0]
-        if ($null -eq $leftSpec -or $null -eq $rightSpec) { throw "關聯 $($relationship.id) 指向不存在的實體。" }
-        $rowDistance = [Math]::Abs([int]$leftSpec.grid.row - [int]$rightSpec.grid.row)
-        $colDistance = [Math]::Abs([int]$leftSpec.grid.col - [int]$rightSpec.grid.col)
-        if ($rowDistance -gt 1 -or $colDistance -gt 1) { throw "關聯 $($relationship.id) 線段長度超過兩格中心距離：row=$rowDistance col=$colDistance。" }
-        $left = $entityShapes[[string]$leftSpec.id]; $right = $entityShapes[[string]$rightSpec.id]
-        $labelWidth = [Math]::Max((Get-EstimatedTextWidth $relationship.name 15), (Get-EstimatedTextWidth $relationship.nameEn 15))
-        $diamondWidth = [Math]::Ceiling(($labelWidth + 24) / 0.72)
-        $diamond = [pscustomobject]@{ Id = "relationship:$($relationship.id)"; Kind = 'diamond'; Element = $relationship; X = (($left.X + $right.X) / 2); Y = (($left.Y + $right.Y) / 2); Width = $diamondWidth; Height = 62; FontSize = 15; PrimaryKey = $false }
-        $relationshipShapes[[string]$relationship.id] = $diamond; [void]$shapes.Add($diamond)
-        foreach ($participant in $relationship.participants) {
-            $entity = $entityShapes[[string]$participant.entity]
-            $start = Get-ShapeBoundaryPoint $entity $diamond.X $diamond.Y; $end = Get-ShapeBoundaryPoint $diamond $entity.X $entity.Y
-            [void]$connections.Add([pscustomobject]@{ Id = "$($relationship.id):$($participant.entity)"; Relationship = $relationship; Participant = $participant; Entity = $entity; Diamond = $diamond; X1 = $start.X; Y1 = $start.Y; X2 = $end.X; Y2 = $end.Y; Straight = $true })
+    $columnGap = 660; $rowGap = 430
+    $minimumColumnGap = 500; $lastConflict = $null
+    while ($true) {
+        $shapes = [System.Collections.Generic.List[object]]::new()
+        $attributeConnections = [System.Collections.Generic.List[object]]::new()
+        $connections = [System.Collections.Generic.List[object]]::new()
+        $entityShapes = @{}; $relationshipShapes = @{}
+        foreach ($entity in $Diagram.entities) {
+            $row = [int]$entity.grid.row; $col = [int]$entity.grid.col
+            if ($row -lt 0 -or $row -gt 3 -or $col -lt 0 -or $col -gt 2) { throw "實體 $($entity.id) 的 grid 超出 4×3。" }
+            $id = "entity:$($entity.id)"
+            $labelWidth = [Math]::Max((Get-EstimatedTextWidth $entity.name 15), (Get-EstimatedTextWidth $entity.nameEn 15))
+            $shape = [pscustomobject]@{
+                Id = $id; Kind = 'rect'; Element = $entity
+                X = (ConvertTo-LayoutNumber (300 + $columnGap * $col) $id 'X')
+                Y = (ConvertTo-LayoutNumber (200 + $rowGap * $row) $id 'Y')
+                Width = (ConvertTo-LayoutNumber ([Math]::Ceiling($labelWidth + 28)) $id 'Width')
+                Height = (ConvertTo-LayoutNumber 52 $id 'Height')
+                FontSize = 15; PrimaryKey = $false
+            }
+            $entityShapes[[string]$entity.id] = $shape; [void]$shapes.Add($shape)
+            $attributes = @($entity.attributes)
+            $sizes = [System.Collections.Generic.List[object]]::new()
+            foreach ($attribute in $attributes) {
+                $attrId = "attribute:$($entity.id):$($attribute.id)"
+                $textWidth = [Math]::Max((Get-EstimatedTextWidth $attribute.name 13), (Get-EstimatedTextWidth $attribute.nameEn 13))
+                [void]$sizes.Add([pscustomobject]@{ Width = (ConvertTo-LayoutNumber ([Math]::Ceiling($textWidth + 24)) $attrId 'Width'); Height = 36.0 })
+            }
+            $side = [string]$entity.attributeSide
+            $horizontal = $side -eq 'top' -or $side -eq 'bottom'
+            $columnGapFromEntity = 32.0
+            if (-not $horizontal) {
+                $arrangement = Get-ColumnArrangement $shape $side $attributes $sizes
+                $arrangedAttrs = New-Object 'object[]' $attributes.Count
+                $arrangedSizes = New-Object 'object[]' $attributes.Count
+                for ($order = 0; $order -lt $attributes.Count; $order++) {
+                    $arrangedAttrs[$order] = $attributes[$arrangement.Indices[$order]]
+                    $arrangedSizes[$order] = $sizes[$arrangement.Indices[$order]]
+                }
+                $attributes = $arrangedAttrs
+                $sizes = $arrangedSizes
+                $columnGapFromEntity = $arrangement.Gap
+            }
+            $sum = 0.0; $maxWidth = 0.0
+            foreach ($size in $sizes) {
+                if ($horizontal) { $sum += $size.Width } else { $sum += $size.Height }
+                $maxWidth = [Math]::Max($maxWidth, $size.Width)
+            }
+            $sum += [Math]::Max(0, $sizes.Count - 1) * 12
+            $cursor = -$sum / 2
+            for ($index = 0; $index -lt $attributes.Count; $index++) {
+                $attribute = $attributes[$index]; $size = $sizes[$index]
+                $attrId = "attribute:$($entity.id):$($attribute.id)"
+                if ($horizontal) {
+                    $direction = if ($side -eq 'top') { -1 } else { 1 }
+                    $point = New-LayoutPoint ($shape.X + $cursor + $size.Width / 2) `
+                        ($shape.Y + $direction * ($shape.Height / 2 + 32 + $size.Height / 2)) $attrId
+                    $cursor += $size.Width + 12
+                } else {
+                    $direction = if ($side -eq 'left') { -1 } else { 1 }
+                    $point = New-LayoutPoint ($shape.X + $direction * ($shape.Width / 2 + $columnGapFromEntity + $maxWidth / 2)) `
+                        ($shape.Y + $cursor + $size.Height / 2) $attrId
+                    $cursor += $size.Height + 12
+                }
+                $attr = [pscustomobject]@{
+                    Id = $attrId; Kind = 'ellipse'; Element = $attribute
+                    X = (ConvertTo-LayoutNumber $point.X $attrId 'X')
+                    Y = (ConvertTo-LayoutNumber $point.Y $attrId 'Y')
+                    Width = $size.Width; Height = $size.Height
+                    Rx = $size.Width / 2; Ry = $size.Height / 2
+                    FontSize = 13; PrimaryKey = ($null -ne $attribute.PSObject.Properties['primaryKey'] -and [bool]$attribute.primaryKey)
+                }
+                Assert-LayoutNumbers ([pscustomobject]@{ Shapes = @($attr); AttributeConnections = @(); Connections = @() })
+                [void]$shapes.Add($attr)
+                $start = Get-ShapeBoundaryPoint $shape $attr.X $attr.Y
+                $end = Get-ShapeBoundaryPoint $attr $shape.X $shape.Y
+                [void]$attributeConnections.Add([pscustomobject]@{
+                    Id = "$($shape.Id):$($attr.Id)"; Owner = $shape.Id; Attribute = $attr.Id
+                    X1 = (ConvertTo-LayoutNumber $start.X $attrId 'X1')
+                    Y1 = (ConvertTo-LayoutNumber $start.Y $attrId 'Y1')
+                    X2 = (ConvertTo-LayoutNumber $end.X $attrId 'X2')
+                    Y2 = (ConvertTo-LayoutNumber $end.Y $attrId 'Y2')
+                })
+            }
         }
-        $attrs = @($relationship.attributes)
-        for ($index = 0; $index -lt $attrs.Count; $index++) {
-            $attribute = $attrs[$index]; $point = $locations[[string]$relationship.id][$index]
-            $labelWidth = [Math]::Max((Get-EstimatedTextWidth $attribute.name 13), (Get-EstimatedTextWidth $attribute.nameEn 13))
-            $diameter = [Math]::Ceiling($labelWidth + 24)
-            $attr = [pscustomobject]@{ Id = "attribute:$($relationship.id):$($attribute.id)"; Kind = 'ellipse'; Element = $attribute; X = $point[0]; Y = $point[1]; Width = $diameter; Height = 42; Rx = ($diameter / 2); Ry = 21; FontSize = 13; PrimaryKey = $false }
-            [void]$shapes.Add($attr)
-            $start = Get-ShapeBoundaryPoint $diamond $attr.X $attr.Y; $end = Get-ShapeBoundaryPoint $attr $diamond.X $diamond.Y
-            [void]$attributeConnections.Add([pscustomobject]@{ Id = "$($diamond.Id):$($attr.Id)"; Owner = $diamond.Id; Attribute = $attr.Id; X1 = $start.X; Y1 = $start.Y; X2 = $end.X; Y2 = $end.Y })
+        foreach ($relationship in $Diagram.relationships) {
+            $leftSpec = @($Diagram.entities | Where-Object { $_.id -eq $relationship.participants[0].entity })[0]
+            $rightSpec = @($Diagram.entities | Where-Object { $_.id -eq $relationship.participants[1].entity })[0]
+            if ($null -eq $leftSpec -or $null -eq $rightSpec) { throw "關聯 $($relationship.id) 指向不存在的實體。" }
+            $rowDistance = [Math]::Abs([int]$leftSpec.grid.row - [int]$rightSpec.grid.row)
+            $colDistance = [Math]::Abs([int]$leftSpec.grid.col - [int]$rightSpec.grid.col)
+            if ($rowDistance -gt 1 -or $colDistance -gt 1) { throw "關聯 $($relationship.id) 線段長度超過兩格中心距離：row=$rowDistance col=$colDistance。" }
+            $left = $entityShapes[[string]$leftSpec.id]; $right = $entityShapes[[string]$rightSpec.id]
+            $id = "relationship:$($relationship.id)"
+            $labelWidth = [Math]::Max((Get-EstimatedTextWidth $relationship.name 15), (Get-EstimatedTextWidth $relationship.nameEn 15))
+            $diamondWidth = [Math]::Ceiling(($labelWidth + 24) / 0.72)
+            $diamond = [pscustomobject]@{
+                Id = $id; Kind = 'diamond'; Element = $relationship
+                X = (ConvertTo-LayoutNumber (($left.X + $right.X) / 2) $id 'X')
+                Y = (ConvertTo-LayoutNumber (($left.Y + $right.Y) / 2) $id 'Y')
+                Width = (ConvertTo-LayoutNumber $diamondWidth $id 'Width')
+                Height = (ConvertTo-LayoutNumber 62 $id 'Height')
+                FontSize = 15; PrimaryKey = $false
+            }
+            $relationshipShapes[[string]$relationship.id] = $diamond; [void]$shapes.Add($diamond)
+            foreach ($participant in $relationship.participants) {
+                $entity = $entityShapes[[string]$participant.entity]
+                $start = Get-ShapeBoundaryPoint $entity $diamond.X $diamond.Y
+                $end = Get-ShapeBoundaryPoint $diamond $entity.X $entity.Y
+                $lineId = "$($relationship.id):$($participant.entity)"
+                [void]$connections.Add([pscustomobject]@{
+                    Id = $lineId; Relationship = $relationship; Participant = $participant
+                    Entity = $entity; Diamond = $diamond
+                    X1 = (ConvertTo-LayoutNumber $start.X $lineId 'X1')
+                    Y1 = (ConvertTo-LayoutNumber $start.Y $lineId 'Y1')
+                    X2 = (ConvertTo-LayoutNumber $end.X $lineId 'X2')
+                    Y2 = (ConvertTo-LayoutNumber $end.Y $lineId 'Y2')
+                    Straight = $true
+                })
+            }
+            foreach ($attribute in @($relationship.attributes)) {
+                $attrId = "attribute:$($relationship.id):$($attribute.id)"
+                $textWidth = [Math]::Max((Get-EstimatedTextWidth $attribute.name 13), (Get-EstimatedTextWidth $attribute.nameEn 13))
+                $diameter = [Math]::Ceiling($textWidth + 24)
+                $vx = $right.X - $left.X; $vy = $right.Y - $left.Y
+                $length = [Math]::Sqrt($vx * $vx + $vy * $vy)
+                $normal = New-LayoutPoint ($vy / $length) (-$vx / $length) $attrId
+                $distance = [Math]::Max($diamond.Width, $diamond.Height) / 2 + 32 + $diameter / 2
+                $point = New-LayoutPoint ($diamond.X + $normal.X * $distance) ($diamond.Y + $normal.Y * $distance) $attrId
+                $attr = [pscustomobject]@{
+                    Id = $attrId; Kind = 'ellipse'; Element = $attribute
+                    X = (ConvertTo-LayoutNumber $point.X $attrId 'X')
+                    Y = (ConvertTo-LayoutNumber $point.Y $attrId 'Y')
+                    Width = (ConvertTo-LayoutNumber $diameter $attrId 'Width')
+                    Height = (ConvertTo-LayoutNumber 42 $attrId 'Height')
+                    Rx = $diameter / 2; Ry = 21.0; FontSize = 13; PrimaryKey = $false
+                }
+                Assert-LayoutNumbers ([pscustomobject]@{ Shapes = @($attr); AttributeConnections = @(); Connections = @() })
+                [void]$shapes.Add($attr)
+                $start = Get-ShapeBoundaryPoint $diamond $attr.X $attr.Y
+                $end = Get-ShapeBoundaryPoint $attr $diamond.X $diamond.Y
+                [void]$attributeConnections.Add([pscustomobject]@{
+                    Id = "$($diamond.Id):$($attr.Id)"; Owner = $diamond.Id; Attribute = $attr.Id
+                    X1 = (ConvertTo-LayoutNumber $start.X $attrId 'X1')
+                    Y1 = (ConvertTo-LayoutNumber $start.Y $attrId 'Y1')
+                    X2 = (ConvertTo-LayoutNumber $end.X $attrId 'X2')
+                    Y2 = (ConvertTo-LayoutNumber $end.Y $attrId 'Y2')
+                })
+            }
         }
-    }
-    $crossings = 0; $longest = 0.0
-    $edges = @($Diagram.relationships | ForEach-Object {
-        $a = $entityShapes[[string]$_.participants[0].entity]
-        $b = $entityShapes[[string]$_.participants[1].entity]
-        $distance = [Math]::Sqrt([Math]::Pow($a.X - $b.X, 2) + [Math]::Pow($a.Y - $b.Y, 2))
-        $longest = [Math]::Max($longest, $distance)
-        [pscustomobject]@{ Id = $_.id; A = $a; B = $b }
-    })
-    for ($i = 0; $i -lt $edges.Count; $i++) {
-        for ($j = $i + 1; $j -lt $edges.Count; $j++) {
-            $a = $edges[$i]; $b = $edges[$j]
-            if ($a.A.Id -eq $b.A.Id -or $a.A.Id -eq $b.B.Id -or $a.B.Id -eq $b.A.Id -or $a.B.Id -eq $b.B.Id) { continue }
-            if (Test-LineSegmentsIntersect $a.A.X $a.A.Y $a.B.X $a.B.Y $b.A.X $b.A.Y $b.B.X $b.B.Y) { $crossings++ }
+        $layout = [pscustomobject]@{
+            Width = 0; Height = 0; Shapes = $shapes; AttributeConnections = $attributeConnections
+            Connections = $connections; EntityShapes = $entityShapes; RelationshipShapes = $relationshipShapes
+            Diagram = $Diagram
         }
+        Assert-LayoutNumbers $layout
+        $conflict = Get-SystemGroupConflict $layout $Diagram
+        if ($null -ne $conflict) {
+            $aSpec = @($Diagram.entities | Where-Object { $_.id -eq $conflict.A.GroupId })[0]
+            $bSpec = @($Diagram.entities | Where-Object { $_.id -eq $conflict.B.GroupId })[0]
+            if ($aSpec.grid.col -ne $bSpec.grid.col) {
+                $columnGap += 20
+                $minimumColumnGap = [Math]::Max($minimumColumnGap, $columnGap)
+            }
+            if ($aSpec.grid.row -ne $bSpec.grid.row) { $rowGap += 20 }
+            $lastConflict = $conflict
+            $shapeBoxes = @($shapes | ForEach-Object { Get-SystemShapeBounds $_ })
+            $shapeWidth = [Math]::Ceiling((($shapeBoxes | Measure-Object X2 -Maximum).Maximum) - (($shapeBoxes | Measure-Object X1 -Minimum).Minimum) + 48)
+            if ($shapeWidth -gt 1800) {
+                throw "實體整組外框間距不足：$($conflict.A.Id) [$($conflict.A.X1),$($conflict.A.Y1),$($conflict.A.X2),$($conflict.A.Y2)] 與 $($conflict.B.Id) [$($conflict.B.X1),$($conflict.B.Y1),$($conflict.B.X2),$($conflict.B.Y2)]，距離 $([Math]::Round($conflict.Distance,2))px；畫布寬度上限 1800px。"
+            }
+            continue
+        }
+        Set-SystemCardinalityLabels $layout
+        $content = [System.Collections.Generic.List[object]]::new()
+        foreach ($shape in $shapes) { [void]$content.Add((Get-SystemShapeBounds $shape)) }
+        foreach ($label in $layout.Labels) { [void]$content.Add($label.Box) }
+        foreach ($line in @((Get-SystemSegments $layout).Items)) {
+            [void]$content.Add((New-LayoutBounds $line.Id $line.Id $line.Id 'line' `
+                ([Math]::Min($line.X1,$line.X2) - 0.75) ([Math]::Min($line.Y1,$line.Y2) - 0.75) `
+                ([Math]::Max($line.X1,$line.X2) + 0.75) ([Math]::Max($line.Y1,$line.Y2) + 0.75)))
+        }
+        $minX = [double]::PositiveInfinity; $minY = [double]::PositiveInfinity
+        $maxX = [double]::NegativeInfinity; $maxY = [double]::NegativeInfinity
+        foreach ($box in $content) {
+            $minX = [Math]::Min($minX,$box.X1); $minY = [Math]::Min($minY,$box.Y1)
+            $maxX = [Math]::Max($maxX,$box.X2); $maxY = [Math]::Max($maxY,$box.Y2)
+        }
+        $width = [Math]::Ceiling($maxX - $minX + 48)
+        if ($width -gt 1800) {
+            if ($columnGap - 20 -ge $minimumColumnGap) { $columnGap -= 20; continue }
+            if ($null -ne $lastConflict) {
+                throw "實體整組外框衝突：$($lastConflict.A.Id) [$($lastConflict.A.X1),$($lastConflict.A.Y1),$($lastConflict.A.X2),$($lastConflict.A.Y2)] 與 $($lastConflict.B.Id) [$($lastConflict.B.X1),$($lastConflict.B.Y1),$($lastConflict.B.X2),$($lastConflict.B.Y2)]，最近距離 $([Math]::Round($lastConflict.Distance,2))px；解開衝突需畫布寬 $width，超過 1800px。"
+            }
+            throw "全系統畫布寬 $width 超過 1800px；內容外框 [$minX,$minY,$maxX,$maxY]。"
+        }
+        $shiftX = 24 - $minX; $shiftY = 24 - $minY
+        foreach ($shape in $shapes) { $shape.X += $shiftX; $shape.Y += $shiftY }
+        foreach ($line in @($attributeConnections) + @($connections)) {
+            $line.X1 += $shiftX; $line.X2 += $shiftX
+            $line.Y1 += $shiftY; $line.Y2 += $shiftY
+        }
+        foreach ($label in $layout.Labels) {
+            $label.X += $shiftX; $label.Y += $shiftY
+            $label.Box.X1 += $shiftX; $label.Box.X2 += $shiftX
+            $label.Box.Y1 += $shiftY; $label.Box.Y2 += $shiftY
+        }
+        $layout.Width = [int]$width
+        $layout.Height = [int][Math]::Ceiling($maxY - $minY + 48)
+        Assert-LayoutNumbers $layout
+        Write-Host "全系統 Chen：$($layout.Width)×$($layout.Height)px；欄距=$columnGap；列距=$rowGap。"
+        return $layout
     }
-    if ($crossings -ne 0) { throw "全系統關聯線交叉數=$crossings。" }
-    $longestSegment = 0.0
-    foreach ($connection in $connections) {
-        $length = [Math]::Sqrt([Math]::Pow($connection.X2 - $connection.X1, 2) + [Math]::Pow($connection.Y2 - $connection.Y1, 2))
-        $longestSegment = [Math]::Max($longestSegment, $length)
-        if ($length -gt $longest + 0.01) { throw "關聯 $($connection.Id) 線段長度 $([Math]::Round($length,1))px 超過兩格中心距離 $([Math]::Round($longest,1))px。" }
-    }
-    Write-Host "全系統 Chen：1800×1800px；交叉數=$crossings；最長關聯線段=$([Math]::Round($longestSegment, 1))px；兩格最長中心距離=$([Math]::Round($longest, 1))px。"
-    return [pscustomobject]@{ Width = 1800; Height = 1800; Shapes = $shapes; AttributeConnections = $attributeConnections; Connections = $connections; EntityShapes = $entityShapes; RelationshipShapes = $relationshipShapes }
 }
 
 function Assert-ConceptualLayout {
     param($Layout, [string]$Language, [string]$Path)
+    Set-StrictMode -Version Latest
+    Assert-LayoutNumbers $Layout
     if ($Layout.Width -gt 1800) { throw "$Path 寬度 $($Layout.Width) 超過 1800px。" }
-    $bounds = New-Object System.Collections.Generic.List[object]
+    $bounds = [System.Collections.Generic.List[object]]::new()
     foreach ($shape in $Layout.Shapes) {
         $label = Get-BilingualText $shape.Element $Language
         $estimate = Get-EstimatedTextWidth $label $shape.FontSize
         $inner = switch ($shape.Kind) { 'ellipse' { $shape.Width - 20 } 'diamond' { ($shape.Width * 0.72) - 20 } default { $shape.Width - 20 } }
-        if ($estimate -gt $inner + 0.01) { throw "$Path 元素 $($shape.Id) 標籤放得下檢查失敗：估計寬 $([Math]::Round($estimate, 1))px，形狀內寬 $([Math]::Round($inner, 1))px。" }
-        $box = New-LayoutBounds $shape.Id $shape.Id $shape.Id $shape.Kind ($shape.X - ($shape.Width / 2)) ($shape.Y - ($shape.Height / 2)) ($shape.X + ($shape.Width / 2)) ($shape.Y + ($shape.Height / 2))
+        if ($estimate -gt $inner + 0.01) { throw "$Path 元素 $($shape.Id) 標籤放得下檢查失敗。" }
+        $box = Get-SystemShapeBounds $shape
         if ($box.X1 -lt 0 -or $box.Y1 -lt 0 -or $box.X2 -gt $Layout.Width -or $box.Y2 -gt $Layout.Height) { throw "$Path 元素 $($shape.Id) 超出畫布。" }
         [void]$bounds.Add($box)
     }
     for ($i = 0; $i -lt $bounds.Count; $i++) {
         for ($j = $i + 1; $j -lt $bounds.Count; $j++) {
-            if (Test-LayoutBoundsOverlap $bounds[$i] $bounds[$j]) { throw "$Path 元素外框重疊：$($bounds[$i].Id) [$($bounds[$i].X1),$($bounds[$i].Y1),$($bounds[$i].X2),$($bounds[$i].Y2)] 與 $($bounds[$j].Id) [$($bounds[$j].X1),$($bounds[$j].Y1),$($bounds[$j].X2),$($bounds[$j].Y2)]。" }
+            if (Test-LayoutBoundsOverlap $bounds[$i] $bounds[$j]) { throw "$Path 元素外框重疊：$($bounds[$i].Id) 與 $($bounds[$j].Id)。" }
         }
     }
-    $segments = New-Object System.Collections.Generic.List[object]
-    foreach ($segment in $Layout.AttributeConnections) {
-        [void]$segments.Add($segment)
+    foreach ($entry in $Layout.EntityShapes.GetEnumerator()) {
+        $entity = $entry.Value
+        $side = [string]$entity.Element.attributeSide
+        $attrs = @($Layout.Shapes | Where-Object { $_.Id.StartsWith("attribute:$($entry.Key):") })
+        $entityBox = Get-SystemShapeBounds $entity
+        $axis = if ($side -eq 'top' -or $side -eq 'bottom') { 'Y' } else { 'X' }
+        $centers = @($attrs | ForEach-Object { $_.$axis })
+        if (($centers | Measure-Object -Maximum).Maximum - ($centers | Measure-Object -Minimum).Minimum -gt 0.5) {
+            throw "$Path 實體 $($entry.Key) 屬性對齊檢查失敗。"
+        }
+        $ordered = if ($axis -eq 'Y') { @($attrs | Sort-Object X) } else { @($attrs | Sort-Object Y) }
+        for ($i = 1; $i -lt $ordered.Count; $i++) {
+            $gap = if ($axis -eq 'Y') {
+                ($ordered[$i].X - $ordered[$i].Width / 2) - ($ordered[$i-1].X + $ordered[$i-1].Width / 2)
+            } else {
+                ($ordered[$i].Y - $ordered[$i].Height / 2) - ($ordered[$i-1].Y + $ordered[$i-1].Height / 2)
+            }
+            if ([Math]::Abs($gap - 12) -gt 1) { throw "$Path 實體 $($entry.Key) 相鄰屬性間距 $gap，預期 12px。" }
+        }
+        $distance = switch ($side) {
+            'top' { $entityBox.Y1 - (($attrs | ForEach-Object { $_.Y + $_.Height / 2 } | Measure-Object -Maximum).Maximum) }
+            'bottom' { (($attrs | ForEach-Object { $_.Y - $_.Height / 2 } | Measure-Object -Minimum).Minimum) - $entityBox.Y2 }
+            'left' { $entityBox.X1 - (($attrs | ForEach-Object { $_.X + $_.Width / 2 } | Measure-Object -Maximum).Maximum) }
+            'right' { (($attrs | ForEach-Object { $_.X - $_.Width / 2 } | Measure-Object -Minimum).Minimum) - $entityBox.X2 }
+        }
+        if ($distance -lt 28 -or $distance -gt 40) { throw "$Path 實體 $($entry.Key) 屬性最近距離 $distance 不在 28～40px。" }
+        foreach ($attr in $attrs) {
+            $attrBox = Get-SystemShapeBounds $attr
+            if (($side -eq 'top' -and $attrBox.Y2 -ge $entityBox.Y1) -or
+                ($side -eq 'bottom' -and $attrBox.Y1 -le $entityBox.Y2) -or
+                ($side -eq 'left' -and $attrBox.X2 -ge $entityBox.X1) -or
+                ($side -eq 'right' -and $attrBox.X1 -le $entityBox.X2)) {
+                throw "$Path 屬性 $($attr.Id) 不在規定的 $side 側。"
+            }
+        }
+    }
+    $conflict = Get-SystemGroupConflict $Layout $Layout.Diagram
+    if ($null -ne $conflict) { throw "$Path 實體整組外框間距不足：$($conflict.A.Id) 與 $($conflict.B.Id)，距離 $($conflict.Distance)px。" }
+    $segments = @((Get-SystemSegments $Layout).Items)
+    foreach ($segment in $segments) {
         foreach ($box in $bounds) {
-            if ($box.Id -eq $segment.Owner -or $box.Id -eq $segment.Attribute) { continue }
-            if (Test-LineIntersectsBounds $segment $box) { throw "$Path 屬性線 $($segment.Id) 穿過 $($box.Id)。" }
-        }
-    }
-    foreach ($connection in $Layout.Connections) {
-        $offsets = if ($connection.Participant.participation -eq 'total') { @(-3, 3) } else { @(0) }
-        foreach ($offset in $offsets) {
-            if ($connection.Straight) {
-                $dx = $connection.X2 - $connection.X1; $dy = $connection.Y2 - $connection.Y1
-                $length = [Math]::Sqrt($dx * $dx + $dy * $dy)
-                $segment = [pscustomobject]@{ Id = $connection.Id; X1 = $connection.X1 - $dy * $offset / $length; Y1 = $connection.Y1 + $dx * $offset / $length; X2 = $connection.X2 - $dy * $offset / $length; Y2 = $connection.Y2 + $dx * $offset / $length }
-                [void]$segments.Add($segment)
-                foreach ($box in $bounds) {
-                    if ($box.Id -eq $connection.Entity.Id -or $box.Id -eq $connection.Diamond.Id) { continue }
-                    if (Test-LineIntersectsBounds $segment $box) { throw "$Path 連線 $($segment.Id) 穿過 $($box.Id)。" }
-                }
-                continue
-            }
-            $points = @(@($connection.PortX, ($connection.PortY + $offset)), @(($connection.TrackX + $offset), ($connection.PortY + $offset)), @(($connection.TrackX + $offset), ($connection.EndY + $offset)), @($connection.EndX, ($connection.EndY + $offset)))
-            for ($index = 0; $index -lt 3; $index++) {
-                $segment = [pscustomobject]@{ Id = $connection.Id; X1 = [double]$points[$index][0]; Y1 = [double]$points[$index][1]; X2 = [double]$points[$index + 1][0]; Y2 = [double]$points[$index + 1][1] }
-                [void]$segments.Add($segment)
-                foreach ($box in $bounds) {
-                    if ($box.Id -eq $connection.Entity.Id -or $box.Id -eq $connection.Diamond.Id) { continue }
-                    if (Test-LineIntersectsBounds $segment $box) { throw "$Path 連線 $($segment.Id) 穿過 $($box.Id)。" }
-                }
-            }
+            if ($box.Id -eq $segment.Owner -or
+                ($segment.PSObject.Properties['Attribute'] -and $box.Id -eq $segment.Attribute) -or
+                ($segment.PSObject.Properties['Target'] -and $box.Id -eq $segment.Target)) { continue }
+            if (Test-LineIntersectsBounds $segment $box) { throw "$Path 線 $($segment.Id) [$($segment.X1),$($segment.Y1),$($segment.X2),$($segment.Y2)] 穿過 $($box.Id) [$($box.X1),$($box.Y1),$($box.X2),$($box.Y2)]。" }
         }
     }
     for ($i = 0; $i -lt $segments.Count; $i++) {
         for ($j = $i + 1; $j -lt $segments.Count; $j++) {
             $a = $segments[$i]; $b = $segments[$j]
             if ($a.Id -eq $b.Id) { continue }
-            if ($a.X1 -eq $a.X2 -and $b.X1 -eq $b.X2 -and $a.X1 -eq $b.X1 -and [Math]::Max([Math]::Min($a.Y1,$a.Y2),[Math]::Min($b.Y1,$b.Y2)) -lt [Math]::Min([Math]::Max($a.Y1,$a.Y2),[Math]::Max($b.Y1,$b.Y2))) { throw "$Path 垂直通道連線重疊：$($a.Id) 與 $($b.Id)。" }
-            if ($a.Y1 -eq $a.Y2 -and $b.Y1 -eq $b.Y2 -and $a.Y1 -eq $b.Y1 -and [Math]::Max([Math]::Min($a.X1,$a.X2),[Math]::Min($b.X1,$b.X2)) -lt [Math]::Min([Math]::Max($a.X1,$a.X2),[Math]::Max($b.X1,$b.X2))) { throw "$Path 水平通道連線重疊：$($a.Id) 與 $($b.Id)。" }
+            if (Test-LineSegmentsIntersect $a.X1 $a.Y1 $a.X2 $a.Y2 $b.X1 $b.Y1 $b.X2 $b.Y2) {
+                throw "$Path 全部線段交叉：$($a.Id) 與 $($b.Id)。"
+            }
         }
+    }
+    for ($i = 0; $i -lt $Layout.Labels.Count; $i++) {
+        $label = $Layout.Labels[$i]
+        foreach ($box in $bounds) {
+            if (Test-LayoutBoundsOverlap $label.Box $box) { throw "$Path 基數標籤 $($label.Id) 碰到 $($box.Id)。" }
+        }
+        foreach ($segment in $segments) {
+            if ((Get-SegmentBoundsDistance $segment $label.Box) -lt 0.75) {
+                throw "$Path 基數標籤 $($label.Id) 碰到線 $($segment.Id)。"
+            }
+        }
+        for ($j = $i + 1; $j -lt $Layout.Labels.Count; $j++) {
+            if (Test-LayoutBoundsOverlap $label.Box $Layout.Labels[$j].Box) { throw "$Path 基數標籤 $($label.Id) 碰到 $($Layout.Labels[$j].Id)。" }
+        }
+    }
+    $content = @($bounds) + @($Layout.Labels | ForEach-Object { $_.Box })
+    foreach ($segment in $segments) {
+        $content += (New-LayoutBounds $segment.Id $segment.Id $segment.Id 'line' `
+            ([Math]::Min($segment.X1,$segment.X2) - 0.75) ([Math]::Min($segment.Y1,$segment.Y2) - 0.75) `
+            ([Math]::Max($segment.X1,$segment.X2) + 0.75) ([Math]::Max($segment.Y1,$segment.Y2) + 0.75))
+    }
+    $minX = ($content | Measure-Object X1 -Minimum).Minimum
+    $minY = ($content | Measure-Object Y1 -Minimum).Minimum
+    $maxX = ($content | Measure-Object X2 -Maximum).Maximum
+    $maxY = ($content | Measure-Object Y2 -Maximum).Maximum
+    foreach ($edge in @($minX, $minY, ($Layout.Width - $maxX), ($Layout.Height - $maxY))) {
+        if ([Math]::Abs($edge - 24) -gt 1) { throw "$Path 畫布邊距 $edge 不在 24±1px。" }
     }
 }
 
@@ -727,15 +1167,11 @@ function New-ConceptualModelSvg {
             $portY = $connection.PortY + $offset; $trackX = $connection.TrackX + $offset; $endY = $connection.EndY + $offset
             [void]$svg.Add("  <path data-connection=`"$($connection.Id)`" d=`"M $($connection.PortX) $portY H $trackX V $endY H $($connection.EndX)`" fill=`"none`" stroke=`"$($palette.Line)`" stroke-width=`"1.5`"/>")
         }
-        if ($connection.Straight) {
-            $cardinalityX = [Math]::Round($connection.X1 + (($connection.X2 - $connection.X1) * 0.24), 2)
-            $cardinalityY = [Math]::Round($connection.Y1 + (($connection.Y2 - $connection.Y1) * 0.24) - 9, 2)
-        } else {
-            $sign = if ($connection.TrackX -lt $connection.PortX) { -1 } else { 1 }
-            $cardinalityX = $connection.PortX + ($sign * 18)
-            $cardinalityY = $connection.PortY - 9
-        }
-        [void]$svg.Add("  <text x=`"$cardinalityX`" y=`"$cardinalityY`" text-anchor=`"middle`" font-size=`"13`" fill=`"$($palette.Foreground)`">$($connection.Participant.cardinality)</text>")
+    }
+    foreach ($label in $Layout.Labels) {
+        $box = $label.Box
+        [void]$svg.Add("  <rect data-cardinality-label=`"$($label.Id)`" x=`"$($box.X1)`" y=`"$($box.Y1)`" width=`"$($label.Width)`" height=`"$($label.Height)`" fill=`"$($palette.Background)`"/>")
+        [void]$svg.Add("  <text x=`"$($label.X)`" y=`"$($label.Y + 4.5)`" text-anchor=`"middle`" font-size=`"13`" fill=`"$($palette.Foreground)`">$($label.Connection.Participant.cardinality)</text>")
     }
     foreach ($shape in $Layout.Shapes) {
         $x = $shape.X - ($shape.Width / 2); $y = $shape.Y - ($shape.Height / 2)
@@ -1277,5 +1713,7 @@ try {
 }
 catch {
     Write-Host "產生資料模型圖失敗：$($_.Exception.Message)" -ForegroundColor Red
+    Write-Host $_.InvocationInfo.PositionMessage -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor Red
     exit 1
 }

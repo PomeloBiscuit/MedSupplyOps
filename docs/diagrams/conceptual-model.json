@@ -38,6 +38,7 @@
           "id": "DEPARTMENT",
           "name": "科室",
           "nameEn": "Department",
+          "attributeSide": "top",
           "grid": {
             "row": 0,
             "col": 2
@@ -65,6 +66,7 @@
           "id": "REQUISITION",
           "name": "請領單",
           "nameEn": "Requisition",
+          "attributeSide": "right",
           "grid": {
             "row": 1,
             "col": 2
@@ -97,6 +99,7 @@
           "id": "ITEM",
           "name": "品項",
           "nameEn": "Item",
+          "attributeSide": "left",
           "grid": {
             "row": 2,
             "col": 1
@@ -134,6 +137,7 @@
           "id": "REQUISITION_LINE",
           "name": "請領明細",
           "nameEn": "Requisition line",
+          "attributeSide": "right",
           "grid": {
             "row": 2,
             "col": 2
@@ -161,6 +165,7 @@
           "id": "STOCK_LOT",
           "name": "批次",
           "nameEn": "Lot",
+          "attributeSide": "bottom",
           "grid": {
             "row": 3,
             "col": 1
@@ -193,6 +198,7 @@
           "id": "STORAGE_LOCATION",
           "name": "儲藏位置",
           "nameEn": "Storage location",
+          "attributeSide": "bottom",
           "grid": {
             "row": 3,
             "col": 0
@@ -220,6 +226,7 @@
           "id": "USER",
           "name": "使用者",
           "nameEn": "User",
+          "attributeSide": "top",
           "grid": {
             "row": 0,
             "col": 1
@@ -252,6 +259,7 @@
           "id": "ROLE",
           "name": "角色",
           "nameEn": "Role",
+          "attributeSide": "top",
           "grid": {
             "row": 0,
             "col": 0
@@ -274,6 +282,7 @@
           "id": "AUDIT_LOG",
           "name": "稽核紀錄",
           "nameEn": "Audit log",
+          "attributeSide": "left",
           "grid": {
             "row": 1,
             "col": 1
