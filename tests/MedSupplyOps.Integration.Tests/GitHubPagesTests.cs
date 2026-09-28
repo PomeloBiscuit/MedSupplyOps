@@ -80,6 +80,42 @@ public sealed class GitHubPagesTests
     }
 
     [Fact]
+    public void Data_model_figures_include_system_modules_and_relational_schema_in_order()
+    {
+        foreach (var (path, language) in new[] { (ChinesePage, "zh"), (EnglishPage, "en") })
+        {
+            var page = File.ReadAllText(path);
+            var data = Regex.Match(page, @"<section id=""data"">(?<body>[\s\S]*?)</section>").Groups["body"].Value;
+            var images = Regex.Matches(data, @"<div class=""figure-scroll""><a\b[^>]*><img\b[^>]*></a></div>")
+                .Select(match => match.Value).ToArray();
+            var stems = new[] { "er-chen", "er-requisition", "er-identity", "relational-schema" };
+            Assert.Equal(stems.Length, images.Length);
+            for (var index = 0; index < stems.Length; index++)
+            {
+                var stem = stems[index];
+                Assert.Contains($"{stem}-{language}-light.svg", images[index], StringComparison.Ordinal);
+                Assert.Contains($"{stem}-{language}-dark.svg", images[index], StringComparison.Ordinal);
+            }
+        }
+    }
+
+    [Fact]
+    public void Navigation_controls_are_outside_scrollable_links()
+    {
+        foreach (var path in new[] { ChinesePage, EnglishPage })
+        {
+            var nav = Regex.Match(File.ReadAllText(path), @"<nav class=""top"">(?<body>[\s\S]*?)</nav>").Groups["body"].Value;
+            var links = Regex.Match(nav, @"<div class=""nav-links"">(?<body>[\s\S]*?)</div>").Groups["body"].Value;
+            var tools = Regex.Match(nav, @"<div class=""nav-tools"">(?<body>[\s\S]*?)</div>").Groups["body"].Value;
+            Assert.NotEmpty(links);
+            Assert.Contains("id=\"language-toggle\"", tools, StringComparison.Ordinal);
+            Assert.Contains("id=\"theme-toggle\"", tools, StringComparison.Ordinal);
+            Assert.DoesNotContain("id=\"language-toggle\"", links, StringComparison.Ordinal);
+            Assert.DoesNotContain("id=\"theme-toggle\"", links, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void Language_and_theme_controls_exist_on_both_pages()
     {
         foreach (var (path, targetLanguage) in new[] { (ChinesePage, "en"), (EnglishPage, "zh-Hant") })
@@ -157,7 +193,7 @@ public sealed class GitHubPagesTests
         {
             var page = File.ReadAllText(path);
             var figures = Regex.Matches(page, @"<div class=""figure-scroll""><a\b[^>]*><img\b[^>]*\bsrc=""[^""]*diagrams/[^""]+""[^>]*></a></div>");
-            Assert.Equal(2, figures.Count);
+            Assert.Equal(4, figures.Count);
             foreach (Match figure in figures)
             {
                 Assert.Contains("target=\"_blank\"", figure.Value, StringComparison.Ordinal);

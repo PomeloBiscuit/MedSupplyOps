@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -89,20 +88,23 @@ public sealed partial class ReadmeConceptualModelTests
     {
         using var specification = JsonDocument.Parse(
             File.ReadAllText(FindRepositoryFile("docs/diagrams/conceptual-model.json")));
-        var diagram = specification.RootElement.GetProperty("conceptualDiagrams").GetProperty("system");
         var failures = new List<string>();
-        CheckName(diagram, "全系統標題", "title", "nameEn", failures);
-        CheckName(diagram, "全系統圖說", "caption", "captionEn", failures);
-        foreach (var collection in new[] { "entities", "relationships" })
+        foreach (var entry in specification.RootElement.GetProperty("conceptualDiagrams").EnumerateObject())
         {
-            foreach (var element in diagram.GetProperty(collection).EnumerateArray())
+            var diagram = entry.Value;
+            CheckName(diagram, entry.Name, "title", "nameEn", failures);
+            CheckName(diagram, entry.Name, "caption", "captionEn", failures);
+            foreach (var collection in new[] { "entities", "relationships" })
             {
-                var id = element.GetProperty("id").GetString()!;
-                CheckName(element, id, "name", "nameEn", failures);
-                foreach (var attribute in element.GetProperty("attributes").EnumerateArray())
+                foreach (var element in diagram.GetProperty(collection).EnumerateArray())
                 {
-                    CheckName(attribute, $"{id}.{attribute.GetProperty("id").GetString()}",
-                        "name", "nameEn", failures);
+                    var id = element.GetProperty("id").GetString()!;
+                    CheckName(element, id, "name", "nameEn", failures);
+                    foreach (var attribute in element.GetProperty("attributes").EnumerateArray())
+                    {
+                        CheckName(attribute, $"{id}.{attribute.GetProperty("id").GetString()}",
+                            "name", "nameEn", failures);
+                    }
                 }
             }
         }
@@ -112,6 +114,8 @@ public sealed partial class ReadmeConceptualModelTests
 
     [Theory]
     [InlineData("er-chen")]
+    [InlineData("er-requisition")]
+    [InlineData("er-identity")]
     [InlineData("relational-schema")]
     public void Diagram_variants_keep_shapes_and_theme_independent_structure(string stem)
     {
@@ -148,14 +152,42 @@ public sealed partial class ReadmeConceptualModelTests
         }
     }
 
+    [Theory]
+    [InlineData("system", "er-chen")]
+    [InlineData("requisition", "er-requisition")]
+    [InlineData("identity", "er-identity")]
+    public void Every_conceptual_attribute_is_drawn_in_both_languages(string key, string stem)
+    {
+        using var specification = JsonDocument.Parse(
+            File.ReadAllText(FindRepositoryFile("docs/diagrams/conceptual-model.json")));
+        var diagram = specification.RootElement.GetProperty("conceptualDiagrams").GetProperty(key);
+        XNamespace svg = "http://www.w3.org/2000/svg";
+        foreach (var (language, property) in new[] { ("zh", "name"), ("en", "nameEn") })
+        {
+            var image = XDocument.Load(FindRepositoryFile($"docs/diagrams/{stem}-{language}-light.svg"));
+            var labels = image.Descendants(svg + "text").Select(node => node.Value).ToHashSet(StringComparer.Ordinal);
+            foreach (var collection in new[] { "entities", "relationships" })
+            {
+                foreach (var element in diagram.GetProperty(collection).EnumerateArray())
+                {
+                    foreach (var attribute in element.GetProperty("attributes").EnumerateArray())
+                    {
+                        var name = attribute.GetProperty(property).GetString()!;
+                        Assert.True(labels.Contains(name), $"{stem}-{language} 缺少屬性 {element.GetProperty("id").GetString()}.{attribute.GetProperty("id").GetString()}：{name}。");
+                    }
+                }
+            }
+        }
+    }
+
     [Fact]
     public void Readme_sections_use_existing_light_and_dark_diagrams()
     {
         var readme = File.ReadAllText(FindRepositoryFile("README.md"));
-        foreach (var (heading, nextHeading, stem) in new[]
+        foreach (var (heading, nextHeading, stems) in new[]
                  {
-                     ("## ER 圖（Chen 記法）", "## 關聯綱目", "er-chen"),
-                     ("## 關聯綱目", "## 序列圖", "relational-schema")
+                     ("## ER 圖（Chen 記法）", "## 關聯綱目", new[] { "er-chen", "er-requisition", "er-identity" }),
+                     ("## 關聯綱目", "## 序列圖", new[] { "relational-schema" })
                  })
         {
             var begin = readme.IndexOf(heading, StringComparison.Ordinal);
@@ -163,15 +195,19 @@ public sealed partial class ReadmeConceptualModelTests
             Assert.True(begin >= 0 && end > begin, $"README 找不到 {heading} 區段。");
             var block = readme[begin..end];
             var pictures = Regex.Matches(block, @"<picture>.*?</picture>", RegexOptions.Singleline);
-            Assert.True(pictures.Count == 1, $"README {heading} 預期恰好一個 picture。");
-            var picture = pictures[0].Value;
-            var lightPath = $"docs/diagrams/{stem}-zh-light.svg";
-            var darkPath = $"docs/diagrams/{stem}-zh-dark.svg";
-            Assert.Contains($"src=\"{lightPath}\"", picture, StringComparison.Ordinal);
-            Assert.Contains($"srcset=\"{darkPath}\"", picture, StringComparison.Ordinal);
-            Assert.Contains("media=\"(prefers-color-scheme: dark)\"", picture, StringComparison.Ordinal);
-            Assert.True(File.Exists(FindRepositoryFile(lightPath)), $"缺少 {lightPath}。");
-            Assert.True(File.Exists(FindRepositoryFile(darkPath)), $"缺少 {darkPath}。");
+            Assert.Equal(stems.Length, pictures.Count);
+            for (var index = 0; index < stems.Length; index++)
+            {
+                var stem = stems[index];
+                var picture = pictures[index].Value;
+                var lightPath = $"docs/diagrams/{stem}-zh-light.svg";
+                var darkPath = $"docs/diagrams/{stem}-zh-dark.svg";
+                Assert.Contains($"src=\"{lightPath}\"", picture, StringComparison.Ordinal);
+                Assert.Contains($"srcset=\"{darkPath}\"", picture, StringComparison.Ordinal);
+                Assert.Contains("media=\"(prefers-color-scheme: dark)\"", picture, StringComparison.Ordinal);
+                Assert.True(File.Exists(FindRepositoryFile(lightPath)), $"缺少 {lightPath}。");
+                Assert.True(File.Exists(FindRepositoryFile(darkPath)), $"缺少 {darkPath}。");
+            }
         }
     }
 
@@ -189,23 +225,11 @@ public sealed partial class ReadmeConceptualModelTests
                 $"深色圖不存在：{dark.Groups["path"].Value}");
         }
 
-        var root = Path.GetDirectoryName(FindRepositoryFile("README.md"))!;
-        var oldNames = string.Join("|", new[]
+        foreach (var path in new[] { "README.md", "docs/index.html", "docs/en/index.html" })
         {
-            "er-" + "requisition", "er-" + "identity",
-            "relational-schema-" + "requisition", "relational-schema-" + "identity"
-        });
-        using var process = Process.Start(new ProcessStartInfo("git")
-        {
-            WorkingDirectory = root,
-            ArgumentList = { "grep", "-n", "-E", oldNames },
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        })!;
-        var output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit();
-        Assert.True(process.ExitCode == 1, $"追蹤檔仍引用舊圖或 Git 查詢失敗：{output}");
+            var page = File.ReadAllText(FindRepositoryFile(path));
+            Assert.DoesNotMatch(@"(?:er-requisition|er-identity|relational-schema-requisition|relational-schema-identity)\.svg", page);
+        }
     }
 
     [Fact]

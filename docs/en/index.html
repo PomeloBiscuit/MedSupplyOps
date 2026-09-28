@@ -22,18 +22,20 @@
 
 <nav class="top"><div class="wrap">
   <strong>MedSupplyOps</strong>
-  <a href="#verify">How do we know?</a>
-  <a href="#probes">Mutation probes</a>
+  <div class="nav-links">
+  <a href="#verify">Verification</a>
+  <a href="#probes">Probes</a>
   <a href="#architecture">Architecture</a>
-  <a href="#data">Database</a>
-  <a href="#flow">Core workflow</a>
+  <a href="#data">Data</a>
+  <a href="#flow">Workflow</a>
   <a href="#performance">Performance</a>
   <a href="#ops">Operations</a>
   <a href="#scope">Scope</a>
-  <span class="nav-actions">
+  </div>
+  <div class="nav-tools">
     <a id="language-toggle" href="../index.html" hreflang="zh-Hant">中文</a>
     <button id="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">Dark mode</button>
-  </span>
+  </div>
 </div></nav>
 
 <section class="hero"><div class="wrap">
@@ -169,16 +171,19 @@ flowchart TB
   <p class="kicker">04 — Database</p>
   <h2>Conceptual model and actual structure</h2>
   <h3>Conceptual model (Chen notation)</h3>
-  <p>Rectangles denote entities, diamonds denote relationships, and ovals denote representative attributes; underlined attribute names are primary keys.
+  <p>Rectangles denote entities, diamonds denote relationships, and ovals denote attributes; underlined attribute names are primary keys.
      Double lines between entities and relationships indicate total participation, single lines indicate partial participation,
      and <code>1</code>, <code>N</code>, and <code>M</code> indicate cardinality.</p>
   <p>Every requisition must come from a department, so the requisition side has a double line. A department can submit none, so its side has a single line.</p>
   <p>Allocation is an M:N relationship: one line can draw from several lots to meet its quantity by earliest expiry;
      one lot can also supply several lines. Allocated quantity describes how many units that line takes from that lot,
      so it belongs to the relationship itself.</p>
-  <h4>Requisition and issue</h4>
+  <h4>Full system</h4>
   <div class="figure-scroll"><a href="../diagrams/er-chen-en-light.svg" target="_blank" rel="noopener" aria-label="Open the full-size system-wide Chen conceptual model in a new tab"><img src="../diagrams/er-chen-en-light.svg" data-src-dark="../diagrams/er-chen-en-dark.svg" alt="System-wide Chen conceptual model"></a></div>
+  <h4>Requisition and issue</h4>
+  <div class="figure-scroll"><a href="../diagrams/er-requisition-en-light.svg" target="_blank" rel="noopener" aria-label="Open the full-size requisition and issue Chen conceptual model in a new tab"><img src="../diagrams/er-requisition-en-light.svg" data-src-dark="../diagrams/er-requisition-en-dark.svg" alt="Requisition and issue Chen conceptual model"></a></div>
   <h4>Accounts, permissions, and audit</h4>
+  <div class="figure-scroll"><a href="../diagrams/er-identity-en-light.svg" target="_blank" rel="noopener" aria-label="Open the full-size accounts, permissions, and audit Chen conceptual model in a new tab"><img src="../diagrams/er-identity-en-light.svg" data-src-dark="../diagrams/er-identity-en-dark.svg" alt="Accounts, permissions, and audit Chen conceptual model"></a></div>
   <div class="note warn">
     The conceptual relationships “stored at” and “leaves” are valid, but the physical design deliberately omits foreign keys:
     a lot matches a storage location by name, and audit records preserve the operator as text. These two relationships
@@ -201,9 +206,8 @@ flowchart TB
 
   <h3>Relational schema (generated from the Oracle data dictionary)</h3>
   <p>Each row is a table and each cell is a column. Underlines mark primary keys; arrows point from foreign keys to referenced primary keys; line styles indicate deletion rules.</p>
-  <h4>Requisition and issue</h4>
+  <h4>Full system</h4>
   <div class="figure-scroll"><a href="../diagrams/relational-schema-en-light.svg" target="_blank" rel="noopener" aria-label="Open the full-size system-wide relational schema in a new tab"><img src="../diagrams/relational-schema-en-light.svg" data-src-dark="../diagrams/relational-schema-en-dark.svg" alt="System-wide relational schema"></a></div>
-  <h4>Accounts, permissions, and audit</h4>
   <p style="font-size:13.5px;color:var(--muted)">
     IDENTITY_USER_CLAIMS, IDENTITY_USER_LOGINS, IDENTITY_USER_TOKENS, and IDENTITY_ROLE_CLAIMS
     are standard Identity tables unused by this system, so they are omitted from the relational schema.

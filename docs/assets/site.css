@@ -28,14 +28,18 @@ h3 { font-size: 17px; margin: 28px 0 8px; color: var(--ink); }
 p { margin: 0 0 14px; }
 .wrap { max-width: 900px; margin: 0 auto; padding: 0 20px; min-width: 0; }
 nav.top { position: sticky; top: 0; z-index: 20; background: var(--nav-bg); border-bottom: 1px solid var(--line); }
-nav.top .wrap { display: flex; align-items: center; gap: 18px; min-height: 56px; overflow-x: auto; }
+nav.top .wrap { max-width: none; display: flex; align-items: center; gap: 12px; min-height: 56px; flex-wrap: wrap; }
 nav.top strong { font-size: 15px; color: var(--ink); white-space: nowrap; }
 nav.top a { font-size: 13px; color: var(--muted); white-space: nowrap; }
 nav.top a:hover { color: var(--primary); }
-.nav-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; white-space: nowrap; }
-.nav-actions a, .nav-actions button { font: inherit; font-size: 13px; line-height: 1.3; color: var(--ink); border: 1px solid var(--line-strong); background: var(--surface); border-radius: var(--radius-sm); padding: 6px 10px; cursor: pointer; }
-.nav-actions a:hover, .nav-actions button:hover { color: var(--primary); background: var(--surface-2); text-decoration: none; }
-.nav-actions :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.nav-links { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 6px 14px; flex-wrap: wrap; }
+.nav-tools { display: flex; flex: 0 0 auto; gap: 8px; align-items: center; margin-left: auto; white-space: nowrap; }
+/* Local HTTP Edge probe, widths 1440/1280/1024/768/375; values are nav scroll/client, page scroll/client.
+   zh: 1109/1109 1425/1425; 949/949 1265/1265; 693/693 1009/1009; 594/594 753/753; 514/328 360/360.
+   en: 1112/1112 1425/1425; 952/952 1265/1265; 696/696 1009/1009; 594/594 753/753; 523/328 360/360. */
+.nav-tools a, .nav-tools button { font: inherit; font-size: 13px; line-height: 1.3; color: var(--ink); border: 1px solid var(--line-strong); background: var(--surface); border-radius: var(--radius-sm); padding: 6px 10px; cursor: pointer; }
+.nav-tools a:hover, .nav-tools button:hover { color: var(--primary); background: var(--surface-2); text-decoration: none; }
+.nav-tools :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 section { padding: 54px 0; border-bottom: 1px solid var(--line); }
 section.hero { padding: 64px 0 48px; }
 .lede { font-size: 17px; color: var(--muted); margin: 10px 0 0; }
@@ -61,6 +65,11 @@ th { background: var(--surface); color: var(--ink); font-weight: 600; font-size:
 .figure-scroll a { display: block; width: max-content; max-width: none; }
 .figure-scroll img { display: block; width: auto; max-width: none; height: auto; }
 footer { padding: 36px 0 56px; color: var(--muted); font-size: 13.5px; }
+@media (max-width: 767px) {
+  nav.top .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; }
+  .nav-tools { grid-column: 2; grid-row: 1; }
+  .nav-links { grid-column: 1 / -1; grid-row: 2; width: 100%; flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+}
 @media (max-width: 700px) {
   body { font-size: 14.5px; } h2 { font-size: 22px; } section { padding: 40px 0; }
   th, td { padding: 8px 9px; font-size: 13.5px; }

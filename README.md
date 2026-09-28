@@ -451,19 +451,34 @@ erDiagram
 
 ## ER 圖（Chen 記法）
 
-概念圖用矩形表示實體、菱形表示關聯、橢圓表示代表性屬性；屬性文字的底線表示主鍵。
+概念圖用矩形表示實體、菱形表示關聯、橢圓表示屬性；屬性文字的底線表示主鍵。
 實體與關聯之間的雙線表示全部參與、單線表示部分參與，線旁的 `1`、`N`、`M` 表示基數。
 例如：每張請領單一定由某個科室提出，所以請領單那一側是雙線；科室可以一張單都沒提，所以是單線。
-完整欄位仍以後面的關聯綱目為準。
-全系統 Chen 圖為維持可讀性，各實體只顯示主鍵屬性；其餘欄位列在關聯綱目。
+資料表完整欄位仍以後面的關聯綱目為準。
 
 「配發」是 M:N 關聯：一筆請領明細可能要跨數個批次，依先到期先出湊足數量；同一批次也可能
 分給多筆明細。「配發數量」既不單獨屬於請領明細，也不單獨屬於批次，它描述的是「這筆明細
 從這個批次拿了幾個」，所以掛在「配發」關聯上。
 
+### 全系統 Chen 圖
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/er-chen-zh-dark.svg">
   <img src="docs/diagrams/er-chen-zh-light.svg" alt="全系統 Chen 概念模型">
+</picture>
+
+### 請領與發料
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/er-requisition-zh-dark.svg">
+  <img src="docs/diagrams/er-requisition-zh-light.svg" alt="請領與發料 Chen 概念模型">
+</picture>
+
+### 帳號權限與稽核
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/er-identity-zh-dark.svg">
+  <img src="docs/diagrams/er-identity-zh-light.svg" alt="帳號權限與稽核 Chen 概念模型">
 </picture>
 
 > **概念關聯與實體外鍵的差異：**「存放於」與「留下」在概念上成立，但實體設計刻意不做外鍵。
