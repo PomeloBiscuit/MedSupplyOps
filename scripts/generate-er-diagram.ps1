@@ -21,6 +21,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
+$script:ChenSansFont = '&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif'
 
 function Get-AppDatabasePassword {
     $envPath = Join-Path $repoRoot '.env'
@@ -1187,7 +1188,7 @@ function New-ConceptualModelSvg {
     $description = if ($Language -eq 'en') { [string]$Diagram.captionEn } else { [string]$Diagram.caption }
     $svg = New-Object System.Collections.Generic.List[string]
     [void]$svg.Add('<?xml version="1.0" encoding="UTF-8"?>')
-    [void]$svg.Add("<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"$($Layout.Width)`" height=`"$($Layout.Height)`" viewBox=`"0 0 $($Layout.Width) $($Layout.Height)`" role=`"img`" aria-labelledby=`"title description`">")
+    [void]$svg.Add("<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"$($Layout.Width)`" height=`"$($Layout.Height)`" viewBox=`"0 0 $($Layout.Width) $($Layout.Height)`" role=`"img`" aria-labelledby=`"title description`" font-family=`"$script:ChenSansFont`">")
     [void]$svg.Add("  <title id=`"title`">$(ConvertTo-SvgText $title)</title>")
     [void]$svg.Add("  <desc id=`"description`">$(ConvertTo-SvgText $description)</desc>")
     [void]$svg.Add("  <rect x=`"0`" y=`"0`" width=`"$($Layout.Width)`" height=`"$($Layout.Height)`" fill=`"$($palette.Background)`"/>")
@@ -1337,7 +1338,7 @@ function New-RelationalSchemaSvg {
 
     $legendY = $currentY + 6; $svgHeight = $legendY + 150
     $monoFont = 'Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, monospace'
-    $sansFont = '&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif'
+    $sansFont = $script:ChenSansFont
     $lines = New-Object System.Collections.Generic.List[string]
     [void]$lines.Add('<?xml version="1.0" encoding="UTF-8"?>')
     [void]$lines.Add("<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"$svgWidth`" height=`"$svgHeight`" viewBox=`"0 0 $svgWidth $svgHeight`" role=`"img`" aria-labelledby=`"title description`">")
@@ -1427,6 +1428,19 @@ function Assert-SvgVariant {
     if ([int]$root.GetAttribute('width') -gt $WidthLimit) { throw "$Path 寬度超過 ${WidthLimit}px。" }
     $ns = [System.Xml.XmlNamespaceManager]::new($xml.NameTable)
     $ns.AddNamespace('s', 'http://www.w3.org/2000/svg')
+    if ($Path -match '^docs/diagrams/er-(chen|requisition|identity)-(zh|en)-(light|dark)\.svg$') {
+        $expectedFontFamily = [System.Net.WebUtility]::HtmlDecode($script:ChenSansFont)
+        foreach ($node in $xml.SelectNodes('//s:text', $ns)) {
+            $fontFamily = $null
+            for ($ancestor = $node; $null -ne $ancestor; $ancestor = $ancestor.ParentNode) {
+                if (($ancestor -is [System.Xml.XmlElement]) -and $ancestor.HasAttribute('font-family')) {
+                    $fontFamily = $ancestor.GetAttribute('font-family')
+                    break
+                }
+            }
+            if ($fontFamily -ne $expectedFontFamily) { throw "$Path 文字 $($node.InnerText) 未繼承標準字型組。" }
+        }
+    }
     foreach ($node in $xml.SelectNodes('//s:text', $ns)) {
         $size = $node.GetAttribute('font-size')
         if ([string]::IsNullOrWhiteSpace($size) -or [double]$size -lt 12) { throw "$Path 文字 $($node.InnerText) 字級小於 12px。" }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1763" height="1526" viewBox="0 0 1763 1526" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1763" height="1526" viewBox="0 0 1763 1526" role="img" aria-labelledby="title description" font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif">
   <title id="title">Full-system Chen conceptual model</title>
   <desc id="description">Rectangles: entities; diamonds: relationships; ellipses: attributes; underline: primary key; double line: total participation.</desc>
   <rect x="0" y="0" width="1763" height="1526" fill="#ffffff"/>
