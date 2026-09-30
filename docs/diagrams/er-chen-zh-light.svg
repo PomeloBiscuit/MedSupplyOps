@@ -100,8 +100,7 @@
   <rect data-element="entity:DEPARTMENT" x="1395" y="92" width="121" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="1455.5" y="123.25" text-anchor="middle" font-size="15" fill="#17212b">科室</text>
   <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_ID" cx="1302.5" cy="42" rx="62.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="1302.5" y="46.55" text-anchor="middle" font-size="13" fill="#17212b">科室編號</text>
-  <line data-primary-key="attribute:DEPARTMENT:DEPARTMENT_ID" x1="1276.5" y1="49.55" x2="1328.5" y2="49.55" stroke="#17212b" stroke-width="1"/>
+  <text x="1302.5" y="46.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:DEPARTMENT:DEPARTMENT_ID">科室編號</text>
   <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_CODE" cx="1447.5" cy="42" rx="70.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="1447.5" y="46.55" text-anchor="middle" font-size="13" fill="#17212b">科室代碼</text>
   <ellipse data-element="attribute:DEPARTMENT:DEPARTMENT_NAME" cx="1600.5" cy="42" rx="70.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
@@ -109,8 +108,7 @@
   <rect data-element="entity:REQUISITION" x="1390" y="522" width="131" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="1455.5" y="553.25" text-anchor="middle" font-size="15" fill="#17212b">請領單</text>
   <ellipse data-element="attribute:REQUISITION:REQUISITION_ID" cx="1619.5" cy="476" rx="66.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="1619.5" y="480.55" text-anchor="middle" font-size="13" fill="#17212b">請領單編號</text>
-  <line data-primary-key="attribute:REQUISITION:REQUISITION_ID" x1="1587" y1="483.55" x2="1652" y2="483.55" stroke="#17212b" stroke-width="1"/>
+  <text x="1619.5" y="480.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:REQUISITION:REQUISITION_ID">請領單編號</text>
   <ellipse data-element="attribute:REQUISITION:REQUISITION_NO" cx="1635.5" cy="524" rx="82.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="1635.5" y="528.55" text-anchor="middle" font-size="13" fill="#17212b">單號</text>
   <ellipse data-element="attribute:REQUISITION:STATUS" cx="1589.5" cy="572" rx="36.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
@@ -120,8 +118,7 @@
   <rect data-element="entity:ITEM" x="802.5" y="952" width="66" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="835.5" y="983.25" text-anchor="middle" font-size="15" fill="#17212b">品項</text>
   <ellipse data-element="attribute:ITEM:ITEM_ID" cx="732" cy="882" rx="38.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="732" y="886.55" text-anchor="middle" font-size="13" fill="#17212b">品項編號</text>
-  <line data-primary-key="attribute:ITEM:ITEM_ID" x1="706" y1="889.55" x2="758" y2="889.55" stroke="#17212b" stroke-width="1"/>
+  <text x="732" y="886.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:ITEM:ITEM_ID">品項編號</text>
   <ellipse data-element="attribute:ITEM:ITEM_CODE" cx="724" cy="930" rx="46.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="724" y="934.55" text-anchor="middle" font-size="13" fill="#17212b">料號</text>
   <ellipse data-element="attribute:ITEM:ITEM_NAME" cx="724" cy="978" rx="46.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
@@ -133,8 +130,7 @@
   <rect data-element="entity:REQUISITION_LINE" x="1369.5" y="952" width="172" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="1455.5" y="983.25" text-anchor="middle" font-size="15" fill="#17212b">請領明細</text>
   <ellipse data-element="attribute:REQUISITION_LINE:REQUISITION_LINE_ID" cx="1612" cy="930" rx="38.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="1612" y="934.55" text-anchor="middle" font-size="13" fill="#17212b">明細編號</text>
-  <line data-primary-key="attribute:REQUISITION_LINE:REQUISITION_LINE_ID" x1="1586" y1="937.55" x2="1638" y2="937.55" stroke="#17212b" stroke-width="1"/>
+  <text x="1612" y="934.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:REQUISITION_LINE:REQUISITION_LINE_ID">明細編號</text>
   <ellipse data-element="attribute:REQUISITION_LINE:LINE_NO" cx="1628" cy="978" rx="54.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="1628" y="982.55" text-anchor="middle" font-size="13" fill="#17212b">行號</text>
   <ellipse data-element="attribute:REQUISITION_LINE:REQUESTED_QUANTITY" cx="1656" cy="1026" rx="82.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
@@ -142,8 +138,7 @@
   <rect data-element="entity:STOCK_LOT" x="806.5" y="1382" width="58" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="835.5" y="1413.25" text-anchor="middle" font-size="15" fill="#17212b">批次</text>
   <ellipse data-element="attribute:STOCK_LOT:STOCK_LOT_ID" cx="668" cy="1484" rx="38" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="668" y="1488.55" text-anchor="middle" font-size="13" fill="#17212b">批次編號</text>
-  <line data-primary-key="attribute:STOCK_LOT:STOCK_LOT_ID" x1="642" y1="1491.55" x2="694" y2="1491.55" stroke="#17212b" stroke-width="1"/>
+  <text x="668" y="1488.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:STOCK_LOT:STOCK_LOT_ID">批次編號</text>
   <ellipse data-element="attribute:STOCK_LOT:LOT_NUMBER" cx="768.5" cy="1484" rx="50.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="768.5" y="1488.55" text-anchor="middle" font-size="13" fill="#17212b">批號</text>
   <ellipse data-element="attribute:STOCK_LOT:EXPIRY_DATE" cx="885.5" cy="1484" rx="54.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
@@ -153,8 +148,7 @@
   <rect data-element="entity:STORAGE_LOCATION" x="129.5" y="1382" width="172" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="215.5" y="1413.25" text-anchor="middle" font-size="15" fill="#17212b">儲藏位置</text>
   <ellipse data-element="attribute:STORAGE_LOCATION:LOCATION_ID" cx="78.5" cy="1484" rx="54.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="78.5" y="1488.55" text-anchor="middle" font-size="13" fill="#17212b">位置編號</text>
-  <line data-primary-key="attribute:STORAGE_LOCATION:LOCATION_ID" x1="52.5" y1="1491.55" x2="104.5" y2="1491.55" stroke="#17212b" stroke-width="1"/>
+  <text x="78.5" y="1488.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:STORAGE_LOCATION:LOCATION_ID">位置編號</text>
   <ellipse data-element="attribute:STORAGE_LOCATION:LOCATION_CODE" cx="207.5" cy="1484" rx="62.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="207.5" y="1488.55" text-anchor="middle" font-size="13" fill="#17212b">位置代碼</text>
   <ellipse data-element="attribute:STORAGE_LOCATION:LOCATION_NAME" cx="344.5" cy="1484" rx="62.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
@@ -162,8 +156,7 @@
   <rect data-element="entity:USER" x="799" y="92" width="73" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="835.5" y="123.25" text-anchor="middle" font-size="15" fill="#17212b">使用者</text>
   <ellipse data-element="attribute:USER:USER_ID" cx="642" cy="42" rx="44.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="642" y="46.55" text-anchor="middle" font-size="13" fill="#17212b">使用者編號</text>
-  <line data-primary-key="attribute:USER:USER_ID" x1="609.5" y1="49.55" x2="674.5" y2="49.55" stroke="#17212b" stroke-width="1"/>
+  <text x="642" y="46.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:USER:USER_ID">使用者編號</text>
   <ellipse data-element="attribute:USER:USER_NAME" cx="745" cy="42" rx="46.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="745" y="46.55" text-anchor="middle" font-size="13" fill="#17212b">帳號</text>
   <ellipse data-element="attribute:USER:DISPLAY_NAME" cx="862" cy="42" rx="58.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
@@ -173,15 +166,13 @@
   <rect data-element="entity:ROLE" x="182.5" y="92" width="66" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="215.5" y="123.25" text-anchor="middle" font-size="15" fill="#17212b">角色</text>
   <ellipse data-element="attribute:ROLE:ROLE_ID" cx="163" cy="42" rx="38.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="163" y="46.55" text-anchor="middle" font-size="13" fill="#17212b">角色編號</text>
-  <line data-primary-key="attribute:ROLE:ROLE_ID" x1="137" y1="49.55" x2="189" y2="49.55" stroke="#17212b" stroke-width="1"/>
+  <text x="163" y="46.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:ROLE:ROLE_ID">角色編號</text>
   <ellipse data-element="attribute:ROLE:ROLE_NAME" cx="260" cy="42" rx="46.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="260" y="46.55" text-anchor="middle" font-size="13" fill="#17212b">角色名稱</text>
   <rect data-element="entity:AUDIT_LOG" x="782" y="522" width="107" height="52" fill="#eef4f8" stroke="#4a5560" stroke-width="1.5"/>
   <text x="835.5" y="553.25" text-anchor="middle" font-size="15" fill="#17212b">稽核紀錄</text>
   <ellipse data-element="attribute:AUDIT_LOG:AUDIT_LOG_ID" cx="693.5" cy="476" rx="56.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
-  <text x="693.5" y="480.55" text-anchor="middle" font-size="13" fill="#17212b">稽核編號</text>
-  <line data-primary-key="attribute:AUDIT_LOG:AUDIT_LOG_ID" x1="667.5" y1="483.55" x2="719.5" y2="483.55" stroke="#17212b" stroke-width="1"/>
+  <text x="693.5" y="480.55" text-anchor="middle" font-size="13" fill="#17212b" text-decoration="underline" data-primary-key="attribute:AUDIT_LOG:AUDIT_LOG_ID">稽核編號</text>
   <ellipse data-element="attribute:AUDIT_LOG:ACTION" cx="713.5" cy="524" rx="36.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <text x="713.5" y="528.55" text-anchor="middle" font-size="13" fill="#17212b">動作</text>
   <ellipse data-element="attribute:AUDIT_LOG:OCCURRED_AT" cx="695.5" cy="572" rx="54.5" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>

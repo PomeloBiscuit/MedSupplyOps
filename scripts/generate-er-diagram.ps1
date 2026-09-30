@@ -1229,12 +1229,8 @@ function New-ConceptualModelSvg {
         }
         $label = Get-BilingualText $shape.Element $Language
         $baseline = $shape.Y + ($shape.FontSize * 0.35)
-        [void]$svg.Add("  <text x=`"$($shape.X)`" y=`"$baseline`" text-anchor=`"middle`" font-size=`"$($shape.FontSize)`" fill=`"$($palette.Foreground)`">$(ConvertTo-SvgText $label)</text>")
-        if ($shape.PrimaryKey) {
-            $lineWidth = Get-EstimatedTextWidth $label $shape.FontSize
-            $underlineY = $baseline + 3; $x1 = $shape.X - ($lineWidth / 2); $x2 = $shape.X + ($lineWidth / 2)
-            [void]$svg.Add("  <line data-primary-key=`"$($shape.Id)`" x1=`"$x1`" y1=`"$underlineY`" x2=`"$x2`" y2=`"$underlineY`" stroke=`"$($palette.Foreground)`" stroke-width=`"1`"/>")
-        }
+        $primaryKeyAttributes = if ($shape.PrimaryKey) { " text-decoration=`"underline`" data-primary-key=`"$($shape.Id)`"" } else { '' }
+        [void]$svg.Add("  <text x=`"$($shape.X)`" y=`"$baseline`" text-anchor=`"middle`" font-size=`"$($shape.FontSize)`" fill=`"$($palette.Foreground)`"$primaryKeyAttributes>$(ConvertTo-SvgText $label)</text>")
     }
     [void]$svg.Add('</svg>')
     return (($svg -join "`n") + "`n")
@@ -1464,6 +1460,42 @@ function Assert-SvgVariant {
     }
 }
 
+function Assert-ChenPrimaryKeys {
+    param([string]$Svg, [string]$Path, $Diagram, [string]$Language)
+
+    $xml = [xml]$Svg
+    $ns = [System.Xml.XmlNamespaceManager]::new($xml.NameTable)
+    $ns.AddNamespace('s', 'http://www.w3.org/2000/svg')
+    foreach ($line in $xml.SelectNodes('//s:line[@data-primary-key]', $ns)) {
+        throw "$Path 主鍵標示檢查失敗：$($line.GetAttribute('data-primary-key')) 仍使用線段。"
+    }
+    $expected = [System.Collections.Generic.Dictionary[string,string]]::new([System.StringComparer]::Ordinal)
+    foreach ($element in @($Diagram.entities) + @($Diagram.relationships)) {
+        foreach ($attribute in @($element.attributes | Where-Object { $_.primaryKey })) {
+            $id = "attribute:$($element.id):$($attribute.id)"
+            $expected[$id] = Get-BilingualText $attribute $Language
+        }
+    }
+    $seen = [System.Collections.Generic.Dictionary[string,bool]]::new([System.StringComparer]::Ordinal)
+    foreach ($text in $xml.SelectNodes('//s:text', $ns)) {
+        if (-not $text.HasAttribute('data-primary-key')) {
+            if ($text.HasAttribute('text-decoration')) {
+                throw "$Path 主鍵標示檢查失敗：非主鍵文字 $($text.InnerText) 不得有 text-decoration。"
+            }
+            continue
+        }
+        $id = $text.GetAttribute('data-primary-key')
+        if (-not $expected.ContainsKey($id)) { throw "$Path 主鍵標示檢查失敗：$id 不在規格的主鍵集合。" }
+        if ($seen.ContainsKey($id)) { throw "$Path 主鍵標示檢查失敗：$id 重複出現。" }
+        if ($text.GetAttribute('text-decoration') -cne 'underline') { throw "$Path 主鍵標示檢查失敗：$id 必須有 text-decoration=underline。" }
+        if ($text.InnerText -cne $expected[$id]) { throw "$Path 主鍵標示檢查失敗：$id 文字應為 $($expected[$id])，實際為 $($text.InnerText)。" }
+        $seen[$id] = $true
+    }
+    foreach ($id in $expected.Keys) {
+        if (-not $seen.ContainsKey($id)) { throw "$Path 主鍵標示檢查失敗：缺少 $id。" }
+    }
+}
+
 function New-ModuleSvg {
     param($Diagram, [string]$Key, [string]$Language, [string]$Theme, [string]$Path)
     $sourcePath = Join-Path $repoRoot "scripts/diagram-templates/er-$Key.svg"
@@ -1584,18 +1616,6 @@ function New-ModuleSvg {
         foreach ($axis in @('X1','Y1','X2','Y2')) { $node.SetAttribute($axis.ToLowerInvariant(), [string][Math]::Round($line.$axis, 2)) }
         [void]$lineGroup.AppendChild($node)
     }
-    foreach ($line in @($xml.SelectNodes('/s:svg/s:g[last()]/s:line[@data-primary-key]', $ns))) { [void]$line.ParentNode.RemoveChild($line) }
-    foreach ($element in $Diagram.entities) {
-        foreach ($attribute in @($element.attributes | Where-Object { $_.primaryKey })) {
-            $attrId = "attribute:$($element.id):$($attribute.id)"; $shape = $shapes[$attrId]
-            $size = Get-EstimatedTextWidth $attribute.nameEn 13
-            $node = $xml.CreateElement('line', $nsUri); $node.SetAttribute('data-primary-key', $attrId)
-            $node.SetAttribute('x1', [string][Math]::Round($shape.X - $size / 2, 2)); $node.SetAttribute('x2', [string][Math]::Round($shape.X + $size / 2, 2))
-            $node.SetAttribute('y1', [string]($shape.Y + 7.55)); $node.SetAttribute('y2', [string]($shape.Y + 7.55))
-            $node.SetAttribute('stroke', '#17212b'); $node.SetAttribute('stroke-width', '1')
-            [void]$xml.SelectSingleNode('/s:svg/s:g[last()]', $ns).AppendChild($node)
-        }
-    }
     $result = $xml.OuterXml
     if ($Theme -eq 'dark') { $result = $result.Replace('#ffffff', '#111827').Replace('#eef4f8', '#24364b').Replace('#fff7df', '#473b25').Replace('#4a5560', '#a8bacd').Replace('#17212b', '#f4f7fb') }
     return $result + "`n"
@@ -1693,6 +1713,7 @@ try {
             $conceptualSvg = New-ConceptualModelSvg -Diagram $conceptual -Layout $layout -Language $language -Theme $theme -Path $conceptualPath
             $relationalSvg = New-RelationalSchemaSvg -DatabaseModel $databaseModel -Schema $specification.relationalSchemas.system -Language $language
             $relationalSvg = Set-RelationalTheme $relationalSvg $theme
+            Assert-ChenPrimaryKeys $conceptualSvg $conceptualPath $conceptual $language
             Assert-SvgVariant $conceptualSvg $conceptualPath $language $theme 1800
             Assert-SvgVariant $relationalSvg $relationalPath $language $theme 1400
             $expectedArtifacts[$conceptualPath] = $utf8WithoutBom.GetBytes($conceptualSvg)
@@ -1700,6 +1721,7 @@ try {
             foreach ($key in @('requisition', 'identity')) {
                 $modulePath = "docs/diagrams/er-$key-$language-$theme.svg"
                 $moduleSvg = New-ModuleSvg -Diagram $specification.conceptualDiagrams.$key -Key $key -Language $language -Theme $theme -Path $modulePath
+                Assert-ChenPrimaryKeys $moduleSvg $modulePath $specification.conceptualDiagrams.$key $language
                 Assert-SvgVariant $moduleSvg $modulePath $language $theme 1800
                 $expectedArtifacts[$modulePath] = $utf8WithoutBom.GetBytes($moduleSvg)
             }

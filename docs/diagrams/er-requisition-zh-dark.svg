@@ -83,37 +83,31 @@
   <ellipse data-element="attribute:ALLOCATES:ALLOCATED_QUANTITY" cx="840" cy="720" rx="52" ry="18" fill="#111827" stroke="#a8bacd" stroke-width="1.5"/>
   <g font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" text-anchor="middle" fill="#f4f7fb">
     <text x="140" y="185.25" font-size="15" font-weight="600">科室</text>
-    <text x="65" y="69.55" font-size="13" font-weight="400">科室編號</text>
-    <line data-primary-key="科室編號" x1="39" y1="72.55" x2="91" y2="72.55" stroke="#f4f7fb" stroke-width="1"/>
+    <text x="65" y="69.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:DEPARTMENT:DEPARTMENT_ID">科室編號</text>
     <text x="175" y="69.55" font-size="13" font-weight="400">科室代碼</text>
     <text x="285" y="69.55" font-size="13" font-weight="400">科室名稱</text>
     <text x="650" y="185.25" font-size="15" font-weight="600">請領單</text>
-    <text x="455" y="69.55" font-size="13" font-weight="400">請領單編號</text>
-    <line data-primary-key="請領單編號" x1="422.5" y1="72.55" x2="487.5" y2="72.55" stroke="#f4f7fb" stroke-width="1"/>
+    <text x="455" y="69.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:REQUISITION:REQUISITION_ID">請領單編號</text>
     <text x="575" y="69.55" font-size="13" font-weight="400">單號</text>
     <text x="695" y="69.55" font-size="13" font-weight="400">狀態</text>
     <text x="840" y="69.55" font-size="13" font-weight="400">駁回原因</text>
     <text x="140" y="505.25" font-size="15" font-weight="600">品項</text>
-    <text x="50" y="389.55" font-size="13" font-weight="400">品項編號</text>
-    <line data-primary-key="品項編號" x1="24" y1="392.55" x2="76" y2="392.55" stroke="#f4f7fb" stroke-width="1"/>
+    <text x="50" y="389.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:ITEM:ITEM_ID">品項編號</text>
     <text x="155" y="389.55" font-size="13" font-weight="400">料號</text>
     <text x="260" y="389.55" font-size="13" font-weight="400">品名</text>
     <text x="75" y="619.55" font-size="13" font-weight="400">安全存量</text>
     <text x="210" y="619.55" font-size="13" font-weight="400">條碼</text>
     <text x="650" y="505.25" font-size="15" font-weight="600">請領明細</text>
-    <text x="830" y="444.55" font-size="13" font-weight="400">明細編號</text>
-    <line data-primary-key="明細編號" x1="804" y1="447.55" x2="856" y2="447.55" stroke="#f4f7fb" stroke-width="1"/>
+    <text x="830" y="444.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:REQUISITION_LINE:REQUISITION_LINE_ID">明細編號</text>
     <text x="830" y="504.55" font-size="13" font-weight="400">行號</text>
     <text x="830" y="564.55" font-size="13" font-weight="400">請領數量</text>
     <text x="400" y="925.25" font-size="15" font-weight="600">批次</text>
-    <text x="210" y="1084.55" font-size="13" font-weight="400">批次編號</text>
-    <line data-primary-key="批次編號" x1="184" y1="1087.55" x2="236" y2="1087.55" stroke="#f4f7fb" stroke-width="1"/>
+    <text x="210" y="1084.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:STOCK_LOT:STOCK_LOT_ID">批次編號</text>
     <text x="330" y="1084.55" font-size="13" font-weight="400">批號</text>
     <text x="450" y="1084.55" font-size="13" font-weight="400">效期</text>
     <text x="570" y="1084.55" font-size="13" font-weight="400">數量</text>
     <text x="840" y="925.25" font-size="15" font-weight="600">儲藏位置</text>
-    <text x="735" y="1044.55" font-size="13" font-weight="400">位置編號</text>
-    <line data-primary-key="位置編號" x1="709" y1="1047.55" x2="761" y2="1047.55" stroke="#f4f7fb" stroke-width="1"/>
+    <text x="735" y="1044.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:STORAGE_LOCATION:LOCATION_ID">位置編號</text>
     <text x="895" y="1044.55" font-size="13" font-weight="400">位置代碼</text>
     <text x="840" y="1114.55" font-size="13" font-weight="400">位置名稱</text>
     <text x="360" y="185.25" font-size="15" font-weight="600">提出</text>

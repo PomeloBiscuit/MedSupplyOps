@@ -47,23 +47,19 @@
   <ellipse data-element="attribute:AUDIT_LOG:VALUES" cx="920" cy="650" rx="56" ry="18" fill="#ffffff" stroke="#4a5560" stroke-width="1.5"/>
   <g font-family="&quot;Microsoft JhengHei&quot;, &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, sans-serif" text-anchor="middle" fill="#17212b">
     <text x="140" y="185.25" font-size="15" font-weight="600">科室</text>
-    <text x="60" y="69.55" font-size="13" font-weight="400">科室編號</text>
-    <line data-primary-key="科室編號" x1="34" y1="72.55" x2="86" y2="72.55" stroke="#17212b" stroke-width="1"/>
+    <text x="60" y="69.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:DEPARTMENT:DEPARTMENT_ID">科室編號</text>
     <text x="170" y="69.55" font-size="13" font-weight="400">科室代碼</text>
     <text x="280" y="69.55" font-size="13" font-weight="400">科室名稱</text>
     <text x="600" y="185.25" font-size="15" font-weight="600">使用者</text>
-    <text x="430" y="69.55" font-size="13" font-weight="400">使用者編號</text>
-    <line data-primary-key="使用者編號" x1="397.5" y1="72.55" x2="462.5" y2="72.55" stroke="#17212b" stroke-width="1"/>
+    <text x="430" y="69.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:USER:USER_ID">使用者編號</text>
     <text x="550" y="69.55" font-size="13" font-weight="400">帳號</text>
     <text x="670" y="69.55" font-size="13" font-weight="400">顯示名稱</text>
     <text x="800" y="69.55" font-size="13" font-weight="400">員工編號</text>
     <text x="600" y="595.25" font-size="15" font-weight="600">角色</text>
-    <text x="520" y="804.55" font-size="13" font-weight="400">角色編號</text>
-    <line data-primary-key="角色編號" x1="494" y1="807.55" x2="546" y2="807.55" stroke="#17212b" stroke-width="1"/>
+    <text x="520" y="804.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:ROLE:ROLE_ID">角色編號</text>
     <text x="680" y="804.55" font-size="13" font-weight="400">角色名稱</text>
     <text x="850" y="405.25" font-size="15" font-weight="600">稽核紀錄</text>
-    <text x="720" y="404.55" font-size="13" font-weight="400">稽核編號</text>
-    <line data-primary-key="稽核編號" x1="694" y1="407.55" x2="746" y2="407.55" stroke="#17212b" stroke-width="1"/>
+    <text x="720" y="404.55" font-size="13" font-weight="400" text-decoration="underline" data-primary-key="attribute:AUDIT_LOG:AUDIT_LOG_ID">稽核編號</text>
     <text x="950" y="404.55" font-size="13" font-weight="400">動作</text>
     <text x="760" y="654.55" font-size="13" font-weight="400">發生時間</text>
     <text x="920" y="654.55" font-size="13" font-weight="400">異動前後值</text>
