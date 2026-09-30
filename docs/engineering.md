@@ -85,6 +85,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-db-clean.ps1  
 
 [`scripts/check-db-clean.ps1`](scripts/check-db-clean.ps1) 就是補這個盲區的：
 跑完測試之後，資料庫必須回到只剩種子資料的狀態，否則 `exit 1`。
+受檢資料表由資料字典中有 `CREATED_BY` 或 `ACTOR` 欄位的表推導，無法推導時檢查會失敗。
+`-Clean` 保留人工確認的刪除規則，因為外鍵無法區分資料的擁有與引用關係；缺少規則時會拒絕刪除。
 
 整合測試組件另以系統層級 `Global\MedSupplyOps.IntegrationTests` mutex 保護同一個 Oracle schema。
 第二個 `dotnet test` 最多等 5 秒後會直接說明已有另一個 `testhost` 佔用，要求等待或停止前一個程序；
