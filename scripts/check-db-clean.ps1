@@ -43,11 +43,12 @@ ALTER SESSION SET CONTAINER=FREEPDB1;
 ALTER SESSION SET CURRENT_SCHEMA=$quotedSchema;
 SELECT 'DICT|' || t.table_name || '|' ||
        MAX(CASE WHEN c.column_name = 'CREATED_BY' THEN 1 ELSE 0 END) || '|' ||
-       MAX(CASE WHEN c.column_name = 'ACTOR' THEN 1 ELSE 0 END)
+       MAX(CASE WHEN c.column_name = 'ACTOR' THEN 1 ELSE 0 END) || '|' ||
+       MAX(CASE WHEN c.column_name = 'UPDATED_BY' THEN 1 ELSE 0 END)
 FROM all_tables t
 LEFT JOIN all_tab_columns c
   ON c.owner = t.owner AND c.table_name = t.table_name
- AND c.column_name IN ('CREATED_BY', 'ACTOR')
+ AND c.column_name IN ('CREATED_BY', 'ACTOR', 'UPDATED_BY')
 WHERE t.owner = '$schemaName'
   AND t.dropped = 'NO'
 GROUP BY t.table_name
@@ -62,10 +63,11 @@ try {
     foreach ($line in ($dictionaryOutput -split "`n")) {
         $line = $line.Trim()
         if ($line.Length -eq 0) { continue }
-        if ($line -cnotmatch '^DICT\|([^|]+)\|([01])\|([01])$') { throw "無法解析資料字典輸出：$line" }
+        if ($line -cnotmatch '^DICT\|([^|]+)\|([01])\|([01])\|([01])$') { throw "無法解析資料字典輸出：$line" }
         $tableName = $Matches[1]
         $hasCreatedBy = $Matches[2] -eq '1'
         $hasActor = $Matches[3] -eq '1'
+        $hasUpdatedBy = $Matches[4] -eq '1'
         if ($tableName -cnotmatch '^[A-Z][A-Z0-9_]*$' -or $seenTables.ContainsKey($tableName)) {
             throw "資料字典中的表名無效或重複：$tableName"
         }
@@ -76,7 +78,7 @@ try {
         foreach ($column in $columns) {
             if ($column -cnotmatch '^[A-Z][A-Z0-9_]*$') { throw "資料字典中的欄名無效：$column" }
         }
-        $tables += [pscustomobject]@{ Name = $tableName; Columns = $columns }
+        $tables += [pscustomobject]@{ Name = $tableName; Columns = $columns; HasUpdatedBy = $hasUpdatedBy }
     }
     $checkedTables = @($tables | Where-Object { $_.Columns.Count -gt 0 })
     $uncheckedTables = @($tables | Where-Object { $_.Columns.Count -eq 0 })
@@ -97,10 +99,14 @@ catch {
 Write-Host "已檢查 $($checkedTables.Count) 張：$(($checkedTables.Name) -join '、')"
 $uncheckedNames = if ($uncheckedTables.Count) { $uncheckedTables.Name -join '、' } else { '無' }
 Write-Host "沒有標記欄位、無法檢查：$uncheckedNames"
+$updatedTables = @($checkedTables | Where-Object { $_.HasUpdatedBy })
+$updatedNames = if ($updatedTables.Count) { $updatedTables.Name -join '、' } else { '無' }
+Write-Host "受檢表中有 UPDATED_BY：$updatedNames"
 
 function Get-ResidueSummary {
     param([object[]]$CheckedTables)
     $queries = @()
+    $expectedKeys = @()
     foreach ($table in $CheckedTables) {
         if ($table.Name -cnotmatch '^[A-Z][A-Z0-9_]*$') { throw "表名無效：$($table.Name)" }
         $qualifiedTable = "$quotedSchema.`"$($table.Name)`""
@@ -115,6 +121,7 @@ function Get-ResidueSummary {
         }
         $where = $conditions -join ' OR '
         $samples = $sampleQueries -join "`nUNION ALL`n"
+        $expectedKeys += "RES|$($table.Name)"
         $queries += @"
 SELECT 'RES|$($table.Name)|' ||
        (SELECT COUNT(*) FROM $qualifiedTable WHERE $where) || '|' ||
@@ -123,6 +130,23 @@ SELECT 'RES|$($table.Name)|' ||
                   ORDER BY marker FETCH FIRST 5 ROWS ONLY)), '無')
 FROM dual
 "@
+        if ($table.HasUpdatedBy) {
+            $updatedColumn = 'UPDATED_BY'
+            if ($updatedColumn -cnotmatch '^[A-Z][A-Z0-9_]*$') { throw "欄名無效：$updatedColumn" }
+            $seedWhere = "`"$updatedColumn`" LIKE '$markerPattern' ESCAPE '\'"
+            if ($table.Columns -ccontains 'CREATED_BY') {
+                $seedWhere += " AND (`"CREATED_BY`" IS NULL OR `"CREATED_BY`" NOT LIKE '$markerPattern' ESCAPE '\')"
+            }
+            $expectedKeys += "SEED|$($table.Name)"
+            $queries += @"
+SELECT 'SEED|$($table.Name)|' ||
+       (SELECT COUNT(*) FROM $qualifiedTable WHERE $seedWhere) || '|' ||
+       NVL((SELECT LISTAGG(SUBSTR(marker, 1, 100), ', ') WITHIN GROUP (ORDER BY marker)
+            FROM (SELECT DISTINCT "$updatedColumn" AS marker FROM $qualifiedTable
+                  WHERE $seedWhere ORDER BY marker FETCH FIRST 5 ROWS ONLY)), '無')
+FROM dual
+"@
+        }
     }
     $detectionSql = @"
 whenever sqlerror exit failure rollback
@@ -143,18 +167,32 @@ EXIT
     foreach ($line in ($output -split "`n")) {
         $line = $line.Trim()
         if ($line.Length -eq 0) { continue }
-        if ($line -cnotmatch '^RES\|([^|]+)\|([0-9]+)\|(.*)$') { throw "無法解析殘留查詢輸出：$line" }
-        $name = $Matches[1]
-        if (-not ($CheckedTables.Name -ccontains $name) -or $seen.ContainsKey($name)) {
-            throw "殘留查詢回傳未知或重複的表：$name"
+        if ($line -cnotmatch '^(RES|SEED)\|([^|]+)\|([0-9]+)\|(.*)$') { throw "無法解析殘留查詢輸出：$line" }
+        $kind = $Matches[1]
+        $name = $Matches[2]
+        $key = "$kind|$name"
+        if ($expectedKeys -cnotcontains $key -or $seen.ContainsKey($key)) {
+            throw "殘留查詢回傳未知或重複的表與類別：$key"
         }
-        $seen[$name] = $true
-        $results += [pscustomobject]@{ Name = $name; Count = [long]::Parse($Matches[2]); Samples = $Matches[3] }
+        $seen[$key] = $true
+        $results += [pscustomobject]@{ Kind = $kind; Name = $name; Count = [long]::Parse($Matches[3]); Samples = $Matches[4] }
     }
-    if ($results.Count -ne $CheckedTables.Count) {
-        throw "殘留查詢只回傳 $($results.Count) 張，預期 $($CheckedTables.Count) 張"
+    if ($results.Count -ne $expectedKeys.Count) {
+        throw "殘留查詢只回傳 $($results.Count) 組表與類別，預期 $($expectedKeys.Count) 組"
     }
     return $results
+}
+
+function Write-ModifiedSeedSummary {
+    param([object[]]$Rows)
+    if ($Rows.Count -eq 0) { return }
+    Write-Host '種子資料被測試改過（無法自動還原）：' -ForegroundColor Red
+    foreach ($row in $Rows) {
+        Write-Host "  $($row.Name)：$($row.Count) 筆；UPDATED_BY（前 5 個不同值）：$($row.Samples)"
+    }
+    if ($Clean) {
+        Write-Host '重建方式：docker compose down -v 後重新啟動，或見 docs/operations/backup-restore.md 從備份還原。' -ForegroundColor Yellow
+    }
 }
 
 try { $summary = @(Get-ResidueSummary -CheckedTables $checkedTables) }
@@ -162,19 +200,23 @@ catch {
     Write-Host "查詢失敗，無法判斷資料庫是否乾淨：$($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
-$leftovers = @($summary | Where-Object { $_.Count -gt 0 })
-if ($leftovers.Count -eq 0) {
-    Write-Host "資料庫乾淨：沒有 CREATED_BY／ACTOR 以 '$TestMarker' 開頭的殘留資料。" -ForegroundColor Green
+$leftovers = @($summary | Where-Object { $_.Kind -eq 'RES' -and $_.Count -gt 0 })
+$modifiedSeeds = @($summary | Where-Object { $_.Kind -eq 'SEED' -and $_.Count -gt 0 })
+if ($leftovers.Count -eq 0 -and $modifiedSeeds.Count -eq 0) {
+    Write-Host "資料庫乾淨：沒有 CREATED_BY／ACTOR 以 '$TestMarker' 開頭的殘留資料，也沒有被測試改過的種子資料。" -ForegroundColor Green
 }
-else {
+elseif ($leftovers.Count -gt 0) {
     Write-Host "整合測試在資料庫留下殘留資料（CREATED_BY／ACTOR 以 '$TestMarker' 開頭）：" -ForegroundColor Red
     foreach ($row in $leftovers) {
         Write-Host "  $($row.Name)：$($row.Count) 筆；標記值（前 5 個）：$($row.Samples)"
     }
 }
+Write-ModifiedSeedSummary -Rows $modifiedSeeds
 if (-not $Clean) {
-    if ($leftovers.Count -eq 0) { exit 0 }
-    Write-Host '要清掉的話加上 -Clean 參數再跑一次。' -ForegroundColor Yellow
+    if ($leftovers.Count -eq 0 -and $modifiedSeeds.Count -eq 0) { exit 0 }
+    if ($leftovers.Count -gt 0) {
+        Write-Host '要清掉的話加上 -Clean 參數再跑一次。' -ForegroundColor Yellow
+    }
     exit 1
 }
 
@@ -187,7 +229,10 @@ if ($missingRules.Count -gt 0) {
     }
     exit 1
 }
-if ($leftovers.Count -eq 0) { exit 0 }
+if ($leftovers.Count -eq 0) {
+    if ($modifiedSeeds.Count -gt 0) { exit 1 }
+    exit 0
+}
 
 Write-Host '正在清除（依外鍵相依順序，只刪 created_by / actor 有測試前綴的資料）...' -ForegroundColor Cyan
 # 刻意不用 ON DELETE CASCADE；只依確認過的擁有關係與外鍵順序刪除。
@@ -218,17 +263,22 @@ catch {
     Write-Host "清除失敗：$($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
-try { $remaining = @(Get-ResidueSummary -CheckedTables $checkedTables | Where-Object { $_.Count -gt 0 }) }
+try { $remainingSummary = @(Get-ResidueSummary -CheckedTables $checkedTables) }
 catch {
     Write-Host "清除後查詢失敗，無法判斷資料庫是否乾淨：$($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
-if ($remaining.Count -eq 0) {
+$remaining = @($remainingSummary | Where-Object { $_.Kind -eq 'RES' -and $_.Count -gt 0 })
+$remainingSeeds = @($remainingSummary | Where-Object { $_.Kind -eq 'SEED' -and $_.Count -gt 0 })
+if ($remaining.Count -eq 0 -and $remainingSeeds.Count -eq 0) {
     Write-Host '資料庫乾淨：清除完成，已回到只有種子資料的狀態。' -ForegroundColor Green
     exit 0
 }
-Write-Host '清除後仍有殘留：' -ForegroundColor Red
-foreach ($row in $remaining) {
-    Write-Host "  $($row.Name)：$($row.Count) 筆；標記值（前 5 個）：$($row.Samples)"
+if ($remaining.Count -gt 0) {
+    Write-Host '清除後仍有殘留：' -ForegroundColor Red
+    foreach ($row in $remaining) {
+        Write-Host "  $($row.Name)：$($row.Count) 筆；標記值（前 5 個）：$($row.Samples)"
+    }
 }
+Write-ModifiedSeedSummary -Rows $remainingSeeds
 exit 1
