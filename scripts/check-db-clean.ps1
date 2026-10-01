@@ -190,9 +190,7 @@ function Write-ModifiedSeedSummary {
     foreach ($row in $Rows) {
         Write-Host "  $($row.Name)：$($row.Count) 筆；UPDATED_BY（前 5 個不同值）：$($row.Samples)"
     }
-    if ($Clean) {
-        Write-Host '重建方式：docker compose down -v 後重新啟動，或見 docs/operations/backup-restore.md 從備份還原。' -ForegroundColor Yellow
-    }
+    Write-Host '重建方式：docker compose down -v 後重新啟動，或見 docs/operations/backup-restore.md 從備份還原。' -ForegroundColor Yellow
 }
 
 try { $summary = @(Get-ResidueSummary -CheckedTables $checkedTables) }
@@ -211,8 +209,8 @@ elseif ($leftovers.Count -gt 0) {
         Write-Host "  $($row.Name)：$($row.Count) 筆；標記值（前 5 個）：$($row.Samples)"
     }
 }
-Write-ModifiedSeedSummary -Rows $modifiedSeeds
 if (-not $Clean) {
+    Write-ModifiedSeedSummary -Rows $modifiedSeeds
     if ($leftovers.Count -eq 0 -and $modifiedSeeds.Count -eq 0) { exit 0 }
     if ($leftovers.Count -gt 0) {
         Write-Host '要清掉的話加上 -Clean 參數再跑一次。' -ForegroundColor Yellow
@@ -227,9 +225,11 @@ if ($missingRules.Count -gt 0) {
     foreach ($table in $missingRules) {
         Write-Host "資料表 $($table.Name) 有測試標記欄位，但 -Clean 沒有它的刪除規則；請依外鍵順序補上" -ForegroundColor Red
     }
+    Write-ModifiedSeedSummary -Rows $modifiedSeeds
     exit 1
 }
 if ($leftovers.Count -eq 0) {
+    Write-ModifiedSeedSummary -Rows $modifiedSeeds
     if ($modifiedSeeds.Count -gt 0) { exit 1 }
     exit 0
 }

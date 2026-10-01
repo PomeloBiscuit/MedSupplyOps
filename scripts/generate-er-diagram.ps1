@@ -1418,13 +1418,13 @@ function Set-RelationalTheme {
 }
 
 function Assert-SvgVariant {
-    param([string]$Svg, [string]$Path, [string]$Language, [string]$Theme, [int]$WidthLimit)
+    param([string]$Svg, [string]$Path, [string]$Language, [string]$Theme, [int]$WidthLimit, [switch]$RequireChenFont)
     $xml = [xml]$Svg
     $root = $xml.DocumentElement
     if ([int]$root.GetAttribute('width') -gt $WidthLimit) { throw "$Path 寬度超過 ${WidthLimit}px。" }
     $ns = [System.Xml.XmlNamespaceManager]::new($xml.NameTable)
     $ns.AddNamespace('s', 'http://www.w3.org/2000/svg')
-    if ($Path -match '^docs/diagrams/er-(chen|requisition|identity)-(zh|en)-(light|dark)\.svg$') {
+    if ($RequireChenFont) {
         $expectedFontFamily = [System.Net.WebUtility]::HtmlDecode($script:ChenSansFont)
         foreach ($node in $xml.SelectNodes('//s:text', $ns)) {
             $fontFamily = $null
@@ -1714,7 +1714,7 @@ try {
             $relationalSvg = New-RelationalSchemaSvg -DatabaseModel $databaseModel -Schema $specification.relationalSchemas.system -Language $language
             $relationalSvg = Set-RelationalTheme $relationalSvg $theme
             Assert-ChenPrimaryKeys $conceptualSvg $conceptualPath $conceptual $language
-            Assert-SvgVariant $conceptualSvg $conceptualPath $language $theme 1800
+            Assert-SvgVariant $conceptualSvg $conceptualPath $language $theme 1800 -RequireChenFont
             Assert-SvgVariant $relationalSvg $relationalPath $language $theme 1400
             $expectedArtifacts[$conceptualPath] = $utf8WithoutBom.GetBytes($conceptualSvg)
             $expectedArtifacts[$relationalPath] = $utf8WithoutBom.GetBytes($relationalSvg)
@@ -1722,7 +1722,7 @@ try {
                 $modulePath = "docs/diagrams/er-$key-$language-$theme.svg"
                 $moduleSvg = New-ModuleSvg -Diagram $specification.conceptualDiagrams.$key -Key $key -Language $language -Theme $theme -Path $modulePath
                 Assert-ChenPrimaryKeys $moduleSvg $modulePath $specification.conceptualDiagrams.$key $language
-                Assert-SvgVariant $moduleSvg $modulePath $language $theme 1800
+                Assert-SvgVariant $moduleSvg $modulePath $language $theme 1800 -RequireChenFont
                 $expectedArtifacts[$modulePath] = $utf8WithoutBom.GetBytes($moduleSvg)
             }
         }
